@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAdmin } from "@/lib/admin-session";
 
 interface RouteContext {
   params: Promise<{
@@ -12,6 +13,18 @@ export async function POST(
   _request: Request,
   { params }: RouteContext
 ) {
+  const admin = await getCurrentAdmin();
+
+  if (!admin) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unauthorized.",
+      },
+      { status: 401 }
+    );
+  }
+
   try {
     const { id } = await params;
 

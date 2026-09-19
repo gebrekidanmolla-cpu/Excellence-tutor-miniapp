@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAdmin } from "@/lib/admin-session";
 
 const allowedGenders = [
   "MALE",
@@ -10,6 +11,18 @@ const allowedGenders = [
 type AllowedGender = (typeof allowedGenders)[number];
 
 export async function GET() {
+  const admin = await getCurrentAdmin();
+
+  if (!admin) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unauthorized.",
+      },
+      { status: 401 }
+    );
+  }
+
   try {
     const jobs = await prisma.job.findMany({
       orderBy: {
@@ -42,6 +55,18 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const admin = await getCurrentAdmin();
+
+  if (!admin) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unauthorized.",
+      },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await request.json();
 
@@ -51,6 +76,9 @@ export async function POST(request: Request) {
       grade,
       subject,
       salary,
+      daysPerWeek,
+      hoursPerDay,
+      additionalDetails,
       status,
     } = body;
 
@@ -62,7 +90,11 @@ export async function POST(request: Request) {
       !grade ||
       !subject ||
       salary === undefined ||
-      salary === null
+      salary === null ||
+      daysPerWeek === undefined ||
+      daysPerWeek === null ||
+      hoursPerDay === undefined ||
+      hoursPerDay === null
     ) {
       return NextResponse.json(
         {
@@ -155,6 +187,63 @@ export async function POST(request: Request) {
       );
     }
 
+    // Schedule validation
+
+    const parsedDaysPerWeek =
+      Number(daysPerWeek);
+
+    if (
+      !Number.isFinite(parsedDaysPerWeek) ||
+      !Number.isInteger(parsedDaysPerWeek) ||
+      parsedDaysPerWeek < 1 ||
+      parsedDaysPerWeek > 7
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Days per week must be a whole number between 1 and 7.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const parsedHoursPerDay =
+      Number(hoursPerDay);
+
+    if (
+      !Number.isFinite(parsedHoursPerDay) ||
+      parsedHoursPerDay < 0.5 ||
+      parsedHoursPerDay > 12
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Hours per day must be between 0.5 and 12.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Additional details
+
+    const normalizedAdditionalDetails =
+      typeof additionalDetails === "string"
+        ? additionalDetails.trim()
+        : "";
+
+    if (normalizedAdditionalDetails.length > 5000) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Additional details must be 5000 characters or fewer.",
+        },
+        { status: 400 }
+      );
+    }
+
     // Status
 
     const normalizedStatus =
@@ -191,6 +280,10 @@ export async function POST(request: Request) {
         grade: normalizedGrade,
         subject: normalizedSubject,
         salary: parsedSalary,
+        daysPerWeek: parsedDaysPerWeek,
+        hoursPerDay: parsedHoursPerDay,
+        additionalDetails:
+          normalizedAdditionalDetails || null,
         status: normalizedStatus,
       },
     });

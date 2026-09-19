@@ -36,6 +36,8 @@ async function main() {
       subject: "All",
       salary: 4800,
       status: "OPEN",
+      daysPerWeek: 5,
+      hoursPerDay: 2,
     },
   });
 
