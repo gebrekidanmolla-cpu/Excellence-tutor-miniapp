@@ -1,16 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
   BriefcaseBusiness,
   CalendarDays,
   GraduationCap,
+  LayoutDashboard,
   MapPin,
+  RotateCw,
+  Search,
   Users,
+  Wallet,
 } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ErrorState } from "@/components/shared/ErrorState";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { formatDate, formatSalary } from "@/lib/format";
 
 type Job = {
   id: string;
@@ -24,242 +37,251 @@ type Job = {
   createdAt: string;
 };
 
+/** `ANY` reads as "Any Tutor" here rather than the raw enum. */
+function formatTutorRequirement(gender: Job["gender"]): string {
+  switch (gender) {
+    case "MALE":
+      return "Male Tutor";
+    case "FEMALE":
+      return "Female Tutor";
+    default:
+      return "Any Tutor";
+  }
+}
+
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+
+  /* Bumping this re-runs the effect; the retry button drives it. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    async function loadJobs() {
-      try {
-        setLoading(true);
-        setError("");
+    let cancelled = false;
 
+    /* Every state update happens after an await: setting state synchronously
+       inside an effect causes a cascading re-render. */
+    async function run() {
+      try {
         const response = await fetch("/api/jobs?status=OPEN", {
           cache: "no-store",
         });
 
         const result = await response.json();
 
+        if (cancelled) {
+          return;
+        }
+
         if (!response.ok) {
-          throw new Error(
-            result.message || "Failed to load jobs."
-          );
+          throw new Error(result.message || "Failed to load jobs.");
         }
 
         setJobs(result.jobs ?? []);
-      } catch (error) {
-        console.error(error);
-
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Failed to load jobs."
-        );
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to load jobs."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
-    loadJobs();
-  }, []);
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  function retry() {
+    setLoading(true);
+    setError("");
+    setReloadKey((key) => key + 1);
+  }
+
+  /* Client-side only: the endpoint returns every open job, and filtering here
+     avoids a round trip per keystroke. */
+  const visibleJobs = useMemo(() => {
+    const term = query.trim().toLowerCase();
+
+    if (!term) {
+      return jobs;
+    }
+
+    return jobs.filter((job) =>
+      [job.jobCode, job.subject, job.grade, job.place]
+        .join(" ")
+        .toLowerCase()
+        .includes(term)
+    );
+  }, [jobs, query]);
 
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-950">
-      {/* Header */}
+    <div className="space-y-6">
+      <PageHeader
+        title="Available jobs"
+        description={
+          loading
+            ? "Loading opportunities…"
+            : `${jobs.length} ${
+                jobs.length === 1 ? "opportunity" : "opportunities"
+              } currently accepting applications`
+        }
+      />
 
-      <section className="border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-10 lg:py-14">
-          <div className="max-w-3xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-600">
-              <BriefcaseBusiness size={15} />
-              Available Opportunities
-            </div>
+      {!loading && !error && jobs.length > 0 ? (
+        <div className="relative max-w-sm">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
 
-            <h1 className="text-4xl font-bold tracking-[-0.04em] sm:text-5xl">
-              Find your next
-              <span className="block text-gray-400">
-                teaching opportunity.
-              </span>
-            </h1>
-
-            <p className="mt-5 max-w-2xl text-base leading-7 text-gray-600 sm:text-lg">
-              Browse tutoring positions currently accepting
-              applications and find an opportunity that matches
-              your qualifications.
-            </p>
-          </div>
+          <Input
+            type="search"
+            size="xl"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search subject, grade, place or code"
+            aria-label="Search jobs"
+            className="pl-9"
+          />
         </div>
-      </section>
+      ) : null}
 
-      {/* Jobs */}
-
-      <section className="mx-auto max-w-7xl px-6 py-10 lg:py-14">
-        <div className="mb-8">
-          <p className="text-sm font-semibold text-gray-900">
-            Open Positions
-          </p>
-
-          <p className="mt-1 text-sm text-gray-500">
-            {loading
-              ? "Loading opportunities..."
-              : `${jobs.length} ${
-                  jobs.length === 1
-                    ? "opportunity"
-                    : "opportunities"
-                } currently available`}
-          </p>
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-80 rounded-xl" />
+          ))}
         </div>
+      ) : null}
 
-        {/* Error */}
+      {!loading && error ? (
+        <ErrorState
+          title="Could not load jobs"
+          description={error}
+          action={
+            <Button onClick={retry} size="lg">
+              <RotateCw data-icon="inline-start" aria-hidden="true" />
+              Try again
+            </Button>
+          }
+        />
+      ) : null}
 
-        {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+      {!loading && !error && jobs.length === 0 ? (
+        <EmptyState
+          icon={<BriefcaseBusiness />}
+          title="No open positions"
+          description="There are currently no tutoring opportunities accepting applications. Please check again later."
+          action={
+            <Button render={<Link href="/tutor" />} size="lg">
+              <LayoutDashboard data-icon="inline-start" aria-hidden="true" />
+              Back to dashboard
+            </Button>
+          }
+        />
+      ) : null}
 
-        {/* Loading */}
+      {!loading && !error && jobs.length > 0 && visibleJobs.length === 0 ? (
+        <EmptyState
+          icon={<Search />}
+          title="No matching jobs"
+          description={`Nothing matches “${query}”. Try a different subject, grade or place.`}
+          action={
+            <Button variant="outline" size="lg" onClick={() => setQuery("")}>
+              Clear search
+            </Button>
+          }
+        />
+      ) : null}
 
-        {loading && (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-82.5 animate-pulse rounded-2xl border border-gray-200 bg-white"
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Empty */}
-
-        {!loading && !error && jobs.length === 0 && (
-          <div className="rounded-3xl border border-gray-200 bg-white px-6 py-20 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100">
-              <BriefcaseBusiness size={25} />
-            </div>
-
-            <h2 className="mt-5 text-xl font-bold">
-              No open positions
-            </h2>
-
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
-              There are currently no tutoring opportunities
-              accepting applications. Please check again later.
-            </p>
-
-            <Link
-              href="/tutor"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
-            >
-              Back to Dashboard
-            </Link>
-          </div>
-        )}
-
-        {/* Jobs */}
-
-        {!loading && !error && jobs.length > 0 && (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {jobs.map((job) => (
-              <JobCard key={job.id} job={job} />
-            ))}
-          </div>
-        )}
-      </section>
-    </main>
+      {!loading && !error && visibleJobs.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {visibleJobs.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
 function JobCard({ job }: { job: Job }) {
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition duration-300 hover:-translate-y-1 hover:border-gray-300 hover:shadow-xl hover:shadow-gray-200/50">
-      {/* Top */}
-
-      <div className="border-b border-gray-100 p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100">
-            <BookOpen size={21} />
-          </div>
-
-          <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-            Open
-          </span>
-        </div>
-
-        <div className="mt-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-400">
-            Job Code
+    <article className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-lg hover:shadow-primary/5 has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50">
+      <div className="flex items-start justify-between gap-3 border-b p-5">
+        <div className="min-w-0">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            Job code
           </p>
 
-          <h2 className="mt-1 text-xl font-bold tracking-tight">
+          <h2 className="mt-0.5 truncate font-heading text-lg font-semibold">
             {job.jobCode}
           </h2>
         </div>
+
+        <StatusBadge status={job.status} />
       </div>
 
-      {/* Details */}
+      <div className="flex-1 space-y-4 p-5">
+        <JobDetail
+          icon={<BookOpen />}
+          label="Subject"
+          value={job.subject}
+        />
+        <JobDetail
+          icon={<GraduationCap />}
+          label="Grade"
+          value={job.grade}
+        />
+        <JobDetail icon={<MapPin />} label="Place" value={job.place} />
+        <JobDetail
+          icon={<Users />}
+          label="Tutor requirement"
+          value={formatTutorRequirement(job.gender)}
+        />
+        <JobDetail
+          icon={<CalendarDays />}
+          label="Posted"
+          value={formatDate(job.createdAt)}
+        />
 
-      <div className="flex-1 p-6">
-        <div className="space-y-4">
-          <JobDetail
-            icon={<GraduationCap size={17} />}
-            label="Grade"
-            value={job.grade}
-          />
+        <div className="flex items-center gap-3 rounded-lg bg-muted/60 p-3">
+          <span
+            aria-hidden="true"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+          >
+            <Wallet className="size-4.5" />
+          </span>
 
-          <JobDetail
-            icon={<BookOpen size={17} />}
-            label="Subject"
-            value={job.subject}
-          />
-
-          <JobDetail
-            icon={<MapPin size={17} />}
-            label="Place"
-            value={job.place}
-          />
-
-          <JobDetail
-            icon={<Users size={17} />}
-            label="Tutor Requirement"
-            value={formatGender(job.gender)}
-          />
-
-          <JobDetail
-            icon={<CalendarDays size={17} />}
-            label="Posted"
-            value={formatDate(job.createdAt)}
-          />
-        </div>
-
-        {/* Salary */}
-
-        <div className="mt-6 rounded-xl bg-gray-50 p-4">
-          <p className="text-xs font-medium text-gray-500">
-            Monthly Salary
-          </p>
-
-          <p className="mt-1 text-xl font-bold">
-            {job.salary.toLocaleString()} ETB
-          </p>
+          <div>
+            <p className="text-xs text-muted-foreground">Monthly salary</p>
+            <p className="font-heading text-base font-semibold">
+              {formatSalary(job.salary)}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Action */}
-
-      <div className="border-t border-gray-100 p-4">
-        <Link
-          href={`/jobs/${job.jobCode}`}
-          className="group/button flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+      <div className="border-t p-4">
+        <Button
+          render={<Link href={`/jobs/${job.jobCode}`} />}
+          size="xl"
+          className="w-full"
         >
-          View Details
-          <ArrowRight
-            size={16}
-            className="transition-transform group-hover/button:translate-x-1"
-          />
-        </Link>
+          View details
+          <ArrowRight data-icon="inline-end" aria-hidden="true" />
+        </Button>
       </div>
     </article>
   );
@@ -276,42 +298,17 @@ function JobDetail({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500">
+      <span
+        aria-hidden="true"
+        className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground [&>svg]:size-4"
+      >
         {icon}
-      </div>
+      </span>
 
       <div className="min-w-0">
-        <p className="text-xs text-gray-400">
-          {label}
-        </p>
-
-        <p className="truncate text-sm font-semibold text-gray-800">
-          {value}
-        </p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="truncate text-sm font-medium">{value}</p>
       </div>
     </div>
   );
-}
-
-function formatGender(
-  gender: Job["gender"]
-) {
-  switch (gender) {
-    case "MALE":
-      return "Male Tutor";
-
-    case "FEMALE":
-      return "Female Tutor";
-
-    default:
-      return "Any Tutor";
-  }
-}
-
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(date));
 }

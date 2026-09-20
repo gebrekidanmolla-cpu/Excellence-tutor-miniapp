@@ -1,34 +1,21 @@
-import Link from "next/link";
 import CreateJobForm from "@/components/admin/CreateJobForm";
+import { PageHeader } from "@/components/shared/PageHeader";
+
+export const metadata = {
+  title: "Create job",
+};
 
 export default function NewJobPage() {
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="mx-auto max-w-3xl space-y-6">
+      <PageHeader
+        backHref="/admin/jobs"
+        backLabel="Back to jobs"
+        title="Create a job"
+        description="Create a tutoring job that can be posted to Telegram."
+      />
 
-      <div>
-        <Link
-          href="/admin/jobs"
-          className="text-sm font-medium text-gray-600 hover:text-black"
-        >
-          ← Back to Jobs
-        </Link>
-      </div>
-
-      <div>
-        <h1 className="text-3xl font-bold">
-          Create New Job
-        </h1>
-
-        <p className="mt-2 text-sm text-gray-500">
-          Create a tutoring job that can be posted
-          to Telegram.
-        </p>
-      </div>
-
-      <div className="rounded-2xl border bg-white p-6 shadow-sm">
-        <CreateJobForm />
-      </div>
-
+      <CreateJobForm />
     </div>
   );
 }

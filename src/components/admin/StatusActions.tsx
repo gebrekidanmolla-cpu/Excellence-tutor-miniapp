@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, Eye, Info, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
-type ApplicationStatus =
-  | "PENDING"
-  | "REVIEWED"
-  | "ACCEPTED"
-  | "REJECTED";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+
+type ApplicationStatus = "PENDING" | "REVIEWED" | "ACCEPTED" | "REJECTED";
 
 interface StatusActionsProps {
   applicationId: string;
@@ -20,130 +21,91 @@ export default function StatusActions({
 }: StatusActionsProps) {
   const router = useRouter();
 
-  const [isUpdating, setIsUpdating] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  async function updateStatus(
-    status: ApplicationStatus
-  ) {
-    if (status === currentStatus) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Are you sure you want to change the application status to ${status}?`
+  async function updateStatus(status: ApplicationStatus) {
+    /* No trailing slash: the previous URL ended in `/`, which the router
+       redirects, and a redirected PATCH does not carry its method. */
+    const response = await fetch(
+      `/api/admin/applications/${applicationId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status,
+        }),
+      }
     );
 
-    if (!confirmed) {
-      return;
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.message || "Failed to update application status."
+      );
     }
 
-    setIsUpdating(true);
-    setError("");
-
-    try {
-      const response = await fetch(
-        `/api/admin/applications/${applicationId}/`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            status,
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setError(
-          result.message ||
-            "Failed to update application status."
-        );
-
-        return;
-      }
-
-      router.refresh();
-    } catch (error) {
-      console.error(error);
-
-      setError(
-        "Something went wrong. Please try again."
-      );
-    } finally {
-      setIsUpdating(false);
-    }
+    toast.success("Application status updated.");
+    router.refresh();
   }
 
   return (
     <div className="space-y-4">
-
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-3">
-
-        <button
-          type="button"
-          disabled={
-            isUpdating ||
-            currentStatus === "REVIEWED"
+      <div className="flex flex-wrap gap-2">
+        <ConfirmDialog
+          trigger={
+            <Button size="xl" disabled={currentStatus === "REVIEWED"}>
+              <Eye data-icon="inline-start" aria-hidden="true" />
+              Mark reviewed
+            </Button>
           }
-          onClick={() =>
-            updateStatus("REVIEWED")
+          title="Mark this application as reviewed?"
+          description="This records that the application has been looked at. It does not accept or reject the tutor."
+          confirmLabel="Mark reviewed"
+          onConfirm={() => updateStatus("REVIEWED")}
+        />
+
+        <ConfirmDialog
+          trigger={
+            <Button
+              variant="destructive"
+              size="xl"
+              disabled={currentStatus === "REJECTED"}
+            >
+              <XCircle data-icon="inline-start" aria-hidden="true" />
+              Reject
+            </Button>
           }
-          className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+          title="Reject this application?"
+          description="The tutor will see this application as rejected. Other applications for this job are unaffected."
+          confirmLabel="Reject application"
+          variant="destructive"
+          onConfirm={() => updateStatus("REJECTED")}
+        />
+
+        {/* Accepting is not a status change: it runs a transaction that also
+            assigns the tutor, rejects the other applicants and closes the job.
+            The API rejects `status: "ACCEPTED"` here with a 400, so this is
+            shown as unavailable rather than as a button that always fails. */}
+        <Button
+          size="xl"
+          variant="outline"
+          disabled
+          title="Accepting happens through Assign Tutor"
         >
-          {isUpdating
-            ? "Updating..."
-            : "Mark Reviewed"}
-        </button>
-
-        <button
-          type="button"
-          disabled={
-            isUpdating ||
-            currentStatus === "ACCEPTED"
-          }
-          onClick={() =>
-            updateStatus("ACCEPTED")
-          }
-          className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
+          <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
           Accept
-        </button>
-
-        <button
-          type="button"
-          disabled={
-            isUpdating ||
-            currentStatus === "REJECTED"
-          }
-          onClick={() =>
-            updateStatus("REJECTED")
-          }
-          className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Reject
-        </button>
-
+        </Button>
       </div>
 
-      {isUpdating && (
-        <p className="text-sm text-gray-500">
-          Updating application status...
-        </p>
-      )}
-
+      <Alert>
+        <Info aria-hidden="true" />
+        <AlertDescription>
+          Accepting a tutor is done with <strong>Assign Tutor</strong> on the
+          applications list. That runs a single transaction: it accepts this
+          tutor, rejects the other applicants and closes the job.
+        </AlertDescription>
+      </Alert>
     </div>
   );
 }

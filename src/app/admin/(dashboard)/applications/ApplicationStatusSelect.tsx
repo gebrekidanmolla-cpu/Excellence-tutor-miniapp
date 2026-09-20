@@ -1,45 +1,44 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
-type ApplicationStatus =
-  | "PENDING"
-  | "REVIEWED"
-  | "ACCEPTED"
-  | "REJECTED";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+
+type ApplicationStatus = "PENDING" | "REVIEWED" | "ACCEPTED" | "REJECTED";
 
 type Props = {
   applicationId: string;
   initialStatus: ApplicationStatus;
 };
 
-const statuses: ApplicationStatus[] = [
-  "PENDING",
-  "REVIEWED",
-  "REJECTED",
+/* ACCEPTED is deliberately absent: it must go through the Assign Tutor
+   workflow, and `PATCH /api/admin/applications/[id]` rejects it with a 400. */
+const OPTIONS = [
+  { value: "PENDING", label: "Pending" },
+  { value: "REVIEWED", label: "Reviewed" },
+  { value: "REJECTED", label: "Rejected" },
 ];
-
-const labels: Record<ApplicationStatus, string> = {
-  PENDING: "Pending",
-  REVIEWED: "Reviewed",
-  ACCEPTED: "Accepted",
-  REJECTED: "Rejected",
-};
 
 export default function ApplicationStatusSelect({
   applicationId,
   initialStatus,
 }: Props) {
-  const [status, setStatus] =
-    useState<ApplicationStatus>(initialStatus);
+  const router = useRouter();
 
+  const [status, setStatus] = useState<ApplicationStatus>(initialStatus);
   const [saving, setSaving] = useState(false);
 
-  async function handleChange(
-    nextStatus: ApplicationStatus
-  ) {
-    // ACCEPTED must only happen through the Assign Tutor workflow.
-    if (nextStatus === "ACCEPTED") {
+  async function handleChange(nextStatus: ApplicationStatus) {
+    if (nextStatus === "ACCEPTED" || nextStatus === status) {
       return;
     }
 
@@ -66,19 +65,19 @@ export default function ApplicationStatusSelect({
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Failed to update application status."
+          data.message || "Failed to update application status."
         );
       }
-    } catch (error) {
-      console.error(
-        "Failed to update application status:",
-        error
-      );
 
+      toast.success("Application status updated.");
+
+      /* The surrounding row is server-rendered; without this the Assigned /
+         Closed cells next to this control keep showing stale values. */
+      router.refresh();
+    } catch (error) {
       setStatus(previousStatus);
 
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Failed to update application status."
@@ -88,45 +87,35 @@ export default function ApplicationStatusSelect({
     }
   }
 
-  // Once accepted, it should be displayed as read-only.
+  // Once accepted it is read-only.
   if (status === "ACCEPTED") {
-    return (
-      <span className="inline-flex h-8 items-center rounded-lg border border-gray-400 bg-gray-200 px-2.5 text-xs font-semibold text-gray-900 dark:border-gray-500 dark:bg-gray-600 dark:text-white">
-        {labels.ACCEPTED}
-      </span>
-    );
+    return <StatusBadge status="ACCEPTED" />;
   }
 
   return (
-    <div className="relative inline-flex">
-      <select
-        value={status}
-        disabled={saving}
-        onChange={(event) =>
-          handleChange(
-            event.target.value as ApplicationStatus
-          )
-        }
-        className={`h-8 rounded-lg border px-2.5 pr-7 text-xs font-medium outline-none transition disabled:cursor-wait disabled:opacity-60 ${
-          status === "PENDING"
-            ? "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-            : status === "REVIEWED"
-              ? "border-gray-300 bg-gray-100 text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
-              : "border-red-200 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400"
-        }`}
+    <Select
+      items={OPTIONS}
+      value={status}
+      disabled={saving}
+      onValueChange={(value) =>
+        handleChange(value as ApplicationStatus)
+      }
+    >
+      <SelectTrigger
+        size="sm"
+        className="w-32"
+        aria-label="Application status"
       >
-        {statuses.map((value) => (
-          <option key={value} value={value}>
-            {labels[value]}
-          </option>
-        ))}
-      </select>
+        <SelectValue />
+      </SelectTrigger>
 
-      {saving && (
-        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-gray-500">
-          …
-        </span>
-      )}
-    </div>
+      <SelectContent>
+        {OPTIONS.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

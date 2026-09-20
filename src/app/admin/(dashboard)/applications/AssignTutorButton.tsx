@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  CheckCircle2,
-  Loader2,
-} from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface AssignTutorButtonProps {
   applicationId: string;
@@ -13,6 +13,14 @@ interface AssignTutorButtonProps {
   jobCode: string;
 }
 
+/**
+ * Assignment runs a single transaction server-side: accept this application,
+ * reject the job's others, and close the job. The consequences are spelled out
+ * in the dialog rather than in a `window.confirm` string.
+ *
+ * Errors surface inside the dialog — the previous absolutely-positioned
+ * popover was clipped by the table's `overflow-x-auto` ancestor.
+ */
 export default function AssignTutorButton({
   applicationId,
   tutorName,
@@ -20,95 +28,53 @@ export default function AssignTutorButton({
 }: AssignTutorButtonProps) {
   const router = useRouter();
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(
-    null
-  );
-
-  async function handleAssignTutor() {
+  async function assign() {
     if (!applicationId) {
-      setError("Application ID is missing.");
-      return;
+      throw new Error("Application ID is missing.");
     }
 
-    const confirmed = window.confirm(
-      `Assign ${tutorName} to job ${jobCode}?\n\n` +
-        `This will:\n` +
-        `• Accept this tutor\n` +
-        `• Assign the tutor to the job\n` +
-        `• Reject all other applicants\n` +
-        `• Close the job`
+    const response = await fetch(
+      `/api/admin/applications/${applicationId}/assign`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
     );
 
-    if (!confirmed) return;
+    const data = await response.json();
 
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const response = await fetch(
-        `/api/admin/applications/${applicationId}/assign`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(
-          data.message || "Failed to assign tutor."
-        );
-      }
-
-      router.refresh();
-    } catch (error) {
-      console.error("Assignment error:", error);
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to assign tutor."
-      );
-    } finally {
-      setIsLoading(false);
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Failed to assign tutor.");
     }
+
+    toast.success(`${tutorName} assigned to ${jobCode}.`);
+    router.refresh();
   }
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={handleAssignTutor}
-        disabled={isLoading}
-        title={`Assign ${tutorName} to ${jobCode}`}
-        className="inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-green-600 px-2.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isLoading ? (
-          <>
-            <Loader2
-              size={13}
-              className="animate-spin"
-            />
-            ...
-          </>
-        ) : (
-          <>
-            <CheckCircle2 size={13} />
-            Assign
-          </>
-        )}
-      </button>
-
-      {error && (
-        <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700 shadow-lg">
-          {error}
-        </div>
-      )}
-    </div>
+    <ConfirmDialog
+      trigger={
+        <Button size="sm" aria-label={`Assign ${tutorName} to ${jobCode}`}>
+          <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
+          Assign
+        </Button>
+      }
+      title={`Assign ${tutorName} to ${jobCode}?`}
+      description={
+        <>
+          This will, in one step:
+          <ul className="mt-2 list-disc space-y-1 pl-4">
+            <li>Accept this tutor&apos;s application</li>
+            <li>Assign the tutor to the job</li>
+            <li>Reject all other applicants for this job</li>
+            <li>Close the job</li>
+          </ul>
+        </>
+      }
+      confirmLabel="Assign tutor"
+      onConfirm={assign}
+    />
   );
 }
-

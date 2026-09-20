@@ -1,8 +1,27 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  BookOpen,
+  CalendarDays,
+  Clock,
+  FileText,
+  GraduationCap,
+  MapPin,
+  Pencil,
+  UserRound,
+  Users,
+  Wallet,
+} from "lucide-react";
+
 import { prisma } from "@/lib/prisma";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
+import { CopyButton } from "@/components/shared/CopyButton";
 import JobActions from "@/components/admin/JobActions";
 import JobPostPreview from "@/components/admin/JobPostPreview";
+import { formatDate, formatEnum, formatSalary } from "@/lib/format";
 
 interface JobDetailsPageProps {
   params: Promise<{
@@ -20,6 +39,12 @@ export default async function JobDetailsPage({
       id,
     },
     include: {
+      assignedTutor: {
+        select: {
+          id: true,
+          fullName: true,
+        },
+      },
       _count: {
         select: {
           applications: true,
@@ -32,106 +57,116 @@ export default async function JobDetailsPage({
     notFound();
   }
 
+  const applyPath = `/apply/${job.jobCode}`;
+
+  /* Falls back to the path when the base URL is unset, rather than to the
+     `https://YOUR-DOMAIN.com` placeholder that `job-post.ts` still uses. */
+  const applyUrl = process.env.NEXT_PUBLIC_APP_URL
+    ? `${process.env.NEXT_PUBLIC_APP_URL}${applyPath}`
+    : applyPath;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <PageHeader
+        backHref="/admin/jobs"
+        backLabel="Back to jobs"
+        title={job.jobCode}
+        description={`Created ${formatDate(job.createdAt)}`}
+        actions={
+          <>
+            <StatusBadge status={job.status} size="lg" />
 
-      {/* Back */}
+            <Button
+              render={<Link href={`/admin/jobs/${job.id}/edit`} />}
+              variant="outline"
+              size="xl"
+            >
+              <Pencil data-icon="inline-start" aria-hidden="true" />
+              Edit job
+            </Button>
+          </>
+        }
+      />
 
-      <div>
-        <Link
-          href="/admin/jobs"
-          className="text-sm font-medium text-gray-600 hover:text-black"
-        >
-          ← Back to Jobs
-        </Link>
-      </div>
+      {/* -----------------------------------------------------
+          JOB INFORMATION
+      ----------------------------------------------------- */}
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <h2 className="font-heading font-medium">Job information</h2>
 
-      {/* Header */}
-
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-
-        <div>
-          <div className="flex items-center gap-3">
-
-            <h1 className="text-3xl font-bold">
-              {job.jobCode}
-            </h1>
-
-            <JobStatusBadge
-              status={job.status}
-            />
-
-          </div>
-
-          <p className="mt-2 text-sm text-gray-500">
-            Created{" "}
-            {new Date(
-              job.createdAt
-            ).toLocaleDateString()}
-          </p>
-        </div>
-
-        <Link
-          href={`/admin/jobs/${job.id}/edit`}
-          className="inline-flex items-center justify-center rounded-xl border px-5 py-3 text-sm font-semibold hover:bg-gray-50"
-        >
-          Edit Job
-        </Link>
-
-      </div>
-
-      {/* Job Information */}
-
-      <section className="rounded-2xl border bg-white p-6 shadow-sm">
-
-        <h2 className="text-xl font-semibold">
-          Job Information
-        </h2>
-
-        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-
-          <InfoItem
-            label="Job Code"
-            value={job.jobCode}
-          />
-
-          <InfoItem
-            label="Tutor Gender"
-            value={job.gender}
-          />
-
-          <InfoItem
-            label="Grade"
-            value={job.grade}
-          />
-
+        <InfoGrid className="mt-5" columns={3}>
           <InfoItem
             label="Subject"
             value={job.subject}
+            icon={<BookOpen />}
           />
-
           <InfoItem
-            label="Place"
-            value={job.place}
+            label="Grade"
+            value={job.grade}
+            icon={<GraduationCap />}
           />
-
+          <InfoItem
+            label="Tutor gender"
+            value={formatEnum(job.gender)}
+            icon={<Users />}
+          />
+          <InfoItem label="Place" value={job.place} icon={<MapPin />} />
           <InfoItem
             label="Salary"
-            value={`${job.salary.toLocaleString()} ETB`}
+            value={formatSalary(job.salary)}
+            icon={<Wallet />}
           />
-
+          <InfoItem
+            label="Schedule"
+            value={`${job.daysPerWeek} days/week · ${job.hoursPerDay} hrs/day`}
+            icon={<Clock />}
+          />
           <InfoItem
             label="Applications"
-            value={String(
-              job._count.applications
-            )}
+            value={
+              <Link
+                href="/admin/applications"
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                {job._count.applications}
+              </Link>
+            }
+            icon={<FileText />}
           />
+          <InfoItem
+            label="Created"
+            value={formatDate(job.createdAt)}
+            icon={<CalendarDays />}
+          />
+          <InfoItem
+            label="Assigned tutor"
+            value={
+              job.assignedTutor ? (
+                <Link
+                  href={`/admin/tutors/${job.assignedTutor.id}`}
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  {job.assignedTutor.fullName}
+                </Link>
+              ) : undefined
+            }
+            icon={<UserRound />}
+          />
+        </InfoGrid>
 
-        </div>
-
+        {job.additionalDetails ? (
+          <div className="mt-5 border-t pt-5">
+            <InfoItem
+              label="Additional details"
+              value={job.additionalDetails}
+            />
+          </div>
+        ) : null}
       </section>
 
-      {/* Job Post Preview */}
+      {/* -----------------------------------------------------
+          TELEGRAM POST
+      ----------------------------------------------------- */}
       <JobPostPreview
         job={{
           jobCode: job.jobCode,
@@ -142,91 +177,47 @@ export default async function JobDetailsPage({
           salary: job.salary,
         }}
       />
-      {/* Application Link */}
 
-      <section className="rounded-2xl border bg-white p-6 shadow-sm">
+      {/* -----------------------------------------------------
+          APPLY LINK
+      ----------------------------------------------------- */}
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <h2 className="font-heading font-medium">Tutor application link</h2>
 
-        <h2 className="text-xl font-semibold">
-          Tutor Application Link
-        </h2>
-
-        <p className="mt-2 text-sm text-gray-500">
-          Use this URL for the Apply Here button
-          in Telegram.
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Use this URL for the Apply Here button in Telegram.
         </p>
 
-        <div className="mt-4 rounded-xl bg-gray-50 p-4">
-
-          <code className="break-all text-sm">
-            /apply/{job.jobCode}
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <code className="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2.5 text-sm">
+            {applyUrl}
           </code>
 
+          <CopyButton
+            value={applyUrl}
+            size="xl"
+            successMessage="Application link copied"
+            className="shrink-0"
+          >
+            Copy link
+          </CopyButton>
         </div>
-
       </section>
 
-      {/* Job Actions */}
+      {/* -----------------------------------------------------
+          STATUS
+      ----------------------------------------------------- */}
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <h2 className="font-heading font-medium">Job status</h2>
 
-      <section className="rounded-2xl border bg-white p-6 shadow-sm">
-
-        <h2 className="text-xl font-semibold">
-          Job Status
-        </h2>
-
-        <p className="mt-2 text-sm text-gray-500">
-          Closing a job prevents it from accepting
-          new applications.
+        <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
+          Closing a job prevents it from accepting new applications.
         </p>
 
-        <div className="mt-6">
-
-          <JobActions
-            jobId={job.id}
-            currentStatus={job.status}
-          />
-
+        <div className="mt-5">
+          <JobActions jobId={job.id} currentStatus={job.status} />
         </div>
-
       </section>
-
     </div>
-  );
-}
-
-function InfoItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div>
-      <p className="text-sm text-gray-500">
-        {label}
-      </p>
-
-      <p className="mt-1 font-medium wrap-words">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function JobStatusBadge({
-  status,
-}: {
-  status: "OPEN" | "CLOSED";
-}) {
-  return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-        status === "OPEN"
-          ? "bg-green-100 text-green-800"
-          : "bg-gray-100 text-gray-700"
-      }`}
-    >
-      {status}
-    </span>
   );
 }

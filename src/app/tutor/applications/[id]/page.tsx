@@ -1,7 +1,33 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import {
+  BookOpen,
+  BriefcaseBusiness,
+  CalendarDays,
+  GraduationCap,
+  Mail,
+  MapPin,
+  Phone,
+  UserRound,
+  Users,
+  Wallet,
+} from "lucide-react";
+
 import { prisma } from "@/lib/prisma";
 import { getCurrentTutor } from "@/lib/session";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
+import {
+  formatDate,
+  formatEnum,
+  formatSalary,
+  getApplicationStatusDescription,
+  getApplicationStatusLabel,
+} from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{
@@ -9,72 +35,21 @@ interface PageProps {
   }>;
 }
 
-function getStatusLabel(status: string) {
-  switch (status) {
-    case "PENDING":
-      return "Pending Review";
-    case "REVIEWED":
-      return "Reviewed";
-    case "ACCEPTED":
-      return "Accepted";
-    case "REJECTED":
-      return "Rejected";
-    default:
-      return status;
-  }
+/** `ANY` reads as "Any Tutor" rather than the raw enum. */
+function formatTutorRequirement(gender: "MALE" | "FEMALE" | "ANY"): string {
+  if (gender === "MALE") return "Male Tutor";
+  if (gender === "FEMALE") return "Female Tutor";
+  return "Any Tutor";
 }
 
-function getStatusClasses(status: string) {
-  switch (status) {
-    case "PENDING":
-      return "border-amber-200 bg-amber-50 text-amber-700";
+const STATUS_DOT: Record<string, string> = {
+  ACCEPTED: "bg-success",
+  REJECTED: "bg-destructive",
+  REVIEWED: "bg-info",
+  PENDING: "bg-warning",
+};
 
-    case "REVIEWED":
-      return "border-blue-200 bg-blue-50 text-blue-700";
-
-    case "ACCEPTED":
-      return "border-green-200 bg-green-50 text-green-700";
-
-    case "REJECTED":
-      return "border-red-200 bg-red-50 text-red-700";
-
-    default:
-      return "border-gray-200 bg-gray-50 text-gray-700";
-  }
-}
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function getStatusDescription(status: string) {
-  switch (status) {
-    case "PENDING":
-      return "Your application has been submitted and is waiting for review by the Excellence Tutor team.";
-
-    case "REVIEWED":
-      return "Your application has been reviewed by the Excellence Tutor team.";
-
-    case "ACCEPTED":
-      return "Congratulations! Your application has been accepted.";
-
-    case "REJECTED":
-      return "Your application was not selected for this tutoring job.";
-
-    default:
-      return "Your application status has been updated.";
-  }
-}
-
-export default async function ApplicationDetailsPage({
-  params,
-}: PageProps) {
+export default async function ApplicationDetailsPage({ params }: PageProps) {
   const tutor = await getCurrentTutor();
 
   if (!tutor) {
@@ -120,266 +95,161 @@ export default async function ApplicationDetailsPage({
   }
 
   return (
-    <main className="mx-auto max-w-4xl space-y-8">
-      {/* Back navigation */}
-      <div>
-        <Link
-          href="/tutor/applications"
-          className="text-sm font-medium text-gray-600 transition hover:text-black"
-        >
-          ← Back to My Applications
-        </Link>
-      </div>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <PageHeader
+        backHref="/tutor/applications"
+        backLabel="Back to my applications"
+        title={application.job.subject}
+        description={
+          <>
+            Job code{" "}
+            <span className="font-medium text-foreground">
+              {application.job.jobCode}
+            </span>
+          </>
+        }
+        actions={<StatusBadge status={application.status} size="lg" />}
+      />
 
-      {/* Header */}
-      <div>
-        <p className="text-sm font-medium text-gray-500">
-          Application Details
-        </p>
+      {/* -----------------------------------------------------
+          STATUS
+      ----------------------------------------------------- */}
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <h2 className="font-heading font-medium">Application status</h2>
 
-        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              {application.job.subject}
-            </h1>
-
-            <p className="mt-2 text-gray-600">
-              Job Code:{" "}
-              <span className="font-semibold text-gray-900">
-                {application.job.jobCode}
-              </span>
-            </p>
-          </div>
-
+        <div className="mt-4 flex items-start gap-3">
           <span
-            className={`inline-flex w-fit rounded-full border px-4 py-2 text-sm font-semibold ${getStatusClasses(
-              application.status
-            )}`}
-          >
-            {getStatusLabel(application.status)}
-          </span>
-        </div>
-      </div>
-
-      {/* Status */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-gray-900">
-          Application Status
-        </h2>
-
-        <div className="mt-5 flex items-start gap-4">
-          <div
-            className={`mt-1 h-3 w-3 shrink-0 rounded-full ${
-              application.status === "ACCEPTED"
-                ? "bg-green-500"
-                : application.status === "REJECTED"
-                  ? "bg-red-500"
-                  : application.status === "REVIEWED"
-                    ? "bg-blue-500"
-                    : "bg-amber-500"
-            }`}
+            aria-hidden="true"
+            className={cn(
+              "mt-1.5 size-2.5 shrink-0 rounded-full",
+              STATUS_DOT[application.status] ?? "bg-muted-foreground"
+            )}
           />
 
           <div>
-            <p className="font-semibold text-gray-900">
-              {getStatusLabel(application.status)}
+            <p className="font-medium">
+              {getApplicationStatusLabel(application.status)}
             </p>
 
-            <p className="mt-1 text-sm leading-6 text-gray-600">
-              {getStatusDescription(application.status)}
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground text-pretty">
+              {getApplicationStatusDescription(application.status)}
             </p>
           </div>
         </div>
 
-        <div className="mt-5 border-t border-gray-100 pt-5 text-sm text-gray-500">
+        <Separator className="my-5" />
+
+        <p className="text-sm text-muted-foreground">
           Applied on {formatDate(application.createdAt)}
-        </div>
+        </p>
       </section>
 
-      {/* Job information */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-lg font-bold text-gray-900">
-            Job Information
-          </h2>
-
-          {application.job.status === "OPEN" && (
-            <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-              Open
-            </span>
-          )}
-
-          {application.job.status === "CLOSED" && (
-            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600">
-              Closed
-            </span>
-          )}
+      {/* -----------------------------------------------------
+          JOB
+      ----------------------------------------------------- */}
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-heading font-medium">Job information</h2>
+          <StatusBadge status={application.job.status} />
         </div>
 
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
-          <div>
-            <p className="text-sm text-gray-500">
-              Job Code
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {application.job.jobCode}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Tutor Gender Requirement
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {application.job.gender === "ANY"
-                ? "Any"
-                : application.job.gender}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Grade
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {application.job.grade}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Subject
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {application.job.subject}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Place
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {application.job.place}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Salary
-            </p>
-            <p className="mt-1 text-lg font-bold text-gray-900">
-              {application.job.salary.toLocaleString()} ETB
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Applied
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {formatDate(application.createdAt)}
-            </p>
-          </div>
-        </div>
+        <InfoGrid className="mt-5">
+          <InfoItem
+            label="Job code"
+            value={application.job.jobCode}
+            icon={<BookOpen />}
+          />
+          <InfoItem
+            label="Tutor requirement"
+            value={formatTutorRequirement(application.job.gender)}
+            icon={<Users />}
+          />
+          <InfoItem
+            label="Grade"
+            value={application.job.grade}
+            icon={<GraduationCap />}
+          />
+          <InfoItem
+            label="Subject"
+            value={application.job.subject}
+            icon={<BookOpen />}
+          />
+          <InfoItem
+            label="Place"
+            value={application.job.place}
+            icon={<MapPin />}
+          />
+          <InfoItem
+            label="Salary"
+            value={formatSalary(application.job.salary)}
+            icon={<Wallet />}
+          />
+          <InfoItem
+            label="Applied"
+            value={formatDate(application.createdAt)}
+            icon={<CalendarDays />}
+          />
+        </InfoGrid>
       </section>
 
-      {/* Tutor information */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      {/* -----------------------------------------------------
+          APPLICANT
+      ----------------------------------------------------- */}
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">
-              Applicant Profile
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-600">
-              This is the tutor profile associated with this application.
+            <h2 className="font-heading font-medium">Applicant profile</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              The tutor profile associated with this application.
             </p>
           </div>
 
-          <Link
-            href="/tutor/profile"
-            className="text-sm font-semibold text-gray-900 underline underline-offset-4 hover:text-gray-600"
+          <Button
+            render={<Link href="/tutor/profile" />}
+            variant="outline"
+            size="lg"
+            className="shrink-0"
           >
-            View Profile
-          </Link>
+            View profile
+          </Button>
         </div>
 
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
-          <div>
-            <p className="text-sm text-gray-500">
-              Full Name
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {tutor.fullName}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Email
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {tutor.email}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Phone
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {tutor.phone}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Gender
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {tutor.gender}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Status
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {tutor.tutorStatus === "STUDENT"
-                ? "Student"
-                : "Graduate"}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">
-              Location
-            </p>
-            <p className="mt-1 font-semibold text-gray-900">
-              {tutor.city}, {tutor.subcity}
-            </p>
-          </div>
-        </div>
+        <InfoGrid className="mt-5">
+          <InfoItem
+            label="Full name"
+            value={tutor.fullName}
+            icon={<UserRound />}
+          />
+          <InfoItem label="Email" value={tutor.email} icon={<Mail />} />
+          <InfoItem
+            label="Phone"
+            value={`+251 ${tutor.phone}`}
+            icon={<Phone />}
+          />
+          <InfoItem label="Gender" value={formatEnum(tutor.gender)} />
+          <InfoItem label="Status" value={formatEnum(tutor.tutorStatus)} />
+          <InfoItem
+            label="Location"
+            value={`${tutor.city}, ${tutor.subcity}`}
+            icon={<MapPin />}
+          />
+        </InfoGrid>
       </section>
 
-      {/* Bottom navigation */}
-      <div className="flex flex-col gap-3 border-t border-gray-200 pt-6 sm:flex-row">
-        <Link
-          href="/tutor/applications"
-          className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-900 transition hover:bg-gray-50"
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button
+          render={<Link href="/tutor/applications" />}
+          variant="outline"
+          size="xl"
         >
-          ← My Applications
-        </Link>
+          My applications
+        </Button>
 
-        <Link
-          href="/jobs"
-          className="inline-flex items-center justify-center rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
-        >
-          Browse Available Jobs
-        </Link>
+        <Button render={<Link href="/jobs" />} size="xl">
+          <BriefcaseBusiness data-icon="inline-start" aria-hidden="true" />
+          Browse available jobs
+        </Button>
       </div>
-    </main>
+    </div>
   );
 }

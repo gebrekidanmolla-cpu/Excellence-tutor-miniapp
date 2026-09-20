@@ -1,7 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  CheckCircle2,
+  Clock,
+  FileText,
+  MapPin,
+  UserRound,
+} from "lucide-react";
+
 import { prisma } from "@/lib/prisma";
 import { getCurrentTutor } from "@/lib/session";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { StatCard } from "@/components/shared/StatCard";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { formatDate, formatEnum } from "@/lib/format";
 
 export default async function TutorDashboard() {
   const tutor = await getCurrentTutor();
@@ -43,297 +59,218 @@ export default async function TutorDashboard() {
     }),
   ]);
 
-  const recentApplications =
-    await prisma.application.findMany({
-      where: {
-        tutorId: tutor.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: 5,
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        job: {
-          select: {
-            jobCode: true,
-            grade: true,
-            subject: true,
-            salary: true,
-          },
+  const recentApplications = await prisma.application.findMany({
+    where: {
+      tutorId: tutor.id,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 5,
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      job: {
+        select: {
+          jobCode: true,
+          grade: true,
+          subject: true,
+          salary: true,
         },
       },
-    });
+    },
+  });
+
+  const isStudent = tutor.tutorStatus === "STUDENT";
+
+  const affiliation = isStudent
+    ? [tutor.university, tutor.department].filter(Boolean).join(" · ")
+    : (tutor.fieldOfGraduation ?? "");
 
   return (
-    <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10">
+    <div className="space-y-8">
+      <PageHeader
+        title={`Welcome, ${tutor.fullName.split(" ")[0]}`}
+        description="Manage your tutoring opportunities and applications."
+        actions={
+          <Button render={<Link href="/jobs" />} size="xl">
+            <BriefcaseBusiness data-icon="inline-start" aria-hidden="true" />
+            Browse jobs
+          </Button>
+        }
+      />
 
-      {/* Header */}
-      <div>
-        <p className="text-sm font-medium text-gray-500">
-          Tutor Dashboard
-        </p>
+      {/* -----------------------------------------------------
+          STATS
+      ----------------------------------------------------- */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Available jobs"
+          value={availableJobs}
+          hint="Currently open opportunities"
+          icon={<BriefcaseBusiness />}
+          href="/jobs"
+        />
 
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-900">
-          Welcome, {tutor.fullName.split(" ")[0]}
-        </h1>
+        <StatCard
+          label="My applications"
+          value={totalApplications}
+          hint="Applications submitted"
+          icon={<FileText />}
+          href="/tutor/applications"
+        />
 
-        <p className="mt-2 text-gray-500">
-          Manage your tutoring opportunities and applications.
-        </p>
+        <StatCard
+          label="Under review"
+          value={pendingApplications}
+          hint="Awaiting a decision"
+          icon={<Clock />}
+        />
+
+        <StatCard
+          label="Accepted"
+          value={acceptedApplications}
+          hint="Successful applications"
+          icon={<CheckCircle2 />}
+        />
       </div>
 
-      {/* Quick action */}
-      <div className="mt-8 rounded-3xl bg-black p-7 text-white sm:p-8">
-
-        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
-
-          <div>
-            <p className="text-sm font-medium text-gray-400">
-              Looking for your next opportunity?
-            </p>
-
-            <h2 className="mt-2 text-2xl font-bold">
-              Find a tutoring job
-            </h2>
-
-            <p className="mt-2 max-w-xl text-sm text-gray-400">
-              Browse available tutoring opportunities and apply
-              to positions that match your qualifications.
-            </p>
-          </div>
-
-          <Link
-            href="/jobs"
-            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-gray-200"
-          >
-            Browse Jobs
-          </Link>
-
-        </div>
-
-      </div>
-
-      {/* Statistics */}
-      <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Available Jobs
-          </p>
-
-          <p className="mt-3 text-3xl font-bold">
-            {availableJobs}
-          </p>
-
-          <p className="mt-1 text-xs text-gray-400">
-            Currently open opportunities
-          </p>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            My Applications
-          </p>
-
-          <p className="mt-3 text-3xl font-bold">
-            {totalApplications}
-          </p>
-
-          <p className="mt-1 text-xs text-gray-400">
-            Applications submitted
-          </p>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Under Review
-          </p>
-
-          <p className="mt-3 text-3xl font-bold">
-            {pendingApplications}
-          </p>
-
-          <p className="mt-1 text-xs text-gray-400">
-            Awaiting a decision
-          </p>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
-          <p className="text-sm text-gray-500">
-            Accepted
-          </p>
-
-          <p className="mt-3 text-3xl font-bold">
-            {acceptedApplications}
-          </p>
-
-          <p className="mt-1 text-xs text-gray-400">
-            Successful applications
-          </p>
-        </div>
-
-      </div>
-
-      {/* Main sections */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-3">
-
-        {/* Recent applications */}
-        <div className="rounded-2xl border bg-white shadow-sm lg:col-span-2">
-
-          <div className="flex items-center justify-between border-b px-6 py-5">
-
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* ---------------------------------------------------
+            RECENT APPLICATIONS
+        --------------------------------------------------- */}
+        <section className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
             <div>
-              <h2 className="font-bold text-gray-900">
-                Recent Applications
+              <h2 className="font-heading font-medium">
+                Recent applications
               </h2>
-
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-0.5 text-sm text-muted-foreground">
                 Track your latest applications.
               </p>
             </div>
 
-            <Link
-              href="/tutor/applications"
-              className="text-sm font-semibold text-gray-900 hover:underline"
-            >
-              View all
-            </Link>
-
+            {recentApplications.length > 0 ? (
+              <Button
+                render={<Link href="/tutor/applications" />}
+                variant="ghost"
+                size="sm"
+              >
+                View all
+                <ArrowRight data-icon="inline-end" aria-hidden="true" />
+              </Button>
+            ) : null}
           </div>
 
           {recentApplications.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-
-              <p className="font-medium text-gray-900">
-                No applications yet
-              </p>
-
-              <p className="mt-2 text-sm text-gray-500">
-                Explore available jobs and submit your first application.
-              </p>
-
-              <Link
-                href="/jobs"
-                className="mt-5 inline-flex rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800"
-              >
-                Explore Jobs
-              </Link>
-
-            </div>
+            <EmptyState
+              className="rounded-none border-0"
+              icon={<FileText />}
+              title="No applications yet"
+              description="Explore available jobs and submit your first application."
+              action={
+                <Button render={<Link href="/jobs" />} size="lg">
+                  Explore jobs
+                </Button>
+              }
+            />
           ) : (
-            <div className="divide-y">
-
-              {recentApplications.map(
-                (application) => (
-                  <div
-                    key={application.id}
-                    className="flex flex-col justify-between gap-4 px-6 py-5 sm:flex-row sm:items-center"
+            <ul className="divide-y">
+              {recentApplications.map((application) => (
+                <li key={application.id}>
+                  <Link
+                    href={`/tutor/applications/${application.id}`}
+                    className="flex flex-col gap-3 p-5 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none sm:flex-row sm:items-center sm:justify-between"
                   >
-
-                    <div>
-                      <p className="font-semibold text-gray-900">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
                         {application.job.subject}
                       </p>
 
-                      <p className="mt-1 text-sm text-gray-500">
-                        {application.job.jobCode}
-                        {" · "}
-                        Grade {application.job.grade}
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {application.job.jobCode} · Grade{" "}
+                        {application.job.grade} ·{" "}
+                        {formatDate(application.createdAt)}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-4">
-
-                      <span className="text-sm font-medium text-gray-700">
-                        {application.status}
-                      </span>
-
-                      <Link
-                        href={`/tutor/applications/${application.id}`}
-                        className="text-sm font-semibold text-gray-900 hover:underline"
-                      >
-                        View
-                      </Link>
-
+                    <div className="flex shrink-0 items-center gap-3">
+                      {/* Previously rendered the raw enum here while the
+                          sibling page rendered a friendly label. */}
+                      <StatusBadge status={application.status} />
+                      <ArrowRight
+                        className="size-4 text-muted-foreground"
+                        aria-hidden="true"
+                      />
                     </div>
-
-                  </div>
-                )
-              )}
-
-            </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
+        </section>
 
-        </div>
+        {/* ---------------------------------------------------
+            PROFILE
+        --------------------------------------------------- */}
+        <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+            >
+              <UserRound className="size-5" />
+            </span>
 
-        {/* Profile card */}
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
-
-          <p className="text-sm font-medium text-gray-500">
-            Your Profile
-          </p>
-
-          <h2 className="mt-2 text-xl font-bold text-gray-900">
-            {tutor.fullName}
-          </h2>
-
-          <p className="mt-1 text-sm text-gray-500">
-            {tutor.tutorStatus === "STUDENT"
-              ? "Student Tutor"
-              : "Graduate Tutor"}
-          </p>
-
-          <div className="mt-6 space-y-4">
-
-            <div>
-              <p className="text-xs text-gray-400">
-                Email
-              </p>
-
-              <p className="mt-1 truncate text-sm font-medium">
-                {tutor.email}
+            <div className="min-w-0">
+              <h2 className="truncate font-heading font-medium">
+                {tutor.fullName}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {isStudent ? "Student Tutor" : "Graduate Tutor"}
               </p>
             </div>
-
-            <div>
-              <p className="text-xs text-gray-400">
-                Location
-              </p>
-
-              <p className="mt-1 text-sm font-medium">
-                {tutor.city}, {tutor.subcity}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-xs text-gray-400">
-                Status
-              </p>
-
-              <p className="mt-1 text-sm font-medium">
-                {tutor.tutorStatus === "STUDENT"
-                  ? `${tutor.university ?? "Student"} · ${tutor.department ?? ""}`
-                  : tutor.fieldOfGraduation ?? "Graduate"}
-              </p>
-            </div>
-
           </div>
 
-          <Link
-            href="/tutor/profile"
-            className="mt-7 block w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-900 transition hover:bg-gray-50"
+          <dl className="mt-6 space-y-4">
+            <div>
+              <dt className="text-xs text-muted-foreground">Email</dt>
+              <dd className="mt-0.5 truncate text-sm font-medium">
+                {tutor.email}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="size-3.5" aria-hidden="true" />
+                Location
+              </dt>
+              <dd className="mt-0.5 text-sm font-medium">
+                {tutor.city}, {tutor.subcity}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-xs text-muted-foreground">
+                {isStudent ? "Studying" : "Field"}
+              </dt>
+              <dd className="mt-0.5 text-sm font-medium">
+                {affiliation || formatEnum(tutor.tutorStatus)}
+              </dd>
+            </div>
+          </dl>
+
+          <Button
+            render={<Link href="/tutor/profile" />}
+            variant="outline"
+            size="xl"
+            className="mt-6 w-full"
           >
-            View My Profile
-          </Link>
-
-        </div>
-
+            View my profile
+          </Button>
+        </section>
       </div>
-
     </div>
   );
 }
-

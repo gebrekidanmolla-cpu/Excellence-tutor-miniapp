@@ -1,48 +1,29 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  CalendarDays,
+  FileText,
+  GraduationCap,
+  MapPin,
+  Users,
+  Wallet,
+} from "lucide-react";
+
 import { prisma } from "@/lib/prisma";
 import { getCurrentTutor } from "@/lib/session";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { formatDate, formatSalary } from "@/lib/format";
 
-function getStatusLabel(status: string) {
-  switch (status) {
-    case "PENDING":
-      return "Pending Review";
-    case "REVIEWED":
-      return "Reviewed";
-    case "ACCEPTED":
-      return "Accepted";
-    case "REJECTED":
-      return "Rejected";
-    default:
-      return status;
-  }
-}
-
-function getStatusClasses(status: string) {
-  switch (status) {
-    case "PENDING":
-      return "bg-amber-50 text-amber-700 border-amber-200";
-
-    case "REVIEWED":
-      return "bg-blue-50 text-blue-700 border-blue-200";
-
-    case "ACCEPTED":
-      return "bg-green-50 text-green-700 border-green-200";
-
-    case "REJECTED":
-      return "bg-red-50 text-red-700 border-red-200";
-
-    default:
-      return "bg-gray-50 text-gray-700 border-gray-200";
-  }
-}
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date);
+/** `ANY` reads as "Any Tutor" rather than the raw enum. */
+function formatTutorRequirement(gender: "MALE" | "FEMALE" | "ANY"): string {
+  if (gender === "MALE") return "Male Tutor";
+  if (gender === "FEMALE") return "Female Tutor";
+  return "Any Tutor";
 }
 
 export default async function MyApplicationsPage() {
@@ -79,151 +60,127 @@ export default async function MyApplicationsPage() {
   });
 
   return (
-    <main className="space-y-8">
-      {/* Header */}
-      <div>
-        <p className="text-sm font-medium text-gray-500">
-          Tutor Portal
-        </p>
+    <div className="space-y-6">
+      <PageHeader
+        title="My applications"
+        description={
+          applications.length === 0
+            ? "Track the tutoring jobs you have applied for."
+            : `${applications.length} ${
+                applications.length === 1 ? "application" : "applications"
+              } submitted`
+        }
+        actions={
+          <Button render={<Link href="/jobs" />} size="xl">
+            <BriefcaseBusiness data-icon="inline-start" aria-hidden="true" />
+            Browse jobs
+          </Button>
+        }
+      />
 
-        <div className="mt-1 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              My Applications
-            </h1>
-
-            <p className="mt-2 text-gray-600">
-              Track the tutoring jobs you have applied for.
-            </p>
-          </div>
-
-          <Link
-            href="/jobs"
-            className="inline-flex items-center justify-center rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
-          >
-            Browse Jobs
-          </Link>
-        </div>
-      </div>
-
-      {/* Application count */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-gray-500">
-          Total Applications
-        </p>
-
-        <p className="mt-1 text-3xl font-bold text-gray-900">
-          {applications.length}
-        </p>
-      </div>
-
-      {/* Empty state */}
       {applications.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
-            <span className="text-2xl">📋</span>
-          </div>
-
-          <h2 className="mt-5 text-xl font-bold text-gray-900">
-            No applications yet
-          </h2>
-
-          <p className="mx-auto mt-2 max-w-md text-gray-600">
-            You have not applied for any tutoring jobs yet.
-            Browse available jobs and apply with one click.
-          </p>
-
-          <Link
-            href="/jobs"
-            className="mt-6 inline-flex rounded-xl bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
-          >
-            Browse Available Jobs
-          </Link>
-        </div>
+        <EmptyState
+          icon={<FileText />}
+          title="No applications yet"
+          description="You have not applied for any tutoring jobs yet. Browse available jobs and apply with one click."
+          action={
+            <Button render={<Link href="/jobs" />} size="xl">
+              Browse available jobs
+            </Button>
+          }
+        />
       ) : (
-        /* Applications */
-        <div className="space-y-4">
+        <ul className="space-y-4">
           {applications.map((application) => (
-            <div
+            <li
               key={application.id}
-              className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md sm:p-6"
+              className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 transition-shadow hover:shadow-md has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50"
             >
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                {/* Main information */}
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-500">
-                      Job Code
-                    </span>
-
-                    <span className="rounded-lg bg-gray-100 px-3 py-1 text-sm font-bold text-gray-900">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-medium">
                       {application.job.jobCode}
                     </span>
 
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                        application.status
-                      )}`}
-                    >
-                      {getStatusLabel(application.status)}
-                    </span>
+                    <StatusBadge status={application.status} />
+
+                    {application.job.status === "CLOSED" ? (
+                      <span className="text-xs text-muted-foreground">
+                        Job closed
+                      </span>
+                    ) : null}
                   </div>
 
-                  <h2 className="mt-4 text-xl font-bold text-gray-900">
+                  <h2 className="mt-3 font-heading text-lg font-semibold">
                     {application.job.subject}
                   </h2>
 
-                  <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
-                    <span>
-                      <span className="font-medium text-gray-900">
-                        Grade:
-                      </span>{" "}
-                      {application.job.grade}
-                    </span>
-
-                    <span>
-                      <span className="font-medium text-gray-900">
-                        Gender:
-                      </span>{" "}
-                      {application.job.gender === "ANY"
-                        ? "Any"
-                        : application.job.gender}
-                    </span>
-
-                    <span>
-                      <span className="font-medium text-gray-900">
-                        Place:
-                      </span>{" "}
-                      {application.job.place}
-                    </span>
-
-                    <span>
-                      <span className="font-medium text-gray-900">
-                        Salary:
-                      </span>{" "}
-                      {application.job.salary.toLocaleString()} ETB
-                    </span>
-                  </div>
-
-                  <p className="mt-3 text-xs text-gray-500">
-                    Applied on {formatDate(application.createdAt)}
-                  </p>
+                  <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                    <Meta
+                      icon={<GraduationCap />}
+                      label="Grade"
+                      value={application.job.grade}
+                    />
+                    <Meta
+                      icon={<Users />}
+                      label="Tutor"
+                      value={formatTutorRequirement(application.job.gender)}
+                    />
+                    <Meta
+                      icon={<MapPin />}
+                      label="Place"
+                      value={application.job.place}
+                    />
+                    <Meta
+                      icon={<Wallet />}
+                      label="Salary"
+                      value={formatSalary(application.job.salary)}
+                    />
+                    <Meta
+                      icon={<CalendarDays />}
+                      label="Applied"
+                      value={formatDate(application.createdAt)}
+                    />
+                  </dl>
                 </div>
 
-                {/* Action */}
-                <div className="shrink-0">
-                  <Link
-                    href={`/tutor/applications/${application.id}`}
-                    className="inline-flex w-full items-center justify-center rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-900 transition hover:bg-gray-50 sm:w-auto"
-                  >
-                    View Details
-                  </Link>
-                </div>
+                <Button
+                  render={
+                    <Link href={`/tutor/applications/${application.id}`} />
+                  }
+                  variant="outline"
+                  size="xl"
+                  className="w-full shrink-0 lg:w-auto"
+                >
+                  View details
+                  <ArrowRight data-icon="inline-end" aria-hidden="true" />
+                </Button>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </main>
+    </div>
+  );
+}
+
+function Meta({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span aria-hidden="true" className="[&>svg]:size-3.5">
+        {icon}
+      </span>
+      <dt className="sr-only">{label}</dt>
+      <dd className="font-medium text-foreground">{value}</dd>
+    </div>
   );
 }

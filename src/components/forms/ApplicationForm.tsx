@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, Send } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/shared/ErrorState";
 
 interface ApplicationFormProps {
   jobCode: string;
 }
 
-export default function ApplicationForm({
-  jobCode,
-}: ApplicationFormProps) {
+export default function ApplicationForm({ jobCode }: ApplicationFormProps) {
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
@@ -35,9 +37,7 @@ export default function ApplicationForm({
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        setError(
-          data.message || "Unable to submit application."
-        );
+        setError(data.message || "Unable to submit application.");
         setLoading(false);
         return;
       }
@@ -46,32 +46,34 @@ export default function ApplicationForm({
         `/application-success?jobCode=${encodeURIComponent(jobCode)}`
       );
       router.refresh();
-    } catch (error) {
-      console.error("Application error:", error);
-
-      setError(
-        "Something went wrong. Please try again."
-      );
+    } catch {
+      setError("Something went wrong. Please try again.");
       setLoading(false);
     }
   }
 
   return (
-    <div>
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+    <div className="space-y-3">
+      <FormError message={error} />
 
-      <button
+      <Button
         type="button"
         onClick={handleApply}
         disabled={loading}
-        className="w-full rounded-xl bg-black px-6 py-3 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+        size="xl"
+        className="w-full"
       >
-        {loading ? "Submitting Application..." : "Apply Now"}
-      </button>
+        {loading ? (
+          <Loader2
+            className="animate-spin"
+            data-icon="inline-start"
+            aria-hidden="true"
+          />
+        ) : (
+          <Send data-icon="inline-start" aria-hidden="true" />
+        )}
+        {loading ? "Submitting application…" : "Apply now"}
+      </Button>
     </div>
   );
 }

@@ -1,6 +1,33 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  GraduationCap,
+  Lock,
+  MapPin,
+  Users,
+  Wallet,
+} from "lucide-react";
+
 import { prisma } from "@/lib/prisma";
+import { getCurrentTutor } from "@/lib/session";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { PublicHeader } from "@/components/layout/PublicHeader";
+import { PublicFooter } from "@/components/layout/PublicFooter";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
 import ApplicationForm from "@/components/forms/ApplicationForm";
+import { formatDate, formatSalary } from "@/lib/format";
+
+/** `ANY` reads as "Any Tutor" rather than the raw enum. */
+function formatTutorRequirement(gender: "MALE" | "FEMALE" | "ANY"): string {
+  if (gender === "MALE") return "Male Tutor";
+  if (gender === "FEMALE") return "Female Tutor";
+  return "Any Tutor";
+}
 
 interface PageProps {
   params: Promise<{
@@ -8,14 +35,27 @@ interface PageProps {
   }>;
 }
 
+/**
+ * The public entry point: `src/lib/job-post.ts` puts `/apply/<jobCode>` in
+ * every Telegram post, so this page is reached by people who may not have an
+ * account yet.
+ *
+ * It therefore stays readable when signed out — the job details are already
+ * public in the Telegram post — and swaps the apply button for a sign-in
+ * prompt. Previously it rendered the apply button to everyone and only failed
+ * with a 401 after the click.
+ */
 export default async function ApplyPage({ params }: PageProps) {
   const { jobCode } = await params;
+
+  const tutor = await getCurrentTutor();
 
   const job = await prisma.job.findUnique({
     where: {
       jobCode,
     },
     select: {
+      id: true,
       jobCode: true,
       gender: true,
       grade: true,
@@ -23,6 +63,7 @@ export default async function ApplyPage({ params }: PageProps) {
       place: true,
       salary: true,
       status: true,
+      createdAt: true,
     },
   });
 
@@ -30,115 +71,172 @@ export default async function ApplyPage({ params }: PageProps) {
     notFound();
   }
 
-  if (job.status !== "OPEN") {
-    return (
-      <main className="flex min-h-screen items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-2xl border bg-white p-8 text-center shadow-sm">
-          <h1 className="text-2xl font-bold">
-            Applications Closed
-          </h1>
+  const existingApplication = tutor
+    ? await prisma.application.findFirst({
+        where: {
+          tutorId: tutor.id,
+          jobId: job.id,
+        },
+        select: {
+          id: true,
+          status: true,
+        },
+      })
+    : null;
 
-          <p className="mt-3 text-gray-600">
-            This tutoring job is no longer accepting applications.
-          </p>
-
-          <p className="mt-4 text-sm text-gray-500">
-            Job Code: {job.jobCode}
-          </p>
-        </div>
-      </main>
-    );
-  }
+  const isOpen = job.status === "OPEN";
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8">
-      <div className="mx-auto max-w-lg">
+    <>
+      <PublicHeader tutor={tutor ? { fullName: tutor.fullName } : null} />
 
-        <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold">
-            Excellence Tutor
-          </h1>
-
-          <p className="mt-2 text-gray-600">
-            Tutor Application
-          </p>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
-
-          <div className="mb-6">
-            <p className="text-sm font-medium text-gray-500">
-              Job Code
-            </p>
-
-            <p className="text-xl font-bold">
-              {job.jobCode}
+      <main className="flex-1 bg-muted/30 py-8 sm:py-12">
+        <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
+          <div className="mb-6 text-center">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
+              Tutor application
+            </h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Review the job details before you apply.
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b p-5 sm:p-6">
+              <div className="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                >
+                  <BookOpen className="size-5" />
+                </span>
 
-            <div>
-              <p className="text-sm text-gray-500">
-                Tutor Gender
-              </p>
+                <div>
+                  <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    Job code
+                  </p>
+                  <p className="font-heading text-lg font-semibold">
+                    {job.jobCode}
+                  </p>
+                </div>
+              </div>
 
-              <p className="font-medium">
-                {job.gender}
-              </p>
+              <StatusBadge status={job.status} size="lg" />
             </div>
 
-            <div>
-              <p className="text-sm text-gray-500">
-                Grade
-              </p>
-
-              <p className="font-medium">
-                {job.grade}
-              </p>
+            <div className="p-5 sm:p-6">
+              <InfoGrid>
+                <InfoItem
+                  label="Grade"
+                  value={job.grade}
+                  icon={<GraduationCap />}
+                />
+                <InfoItem
+                  label="Subject"
+                  value={job.subject}
+                  icon={<BookOpen />}
+                />
+                <InfoItem label="Place" value={job.place} icon={<MapPin />} />
+                <InfoItem
+                  label="Tutor requirement"
+                  value={formatTutorRequirement(job.gender)}
+                  icon={<Users />}
+                />
+                <InfoItem
+                  label="Monthly salary"
+                  value={formatSalary(job.salary)}
+                  icon={<Wallet />}
+                />
+                <InfoItem
+                  label="Posted"
+                  value={formatDate(job.createdAt)}
+                  icon={<CalendarDays />}
+                />
+              </InfoGrid>
             </div>
 
-            <div>
-              <p className="text-sm text-gray-500">
-                Subject
-              </p>
+            <Separator />
 
-              <p className="font-medium">
-                {job.subject}
-              </p>
+            <div className="bg-muted/40 p-5 sm:p-6">
+              {!isOpen ? (
+                <div className="text-center">
+                  <h2 className="font-heading font-medium">
+                    Applications closed
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground text-pretty">
+                    This tutoring job is no longer accepting applications.
+                  </p>
+                </div>
+              ) : !tutor ? (
+                <div className="space-y-4 text-center">
+                  <span
+                    aria-hidden="true"
+                    className="mx-auto flex size-11 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                  >
+                    <Lock className="size-5" />
+                  </span>
+
+                  <div>
+                    <h2 className="font-heading font-medium">
+                      Sign in to apply
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground text-pretty">
+                      Applying uses your saved tutor profile, so you only enter
+                      your details once.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+                    <Button render={<Link href="/login" />} size="xl">
+                      Log in
+                    </Button>
+
+                    <Button
+                      render={<Link href="/register" />}
+                      variant="outline"
+                      size="xl"
+                    >
+                      Create an account
+                    </Button>
+                  </div>
+                </div>
+              ) : existingApplication ? (
+                <div className="flex items-start gap-4">
+                  <span
+                    aria-hidden="true"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success"
+                  >
+                    <CheckCircle2 className="size-5" />
+                  </span>
+
+                  <div className="min-w-0 space-y-2">
+                    <h2 className="font-heading font-medium">
+                      You already applied for this job
+                    </h2>
+
+                    <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      Your application is currently
+                      <StatusBadge status={existingApplication.status} />
+                    </p>
+
+                    <Button
+                      render={<Link href="/tutor/applications" />}
+                      variant="outline"
+                      size="lg"
+                    >
+                      View my applications
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <ApplicationForm jobCode={job.jobCode} />
+              )}
             </div>
-
-            <div>
-              <p className="text-sm text-gray-500">
-                Place
-              </p>
-
-              <p className="font-medium">
-                {job.place}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-500">
-                Salary
-              </p>
-
-              <p className="text-xl font-bold">
-                {job.salary} ETB
-              </p>
-            </div>
-
           </div>
-
-          <button
-            className="mt-8 w-full rounded-xl bg-black px-6 py-3 font-semibold text-white transition hover:bg-gray-800"
-          >
-            <ApplicationForm jobCode={job.jobCode} />
-          </button>
-
         </div>
+      </main>
 
-      </div>
-    </main>
+      <PublicFooter />
+    </>
   );
 }

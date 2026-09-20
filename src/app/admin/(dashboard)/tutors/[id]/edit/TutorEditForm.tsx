@@ -3,15 +3,17 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Loader2, Save } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/shared/ErrorState";
 import {
-  AlertCircle,
-  CheckCircle2,
-  GraduationCap,
-  Loader2,
-  MapPin,
-  Save,
-  User,
-} from "lucide-react";
+  SectionHeading,
+  SelectField,
+  TextAreaField,
+  TextField,
+} from "@/components/shared/FormFields";
 
 type TutorData = {
   id: string;
@@ -41,11 +43,32 @@ type TutorData = {
   entrancePercentage: number;
 };
 
-export default function TutorEditForm({
-  tutor,
-}: {
-  tutor: TutorData;
-}) {
+const GENDER_OPTIONS = [
+  { value: "MALE", label: "Male" },
+  { value: "FEMALE", label: "Female" },
+];
+
+const CURRENT_YEAR_OPTIONS = [
+  { value: "1", label: "1st Year" },
+  { value: "2", label: "2nd Year" },
+  { value: "3", label: "3rd Year" },
+  { value: "4", label: "4th Year" },
+  { value: "5", label: "5th Year or above" },
+];
+
+const EMPLOYMENT_STATUS_OPTIONS = [
+  { value: "EMPLOYED", label: "Employed" },
+  { value: "SELF_EMPLOYED", label: "Self-employed" },
+  { value: "UNEMPLOYED", label: "Unemployed" },
+  { value: "OTHER", label: "Other" },
+];
+
+const ENTRANCE_TOTAL_OPTIONS = [
+  { value: "600", label: "600" },
+  { value: "700", label: "700" },
+];
+
+export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
   const router = useRouter();
 
   const [form, setForm] = useState({
@@ -61,608 +84,365 @@ export default function TutorEditForm({
     university: tutor.university,
     department: tutor.department,
     currentYear: tutor.currentYear,
-    currentGPA:
-      tutor.currentGPA !== null
-        ? String(tutor.currentGPA)
-        : "",
+    currentGPA: tutor.currentGPA !== null ? String(tutor.currentGPA) : "",
 
     fieldOfGraduation: tutor.fieldOfGraduation,
-    universityGraduatedFrom:
-      tutor.universityGraduatedFrom,
-    CGPA:
-      tutor.CGPA !== null
-        ? String(tutor.CGPA)
-        : "",
+    universityGraduatedFrom: tutor.universityGraduatedFrom,
+    CGPA: tutor.CGPA !== null ? String(tutor.CGPA) : "",
     employmentStatus: tutor.employmentStatus,
     currentJob: tutor.currentJob,
 
     entranceScore: String(tutor.entranceScore),
     entranceTotal: String(tutor.entranceTotal),
-    entrancePercentage: String(
-      tutor.entrancePercentage
-    ),
+    entrancePercentage: String(tutor.entrancePercentage),
   });
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
-  function updateField(
-    field: string,
-    value: string
-  ) {
+  const isStudent = tutor.tutorStatus === "STUDENT";
+
+  function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({
       ...current,
       [field]: value,
     }));
   }
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setSaving(true);
     setError("");
-    setSuccess(false);
 
     try {
-      const response = await fetch(
-        `/api/admin/tutors/${tutor.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fullName: form.fullName,
-            gender: form.gender,
-            email: form.email,
-            phone: form.phone,
+      /* Payload unchanged. Note this route answers errors as `{ error }`,
+         unlike the rest of the API, which uses `{ success, message }`. */
+      const response = await fetch(`/api/admin/tutors/${tutor.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName: form.fullName,
+          gender: form.gender,
+          email: form.email,
+          phone: form.phone,
 
-            city: form.city,
-            subcity: form.subcity,
-            exactPlace: form.exactPlace,
-            aboutMe: form.aboutMe,
+          city: form.city,
+          subcity: form.subcity,
+          exactPlace: form.exactPlace,
+          aboutMe: form.aboutMe,
 
-            university: form.university,
-            department: form.department,
-            currentYear: form.currentYear,
-            currentGPA: form.currentGPA,
+          university: form.university,
+          department: form.department,
+          currentYear: form.currentYear,
+          currentGPA: form.currentGPA,
 
-            fieldOfGraduation:
-              form.fieldOfGraduation,
-            universityGraduatedFrom:
-              form.universityGraduatedFrom,
-            CGPA: form.CGPA,
-            employmentStatus:
-              form.employmentStatus,
-            currentJob: form.currentJob,
+          fieldOfGraduation: form.fieldOfGraduation,
+          universityGraduatedFrom: form.universityGraduatedFrom,
+          CGPA: form.CGPA,
+          employmentStatus: form.employmentStatus,
+          currentJob: form.currentJob,
 
-            entranceScore:
-              form.entranceScore,
-            entranceTotal:
-              form.entranceTotal,
-            entrancePercentage:
-              form.entrancePercentage,
-          }),
-        }
-      );
+          entranceScore: form.entranceScore,
+          entranceTotal: form.entranceTotal,
+          entrancePercentage: form.entrancePercentage,
+        }),
+      });
 
-      const contentType =
-        response.headers.get("content-type") ?? "";
+      const contentType = response.headers.get("content-type") ?? "";
 
-      const data = contentType.includes(
-        "application/json"
-      )
+      const data = contentType.includes("application/json")
         ? await response.json()
         : null;
 
       if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "Failed to update tutor."
-        );
+        throw new Error(data?.error || "Failed to update tutor.");
       }
 
-      setSuccess(true);
+      toast.success("Tutor updated.");
 
-      setTimeout(() => {
-        router.push(
-          `/admin/tutors/${tutor.id}`
-        );
-        router.refresh();
-      }, 700);
-    } catch (error) {
+      /* Navigates immediately — the old version waited on a 700ms timer
+         before redirecting. */
+      router.push(`/admin/tutors/${tutor.id}`);
+      router.refresh();
+    } catch (submitError) {
       setError(
-        error instanceof Error
-          ? error.message
+        submitError instanceof Error
+          ? submitError.message
           : "Something went wrong."
       );
-    } finally {
       setSaving(false);
     }
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-6"
-    >
-      {/* Personal Information */}
-      <FormSection
-        icon={User}
-        title="Personal Information"
-        description="Basic tutor account information"
-      >
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Input
-            label="Full Name"
-            value={form.fullName}
-            onChange={(value) =>
-              updateField("fullName", value)
-            }
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <SectionHeading
+          title="Personal information"
+          description="Basic tutor account information."
+        />
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <TextField
+            id="fullName"
+            label="Full name"
             required
+            value={form.fullName}
+            onChange={(event) => updateField("fullName", event.target.value)}
           />
 
-          <Select
+          <SelectField
+            id="gender"
             label="Gender"
+            required
+            options={GENDER_OPTIONS}
             value={form.gender}
-            onChange={(value) =>
-              updateField("gender", value)
-            }
-            options={[
-              { value: "MALE", label: "Male" },
-              { value: "FEMALE", label: "Female" },
-              { value: "ANY", label: "Any" },
-            ]}
+            onValueChange={(value) => updateField("gender", value)}
           />
 
-          <Input
+          <TextField
+            id="email"
             label="Email"
+            required
             type="email"
             value={form.email}
-            onChange={(value) =>
-              updateField("email", value)
-            }
-            required
+            onChange={(event) => updateField("email", event.target.value)}
           />
 
-          <Input
+          <TextField
+            id="phone"
             label="Phone"
+            required
             value={form.phone}
-            onChange={(value) =>
-              updateField("phone", value)
-            }
-            required
+            onChange={(event) => updateField("phone", event.target.value)}
+            hint="Stored as the 9 digits after +251."
           />
-
-          <div className="sm:col-span-2">
-            <Textarea
-              label="About Tutor"
-              value={form.aboutMe}
-              onChange={(value) =>
-                updateField("aboutMe", value)
-              }
-              rows={5}
-            />
-          </div>
         </div>
-      </FormSection>
+      </section>
 
-      {/* Location */}
-      <FormSection
-        icon={MapPin}
-        title="Location"
-        description="Tutor's registered location"
-      >
-        <div className="grid gap-5 sm:grid-cols-3">
-          <Input
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <SectionHeading
+          title="Location"
+          description="Where the tutor is based."
+        />
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <TextField
+            id="city"
             label="City"
+            required
             value={form.city}
-            onChange={(value) =>
-              updateField("city", value)
-            }
-            required
+            onChange={(event) => updateField("city", event.target.value)}
           />
 
-          <Input
+          <TextField
+            id="subcity"
             label="Subcity"
+            required
             value={form.subcity}
-            onChange={(value) =>
-              updateField("subcity", value)
-            }
-            required
+            onChange={(event) => updateField("subcity", event.target.value)}
           />
 
-          <Input
-            label="Exact Place"
+          <TextField
+            id="exactPlace"
+            label="Exact place"
+            required
+            className="sm:col-span-2"
             value={form.exactPlace}
-            onChange={(value) =>
-              updateField("exactPlace", value)
-            }
-            required
-          />
-        </div>
-      </FormSection>
-
-      {/* Education */}
-      <FormSection
-        icon={GraduationCap}
-        title="Education"
-        description="Academic information"
-      >
-        {tutor.tutorStatus === "STUDENT" ? (
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Input
-              label="University"
-              value={form.university}
-              onChange={(value) =>
-                updateField("university", value)
-              }
-              required
-            />
-
-            <Input
-              label="Department"
-              value={form.department}
-              onChange={(value) =>
-                updateField("department", value)
-              }
-              required
-            />
-
-            <Input
-              label="Current Year"
-              value={form.currentYear}
-              onChange={(value) =>
-                updateField("currentYear", value)
-              }
-              required
-            />
-
-            <NumberInput
-              label="Current GPA"
-              value={form.currentGPA}
-              onChange={(value) =>
-                updateField("currentGPA", value)
-              }
-              step="0.01"
-            />
-          </div>
-        ) : (
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Input
-              label="Field of Graduation"
-              value={form.fieldOfGraduation}
-              onChange={(value) =>
-                updateField(
-                  "fieldOfGraduation",
-                  value
-                )
-              }
-              required
-            />
-
-            <Input
-              label="University Graduated From"
-              value={
-                form.universityGraduatedFrom
-              }
-              onChange={(value) =>
-                updateField(
-                  "universityGraduatedFrom",
-                  value
-                )
-              }
-              required
-            />
-
-            <NumberInput
-              label="CGPA"
-              value={form.CGPA}
-              onChange={(value) =>
-                updateField("CGPA", value)
-              }
-              step="0.01"
-            />
-
-            <Input
-              label="Employment Status"
-              value={form.employmentStatus}
-              onChange={(value) =>
-                updateField(
-                  "employmentStatus",
-                  value
-                )
-              }
-            />
-
-            <Input
-              label="Current Job"
-              value={form.currentJob}
-              onChange={(value) =>
-                updateField(
-                  "currentJob",
-                  value
-                )
-              }
-            />
-          </div>
-        )}
-      </FormSection>
-
-      {/* Entrance Examination */}
-      <FormSection
-        icon={GraduationCap}
-        title="Entrance Examination"
-        description="Entrance examination information"
-      >
-        <div className="grid gap-5 sm:grid-cols-3">
-          <NumberInput
-            label="Score"
-            value={form.entranceScore}
-            onChange={(value) =>
-              updateField(
-                "entranceScore",
-                value
-              )
+            onChange={(event) =>
+              updateField("exactPlace", event.target.value)
             }
           />
+        </div>
 
-          <NumberInput
-            label="Total"
-            value={form.entranceTotal}
-            onChange={(value) =>
-              updateField(
-                "entranceTotal",
-                value
-              )
-            }
-          />
-
-          <NumberInput
-            label="Percentage"
-            value={form.entrancePercentage}
-            onChange={(value) =>
-              updateField(
-                "entrancePercentage",
-                value
-              )
-            }
-            step="0.01"
+        <div className="mt-5">
+          <TextAreaField
+            id="aboutMe"
+            label="About tutor"
+            rows={4}
+            maxLength={500}
+            value={form.aboutMe}
+            onChange={(event) => updateField("aboutMe", event.target.value)}
           />
         </div>
-      </FormSection>
+      </section>
 
-      {/* Error */}
-      {error && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <AlertCircle
-            size={18}
-            className="mt-0.5 shrink-0"
-          />
-          <span>{error}</span>
-        </div>
-      )}
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <SectionHeading
+          title={isStudent ? "Education" : "Graduation & employment"}
+          description={
+            isStudent
+              ? "Current academic information."
+              : "Academic background and employment."
+          }
+        />
 
-      {/* Success */}
-      {success && (
-        <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          <CheckCircle2
-            size={18}
-            className="mt-0.5 shrink-0"
-          />
-          <span>
-            Tutor information updated successfully.
-          </span>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:justify-end">
-        <Link
-          href={`/admin/tutors/${tutor.id}`}
-          className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-200 px-5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-        >
-          Cancel
-        </Link>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gray-950 px-6 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {saving ? (
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          {isStudent ? (
             <>
-              <Loader2
-                size={17}
-                className="animate-spin"
+              <TextField
+                id="university"
+                label="University / College"
+                value={form.university}
+                onChange={(event) =>
+                  updateField("university", event.target.value)
+                }
               />
-              Saving...
+
+              <TextField
+                id="department"
+                label="Department"
+                value={form.department}
+                onChange={(event) =>
+                  updateField("department", event.target.value)
+                }
+              />
+
+              <SelectField
+                id="currentYear"
+                label="Current year"
+                options={CURRENT_YEAR_OPTIONS}
+                value={form.currentYear}
+                onValueChange={(value) => updateField("currentYear", value)}
+              />
+
+              <TextField
+                id="currentGPA"
+                label="Current GPA"
+                type="number"
+                step="0.01"
+                min="0"
+                max="4"
+                value={form.currentGPA}
+                onChange={(event) =>
+                  updateField("currentGPA", event.target.value)
+                }
+              />
             </>
           ) : (
             <>
-              <Save size={17} />
-              Save Changes
+              <TextField
+                id="fieldOfGraduation"
+                label="Field of graduation"
+                value={form.fieldOfGraduation}
+                onChange={(event) =>
+                  updateField("fieldOfGraduation", event.target.value)
+                }
+              />
+
+              <TextField
+                id="universityGraduatedFrom"
+                label="University graduated from"
+                value={form.universityGraduatedFrom}
+                onChange={(event) =>
+                  updateField("universityGraduatedFrom", event.target.value)
+                }
+              />
+
+              <TextField
+                id="CGPA"
+                label="CGPA"
+                type="number"
+                step="0.01"
+                min="0"
+                max="4"
+                value={form.CGPA}
+                onChange={(event) => updateField("CGPA", event.target.value)}
+              />
+
+              <SelectField
+                id="employmentStatus"
+                label="Employment status"
+                options={EMPLOYMENT_STATUS_OPTIONS}
+                value={form.employmentStatus}
+                onValueChange={(value) =>
+                  updateField("employmentStatus", value)
+                }
+              />
+
+              <TextField
+                id="currentJob"
+                label="Current job"
+                className="sm:col-span-2"
+                value={form.currentJob}
+                onChange={(event) =>
+                  updateField("currentJob", event.target.value)
+                }
+              />
             </>
           )}
-        </button>
+        </div>
+      </section>
+
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <SectionHeading
+          title="Entrance examination"
+          description="The percentage is stored alongside the score."
+        />
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-3">
+          <TextField
+            id="entranceScore"
+            label="Score"
+            type="number"
+            min="0"
+            value={form.entranceScore}
+            onChange={(event) =>
+              updateField("entranceScore", event.target.value)
+            }
+          />
+
+          <SelectField
+            id="entranceTotal"
+            label="Out of"
+            options={ENTRANCE_TOTAL_OPTIONS}
+            value={form.entranceTotal}
+            onValueChange={(value) => updateField("entranceTotal", value)}
+          />
+
+          <TextField
+            id="entrancePercentage"
+            label="Percentage"
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            value={form.entrancePercentage}
+            onChange={(event) =>
+              updateField("entrancePercentage", event.target.value)
+            }
+          />
+        </div>
+      </section>
+
+      <FormError message={error} />
+
+      <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:justify-end">
+        <Button
+          render={<Link href={`/admin/tutors/${tutor.id}`} />}
+          variant="outline"
+          size="xl"
+          disabled={saving}
+        >
+          Cancel
+        </Button>
+
+        <Button type="submit" size="xl" disabled={saving}>
+          {saving ? (
+            <Loader2
+              className="animate-spin"
+              data-icon="inline-start"
+              aria-hidden="true"
+            />
+          ) : (
+            <Save data-icon="inline-start" aria-hidden="true" />
+          )}
+          {saving ? "Saving…" : "Save changes"}
+        </Button>
       </div>
     </form>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Form Components */
-/* -------------------------------------------------------------------------- */
-
-function FormSection({
-  icon: Icon,
-  title,
-  description,
-  children,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
-      <div className="mb-6 flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-950 text-white">
-          <Icon size={18} />
-        </div>
-
-        <div>
-          <h2 className="font-semibold tracking-tight text-gray-950">
-            {title}
-          </h2>
-
-          <p className="mt-1 text-xs text-gray-500">
-            {description}
-          </p>
-        </div>
-      </div>
-
-      {children}
-    </section>
-  );
-}
-
-function Input({
-  label,
-  value,
-  onChange,
-  type = "text",
-  required = false,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-        {label}
-        {required && (
-          <span className="ml-1 text-red-500">
-            *
-          </span>
-        )}
-      </span>
-
-      <input
-        type={type}
-        value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
-        required={required}
-        className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-      />
-    </label>
-  );
-}
-
-function NumberInput({
-  label,
-  value,
-  onChange,
-  step = "1",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  step?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-        {label}
-      </span>
-
-      <input
-        type="number"
-        step={step}
-        value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
-        className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-      />
-    </label>
-  );
-}
-
-function Select({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: {
-    value: string;
-    label: string;
-  }[];
-}) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-        {label}
-      </span>
-
-      <select
-        value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
-        className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-      >
-        {options.map((option) => (
-          <option
-            key={option.value}
-            value={option.value}
-          >
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function Textarea({
-  label,
-  value,
-  onChange,
-  rows = 4,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  rows?: number;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-        {label}
-      </span>
-
-      <textarea
-        rows={rows}
-        value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
-        className="w-full resize-y rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm leading-6 text-gray-900 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-      />
-    </label>
   );
 }

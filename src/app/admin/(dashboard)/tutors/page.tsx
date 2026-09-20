@@ -1,14 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { RotateCw, Search, Users, X } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Search,
-  GraduationCap,
-  UserRound,
-  Users,
-  Eye,
-} from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ErrorState } from "@/components/shared/ErrorState";
+import { CopyButton } from "@/components/shared/CopyButton";
+import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
+import { formatDate, formatEnum } from "@/lib/format";
 
 type TutorStatus = "STUDENT" | "GRADUATE";
 
@@ -18,449 +29,338 @@ interface Tutor {
   email: string;
   phone: string;
   gender: string;
-
   city: string;
   subcity: string;
-
   tutorStatus: TutorStatus;
-
   university: string | null;
   department: string | null;
   currentYear: string | null;
   currentGPA: number | null;
-
   fieldOfGraduation: string | null;
   universityGraduatedFrom: string | null;
   CGPA: number | null;
   employmentStatus: string | null;
-
   entrancePercentage: number;
-
   createdAt: string;
   updatedAt: string;
-
   _count: {
     applications: number;
   };
 }
 
-type FilterStatus = "ALL" | "STUDENT" | "GRADUATE";
+const STATUS_OPTIONS = [
+  { value: "ALL", label: "All tutors" },
+  { value: "STUDENT", label: "Students" },
+  { value: "GRADUATE", label: "Graduates" },
+];
+
+function affiliationOf(tutor: Tutor): string {
+  if (tutor.tutorStatus === "STUDENT") {
+    return tutor.university || "—";
+  }
+
+  return tutor.universityGraduatedFrom || tutor.fieldOfGraduation || "—";
+}
+
+function gpaOf(tutor: Tutor): string {
+  const value =
+    tutor.tutorStatus === "STUDENT" ? tutor.currentGPA : tutor.CGPA;
+
+  return value !== null ? value.toFixed(2) : "—";
+}
 
 export default function TutorsPage() {
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] =
-    useState<FilterStatus>("ALL");
-
-  async function loadTutors() {
-    setLoading(true);
-
-    try {
-      const params = new URLSearchParams();
-
-      if (search.trim()) {
-        params.set("search", search.trim());
-      }
-
-      if (filterStatus !== "ALL") {
-        params.set("status", filterStatus);
-      }
-
-      const response = await fetch(
-        `/api/admin/tutors?${params.toString()}`
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(
-          data.message || "Failed to fetch tutors."
-        );
-      }
-
-      setTutors(data.tutors);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      loadTutors();
+    let cancelled = false;
+
+    /* Debounced so typing does not fire a request per keystroke. Every state
+       update happens after an await, since setting state synchronously inside
+       an effect causes a cascading re-render. */
+    const timeout = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams();
+
+        if (search.trim()) {
+          params.set("search", search.trim());
+        }
+
+        if (filterStatus !== "ALL") {
+          params.set("status", filterStatus);
+        }
+
+        const response = await fetch(
+          `/api/admin/tutors?${params.toString()}`
+        );
+
+        const data = await response.json();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Failed to fetch tutors.");
+        }
+
+        setTutors(data.tutors);
+        setError("");
+      } catch (loadError) {
+        if (!cancelled) {
+          /* A failed load used to be swallowed into `console.error`, leaving
+             the page showing a confident "0 tutors". */
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to fetch tutors."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }, 300);
 
-    return () => clearTimeout(timeout);
-  }, [search, filterStatus]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [search, filterStatus, reloadKey]);
+
+  function retry() {
+    setLoading(true);
+    setError("");
+    setReloadKey((key) => key + 1);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setFilterStatus("ALL");
+    setLoading(true);
+  }
+
+  const hasFilters = Boolean(search.trim()) || filterStatus !== "ALL";
+
+  const columns: DataTableColumn<Tutor>[] = useMemo(
+    () => [
+      {
+        id: "name",
+        header: "Name",
+        mobileTitle: true,
+        cell: (tutor) => (
+          <div className="min-w-0">
+            <Link
+              href={`/admin/tutors/${tutor.id}`}
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              {tutor.fullName}
+            </Link>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {tutor.email}
+            </p>
+          </div>
+        ),
+      },
+      {
+        id: "phone",
+        header: "Phone",
+        cell: (tutor) => (
+          <CopyButton
+            value={tutor.phone}
+            variant="ghost"
+            size="sm"
+            successMessage="Phone number copied"
+            className="-ml-2 font-normal"
+          >
+            {tutor.phone}
+          </CopyButton>
+        ),
+      },
+      {
+        id: "status",
+        header: "Type",
+        cell: (tutor) => formatEnum(tutor.tutorStatus),
+      },
+      {
+        id: "affiliation",
+        header: "University",
+        cell: (tutor) => (
+          <span className="block max-w-48 truncate">
+            {affiliationOf(tutor)}
+          </span>
+        ),
+      },
+      {
+        id: "gpa",
+        header: "GPA / CGPA",
+        cellClassName: "tabular-nums",
+        cell: gpaOf,
+      },
+      {
+        id: "entrance",
+        header: "Entrance %",
+        cellClassName: "tabular-nums",
+        cell: (tutor) => `${tutor.entrancePercentage.toFixed(1)}%`,
+      },
+      {
+        id: "location",
+        header: "Location",
+        cell: (tutor) => `${tutor.city}, ${tutor.subcity}`,
+      },
+      {
+        id: "applications",
+        header: "Applications",
+        headClassName: "text-right",
+        cellClassName: "text-right tabular-nums",
+        cell: (tutor) => tutor._count.applications,
+      },
+      {
+        id: "joined",
+        header: "Joined",
+        cell: (tutor) => formatDate(tutor.createdAt),
+      },
+      {
+        id: "actions",
+        header: "",
+        hideOnMobile: true,
+        headClassName: "text-right",
+        cellClassName: "text-right",
+        cell: (tutor) => (
+          <Button
+            render={<Link href={`/admin/tutors/${tutor.id}`} />}
+            variant="outline"
+            size="sm"
+          >
+            View
+          </Button>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div className="space-y-6">
-      {/* =========================================
-          HEADER
-      ========================================== */}
+      <PageHeader
+        title="Tutors"
+        description={
+          loading
+            ? "Loading tutors…"
+            : `${tutors.length} ${
+                tutors.length === 1 ? "tutor" : "tutors"
+              } registered`
+        }
+      />
 
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-950 text-white">
-          <Users size={20} />
-        </div>
+      {/* -----------------------------------------------------
+          FILTERS
+      ----------------------------------------------------- */}
+      <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
 
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
-            Tutors
-          </h1>
+            <Input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by name, email or phone"
+              aria-label="Search tutors"
+              className="pl-9"
+            />
+          </div>
 
-          <p className="mt-1 text-sm text-gray-500">
-            Browse and manage registered tutors.
-          </p>
+          <Select
+            items={STATUS_OPTIONS}
+            value={filterStatus}
+            onValueChange={(value) =>
+              setFilterStatus((value as string) ?? "ALL")
+            }
+          >
+            <SelectTrigger
+              className="w-full sm:w-44"
+              aria-label="Filter by tutor type"
+            >
+              <SelectValue />
+            </SelectTrigger>
+
+            <SelectContent>
+              {STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {hasFilters ? (
+            <Button
+              variant="ghost"
+              size="default"
+              onClick={clearFilters}
+              className="shrink-0"
+            >
+              <X data-icon="inline-start" aria-hidden="true" />
+              Clear
+            </Button>
+          ) : null}
         </div>
       </div>
 
-      {/* =========================================
-          FILTERS
-      ========================================== */}
-
-      <section className="rounded-2xl border bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          {/* Search */}
-
-          <div className="relative w-full lg:max-w-lg">
-            <Search
-              size={17}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-
-            <input
-              type="text"
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-16 rounded-xl" />
+          ))}
+        </div>
+      ) : error ? (
+        <ErrorState
+          title="Could not load tutors"
+          description={error}
+          action={
+            <Button onClick={retry} size="lg">
+              <RotateCw data-icon="inline-start" aria-hidden="true" />
+              Try again
+            </Button>
+          }
+        />
+      ) : (
+        <DataTable
+          items={tutors}
+          columns={columns}
+          getRowKey={(tutor) => tutor.id}
+          caption="Registered tutors"
+          empty={
+            <EmptyState
+              icon={hasFilters ? <Search /> : <Users />}
+              title={hasFilters ? "No matching tutors" : "No tutors yet"}
+              description={
+                hasFilters
+                  ? "No tutors match the current search or filter."
+                  : "Registered tutors will appear here."
               }
-              placeholder="Search by name, email, phone, university..."
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-4 text-sm outline-none transition placeholder:text-gray-400 focus:border-gray-950 focus:bg-white focus:ring-2 focus:ring-gray-950/10"
+              action={
+                hasFilters ? (
+                  <Button variant="outline" size="lg" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                ) : undefined
+              }
             />
-          </div>
-
-          {/* Status filters */}
-
-          <div className="flex w-full overflow-x-auto rounded-xl border bg-gray-50 p-1 lg:w-auto">
-            {(
-              [
-                ["ALL", "All"],
-                ["STUDENT", "Students"],
-                ["GRADUATE", "Graduates"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() =>
-                  setFilterStatus(value)
-                }
-                className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
-                  filterStatus === value
-                    ? "bg-white text-gray-950 shadow-sm"
-                    : "text-gray-500 hover:text-gray-900"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================
-          RESULTS
-      ========================================== */}
-
-      <section className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-        {/* Result count */}
-
-        <div className="flex items-center justify-between border-b px-5 py-3.5">
-          <p className="text-sm text-gray-500">
-            {loading
-              ? "Loading..."
-              : `${tutors.length} tutor${
-                  tutors.length === 1 ? "" : "s"
-                }`}
-          </p>
-        </div>
-
-        {/* Loading */}
-
-        {loading ? (
-          <div className="flex min-h-56 items-center justify-center">
-            <div className="text-center">
-              <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-gray-950" />
-
-              <p className="mt-3 text-sm text-gray-500">
-                Loading tutors...
-              </p>
-            </div>
-          </div>
-        ) : tutors.length === 0 ? (
-          /* Empty */
-
-          <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center">
-            <Users
-              size={36}
-              className="text-gray-300"
-            />
-
-            <h2 className="mt-3 font-semibold text-gray-900">
-              No tutors found
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Try changing your search or filter.
-            </p>
-          </div>
-        ) : (
-          /* Table */
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-225 text-left text-sm">
-              <thead className="border-b bg-gray-50">
-                <tr>
-                  <th className="sticky left-0 z-10 bg-gray-50 px-5 py-3.5 font-semibold text-gray-600">
-                    Tutor
-                  </th>
-
-                  <th className="px-4 py-3.5 font-semibold text-gray-600">
-                    Type
-                  </th>
-
-                  <th className="px-4 py-3.5 font-semibold text-gray-600">
-                    Education
-                  </th>
-
-                  <th className="px-4 py-3.5 font-semibold text-gray-600">
-                    Academic
-                  </th>
-
-                  <th className="px-4 py-3.5 font-semibold text-gray-600">
-                    Applications
-                  </th>
-
-                  <th className="px-4 py-3.5 font-semibold text-gray-600">
-                    Registered
-                  </th>
-
-                  <th className="px-4 py-3.5 text-right font-semibold text-gray-600">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-gray-100">
-                {tutors.map((tutor) => (
-                  <TutorRow
-                    key={tutor.id}
-                    tutor={tutor}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+          }
+        />
+      )}
     </div>
   );
-}
-
-/* =========================================
-   TUTOR ROW
-========================================= */
-
-function TutorRow({
-  tutor,
-}: {
-  tutor: Tutor;
-}) {
-  const isStudent =
-    tutor.tutorStatus === "STUDENT";
-
-  const academicScore = isStudent
-    ? tutor.currentGPA !== null
-      ? `GPA ${tutor.currentGPA.toFixed(2)}`
-      : "GPA —"
-    : tutor.CGPA !== null
-      ? `CGPA ${tutor.CGPA.toFixed(2)}`
-      : "CGPA —";
-
-  return (
-    <tr className="group transition hover:bg-gray-50">
-      {/* =========================================
-          TUTOR
-      ========================================== */}
-
-      <td className="sticky left-0 z-10 bg-white px-5 py-4 group-hover:bg-gray-50">
-        <div className="flex items-center gap-3">
-          {/* Avatar */}
-
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">
-            {tutor.fullName
-              .charAt(0)
-              .toUpperCase()}
-          </div>
-
-          {/* Name + contact */}
-
-          <div className="min-w-0">
-            <p className="truncate font-semibold text-gray-950">
-              {tutor.fullName}
-            </p>
-
-            <p className="mt-0.5 max-w-55 truncate text-xs text-gray-500">
-              {tutor.email}
-            </p>
-
-            <p className="mt-0.5 text-xs text-gray-400">
-              {tutor.phone}
-            </p>
-          </div>
-        </div>
-      </td>
-
-      {/* =========================================
-          TYPE
-      ========================================== */}
-
-      <td className="px-4 py-4">
-        <StatusBadge
-          status={tutor.tutorStatus}
-        />
-      </td>
-
-      {/* =========================================
-          EDUCATION
-      ========================================== */}
-
-      <td className="max-w-55 px-4 py-4">
-        {isStudent ? (
-          <div>
-            <p className="truncate font-medium text-gray-900">
-              {tutor.university || "—"}
-            </p>
-
-            <p className="mt-1 truncate text-xs text-gray-500">
-              {tutor.department || "—"}
-            </p>
-
-            {tutor.currentYear && (
-              <p className="mt-1 text-xs text-gray-400">
-                Year {tutor.currentYear}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div>
-            <p className="truncate font-medium text-gray-900">
-              {tutor.fieldOfGraduation || "—"}
-            </p>
-
-            <p className="mt-1 truncate text-xs text-gray-500">
-              {tutor.universityGraduatedFrom ||
-                "—"}
-            </p>
-          </div>
-        )}
-      </td>
-
-      {/* =========================================
-          ACADEMIC
-      ========================================== */}
-
-      <td className="px-4 py-4">
-        <div className="space-y-1">
-          <p className="font-semibold text-gray-900">
-            {academicScore}
-          </p>
-
-          <p className="text-xs text-gray-500">
-            Entrance{" "}
-            <span className="font-medium text-gray-700">
-              {tutor.entrancePercentage.toFixed(
-                1
-              )}
-              %
-            </span>
-          </p>
-        </div>
-      </td>
-
-      {/* =========================================
-          APPLICATIONS
-      ========================================== */}
-
-      <td className="px-4 py-4">
-        <span className="inline-flex min-w-8 items-center justify-center rounded-lg bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
-          {tutor._count.applications}
-        </span>
-      </td>
-
-      {/* =========================================
-          REGISTERED
-      ========================================== */}
-
-      <td className="whitespace-nowrap px-4 py-4 text-xs text-gray-500">
-        {formatDate(tutor.createdAt)}
-      </td>
-
-      {/* =========================================
-          ACTION
-      ========================================== */}
-
-      <td className="px-4 py-4 text-right">
-        <Link
-          href={`/admin/tutors/${tutor.id}`}
-          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-xs font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950"
-        >
-          <Eye size={14} />
-          View
-        </Link>
-      </td>
-    </tr>
-  );
-}
-
-/* =========================================
-   STATUS BADGE
-========================================= */
-
-function StatusBadge({
-  status,
-}: {
-  status: TutorStatus;
-}) {
-  if (status === "STUDENT") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-        <GraduationCap size={12} />
-        Student
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-      <UserRound size={12} />
-      Graduate
-    </span>
-  );
-}
-
-/* =========================================
-   DATE FORMATTER
-========================================= */
-
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(date));
 }

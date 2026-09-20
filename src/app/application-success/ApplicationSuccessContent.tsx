@@ -2,80 +2,63 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ArrowRight, CheckCircle2, FileText } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+
+/**
+ * `useSearchParams` keeps this component out of the static render, which is
+ * why it is split from `page.tsx` and wrapped in a Suspense boundary there.
+ */
 export default function ApplicationSuccessContent() {
-  const searchParams = useSearchParams();
-
-  const jobCode = searchParams.get("jobCode");
+  const jobCode = useSearchParams().get("jobCode");
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
-      <div className="w-full max-w-lg">
-        <div className="rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-10">
+    <div className="w-full max-w-lg">
+      <div className="rounded-2xl bg-card p-6 text-center ring-1 ring-foreground/10 sm:p-10">
+        <span
+          aria-hidden="true"
+          className="mx-auto flex size-16 items-center justify-center rounded-full bg-success/10 text-success"
+        >
+          <CheckCircle2 className="size-8" />
+        </span>
 
-          {/* Success Icon */}
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-            <svg
-              className="h-8 w-8 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
+        <h1 className="mt-6 font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+          Application submitted
+        </h1>
+
+        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground text-pretty">
+          Thank you for applying to Excellence Tutor. We have received your
+          application and will contact you if you are selected.
+        </p>
+
+        {jobCode ? (
+          <div className="mt-6 rounded-xl bg-muted/60 p-4">
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Job code
+            </p>
+            <p className="mt-0.5 font-heading text-xl font-semibold">
+              {jobCode}
+            </p>
           </div>
+        ) : null}
 
-          {/* Title */}
-          <h1 className="mt-6 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-            Application Submitted Successfully
-          </h1>
+        <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <Button render={<Link href="/tutor/applications" />} size="xl">
+            <FileText data-icon="inline-start" aria-hidden="true" />
+            Track my applications
+          </Button>
 
-          {/* Description */}
-          <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-gray-600 sm:text-base">
-            Thank you for applying to Excellence Tutor.
-            We have received your application and will
-            contact you if you are selected.
-          </p>
-
-          {/* Job Code */}
-          {jobCode && (
-            <div className="mt-6 rounded-2xl bg-gray-50 p-5">
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-                Job Code
-              </p>
-
-              <p className="mt-1 text-xl font-bold text-gray-900">
-                {jobCode}
-              </p>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-
-            <Link
-              href="/jobs"
-              className="inline-flex items-center justify-center rounded-xl bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
-            >
-              Explore More Jobs
-            </Link>
-
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              Back to Home
-            </Link>
-
-          </div>
-
+          <Button
+            render={<Link href="/jobs" />}
+            variant="outline"
+            size="xl"
+          >
+            Explore more jobs
+            <ArrowRight data-icon="inline-end" aria-hidden="true" />
+          </Button>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
