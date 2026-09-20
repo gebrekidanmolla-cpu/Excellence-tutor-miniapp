@@ -9,6 +9,7 @@ interface JobPostPreviewProps {
     gender: "MALE" | "FEMALE" | "ANY";
     grade: string;
     subject: string;
+    place: string;
     salary: number;
   };
 }

@@ -3,6 +3,7 @@ interface JobPostData {
   gender: "MALE" | "FEMALE" | "ANY";
   grade: string;
   subject: string;
+  place: string;
   salary: number;
 }
 
@@ -37,6 +38,8 @@ Job Code: ${job.jobCode}
 Grade: ${job.grade}
 
 Subject: ${job.subject}
+
+Place: ${job.place}
 
 Salary: ${job.salary.toLocaleString()} ETB
 

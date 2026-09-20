@@ -42,6 +42,7 @@ model Job {
   gender  Gender
   grade   String
   subject String
+  place   String    @default("")
   salary  Int
   status  JobStatus @default(OPEN)
 

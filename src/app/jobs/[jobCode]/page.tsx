@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CheckCircle2,
   GraduationCap,
+  MapPin,
   Users,
   Wallet,
 } from "lucide-react";
@@ -35,6 +36,7 @@ export default async function JobDetailsPage({
       gender: true,
       grade: true,
       subject: true,
+      place: true,
       salary: true,
       status: true,
       createdAt: true,
@@ -131,6 +133,12 @@ export default async function JobDetailsPage({
               icon={<BookOpen size={20} />}
               label="Subject"
               value={job.subject}
+            />
+
+            <InfoCard
+              icon={<MapPin size={20} />}
+              label="Place"
+              value={job.place}
             />
 
             <InfoCard

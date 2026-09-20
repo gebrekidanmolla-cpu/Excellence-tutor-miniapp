@@ -336,6 +336,10 @@ export default async function TutorDetailsPage({
                       </th>
 
                       <th className="px-4 py-3">
+                        Place
+                      </th>
+
+                      <th className="px-4 py-3">
                         Salary
                       </th>
 
@@ -371,6 +375,10 @@ export default async function TutorDetailsPage({
 
                           <td className="px-4 py-4 text-sm text-gray-600">
                             {application.job.grade}
+                          </td>
+
+                          <td className="px-4 py-4 text-sm text-gray-600">
+                            {application.job.place}
                           </td>
 
                           <td className="px-4 py-4 text-sm font-medium text-gray-900">

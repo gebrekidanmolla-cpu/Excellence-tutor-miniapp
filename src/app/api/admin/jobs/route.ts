@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
+import { generateNextJobCode } from "@/lib/job-code";
 
 const allowedGenders = [
   "MALE",
@@ -71,10 +72,10 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     const {
-      jobCode,
       gender,
       grade,
       subject,
+      place,
       salary,
       daysPerWeek,
       hoursPerDay,
@@ -85,10 +86,10 @@ export async function POST(request: Request) {
     // Required fields
 
     if (
-      !jobCode ||
       !gender ||
       !grade ||
       !subject ||
+      !place ||
       salary === undefined ||
       salary === null ||
       daysPerWeek === undefined ||
@@ -100,22 +101,6 @@ export async function POST(request: Request) {
         {
           success: false,
           message: "All required fields must be provided.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Job code validation
-
-    const normalizedJobCode =
-      String(jobCode).trim().toUpperCase();
-
-    if (!/^[A-Z][A-Z0-9-]*$/.test(normalizedJobCode)) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Job code must start with a letter and contain only letters, numbers, or hyphens.",
         },
         { status: 400 }
       );
@@ -162,6 +147,21 @@ export async function POST(request: Request) {
         {
           success: false,
           message: "Subject is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Place validation
+
+    const normalizedPlace =
+      String(place).trim();
+
+    if (!normalizedPlace) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Place is required.",
         },
         { status: 400 }
       );
@@ -251,42 +251,65 @@ export async function POST(request: Request) {
         ? "CLOSED"
         : "OPEN";
 
-    // Duplicate job code
+    // Create job
+    //
+    // The job code is assigned automatically (E1000, E1001, ...).
+    // Retry a few times in the rare case two admins create a job
+    // at the same moment and race for the same code.
 
-    const existingJob =
-      await prisma.job.findUnique({
-        where: {
-          jobCode: normalizedJobCode,
-        },
-      });
+    const MAX_JOB_CODE_ATTEMPTS = 5;
 
-    if (existingJob) {
+    let job = null;
+
+    for (
+      let attempt = 1;
+      attempt <= MAX_JOB_CODE_ATTEMPTS && !job;
+      attempt++
+    ) {
+      const nextJobCode = await generateNextJobCode();
+
+      try {
+        job = await prisma.job.create({
+          data: {
+            jobCode: nextJobCode,
+            gender: gender as AllowedGender,
+            grade: normalizedGrade,
+            subject: normalizedSubject,
+            place: normalizedPlace,
+            salary: parsedSalary,
+            daysPerWeek: parsedDaysPerWeek,
+            hoursPerDay: parsedHoursPerDay,
+            additionalDetails:
+              normalizedAdditionalDetails || null,
+            status: normalizedStatus,
+          },
+        });
+      } catch (error) {
+        const isJobCodeConflict =
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          error.code === "P2002";
+
+        if (
+          !isJobCodeConflict ||
+          attempt >= MAX_JOB_CODE_ATTEMPTS
+        ) {
+          throw error;
+        }
+      }
+    }
+
+    if (!job) {
       return NextResponse.json(
         {
           success: false,
           message:
-            `Job code ${normalizedJobCode} already exists.`,
+            "Failed to assign a job code. Please try again.",
         },
-        { status: 409 }
+        { status: 500 }
       );
     }
-
-    // Create job
-
-    const job = await prisma.job.create({
-      data: {
-        jobCode: normalizedJobCode,
-        gender: gender as AllowedGender,
-        grade: normalizedGrade,
-        subject: normalizedSubject,
-        salary: parsedSalary,
-        daysPerWeek: parsedDaysPerWeek,
-        hoursPerDay: parsedHoursPerDay,
-        additionalDetails:
-          normalizedAdditionalDetails || null,
-        status: normalizedStatus,
-      },
-    });
 
     return NextResponse.json(
       {

@@ -20,6 +20,7 @@ export default async function ApplyPage({ params }: PageProps) {
       gender: true,
       grade: true,
       subject: true,
+      place: true,
       salary: true,
       status: true,
     },
@@ -104,6 +105,16 @@ export default async function ApplyPage({ params }: PageProps) {
 
               <p className="font-medium">
                 {job.subject}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">
+                Place
+              </p>
+
+              <p className="font-medium">
+                {job.place}
               </p>
             </div>
 

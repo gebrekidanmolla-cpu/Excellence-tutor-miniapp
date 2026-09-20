@@ -93,6 +93,10 @@ export default async function AdminJobsPage() {
                   </th>
 
                   <th className="px-6 py-4 font-medium">
+                    Place
+                  </th>
+
+                  <th className="px-6 py-4 font-medium">
                     Salary
                   </th>
 
@@ -135,6 +139,10 @@ export default async function AdminJobsPage() {
 
                     <td className="px-6 py-4">
                       {job.subject}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {job.place}
                     </td>
 
                     <td className="px-6 py-4">

@@ -34,6 +34,7 @@ async function main() {
       gender: "FEMALE",
       grade: "KG",
       subject: "All",
+      place: "Bole, Addis Ababa",
       salary: 4800,
       status: "OPEN",
       daysPerWeek: 5,

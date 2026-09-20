@@ -61,6 +61,7 @@ export default async function EditJobPage({
             gender: job.gender,
             grade: job.grade,
             subject: job.subject,
+            place: job.place,
             salary: job.salary,
             status: job.status,
           }}

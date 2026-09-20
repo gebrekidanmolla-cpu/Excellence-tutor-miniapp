@@ -17,6 +17,7 @@ export async function GET(
         gender: true,
         grade: true,
         subject: true,
+        place: true,
         salary: true,
         status: true,
       },

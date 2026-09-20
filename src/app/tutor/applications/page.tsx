@@ -70,6 +70,7 @@ export default async function MyApplicationsPage() {
           gender: true,
           grade: true,
           subject: true,
+          place: true,
           salary: true,
           status: true,
         },
@@ -187,6 +188,13 @@ export default async function MyApplicationsPage() {
                       {application.job.gender === "ANY"
                         ? "Any"
                         : application.job.gender}
+                    </span>
+
+                    <span>
+                      <span className="font-medium text-gray-900">
+                        Place:
+                      </span>{" "}
+                      {application.job.place}
                     </span>
 
                     <span>

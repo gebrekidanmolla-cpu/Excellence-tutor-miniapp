@@ -106,6 +106,7 @@ export default async function ApplicationDetailsPage({
           gender: true,
           grade: true,
           subject: true,
+          place: true,
           salary: true,
           status: true,
           createdAt: true,
@@ -251,6 +252,15 @@ export default async function ApplicationDetailsPage({
             </p>
             <p className="mt-1 font-semibold text-gray-900">
               {application.job.subject}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500">
+              Place
+            </p>
+            <p className="mt-1 font-semibold text-gray-900">
+              {application.job.place}
             </p>
           </div>
 

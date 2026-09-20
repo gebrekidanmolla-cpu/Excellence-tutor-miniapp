@@ -335,6 +335,11 @@ export default async function ApplicationDetailsPage({
           />
 
           <InfoItem
+            label="Place"
+            value={job.place}
+          />
+
+          <InfoItem
             label="Salary"
             value={`${job.salary.toLocaleString()} ETB`}
           />

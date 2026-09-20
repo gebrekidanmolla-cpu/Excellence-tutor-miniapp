@@ -10,6 +10,7 @@ interface EditJobFormProps {
     gender: "MALE" | "FEMALE" | "ANY";
     grade: string;
     subject: string;
+    place: string;
     salary: number;
     status: "OPEN" | "CLOSED";
   };
@@ -20,9 +21,6 @@ export default function EditJobForm({
 }: EditJobFormProps) {
   const router = useRouter();
 
-  const [jobCode, setJobCode] =
-    useState(job.jobCode);
-
   const [gender, setGender] =
     useState(job.gender);
 
@@ -31,6 +29,9 @@ export default function EditJobForm({
 
   const [subject, setSubject] =
     useState(job.subject);
+
+  const [place, setPlace] =
+    useState(job.place);
 
   const [salary, setSalary] =
     useState(String(job.salary));
@@ -66,10 +67,10 @@ export default function EditJobForm({
               "application/json",
           },
           body: JSON.stringify({
-            jobCode,
             gender,
             grade,
             subject,
+            place,
             salary,
             status,
           }),
@@ -112,25 +113,18 @@ export default function EditJobForm({
       {/* Job Code */}
 
       <div>
-        <label
-          htmlFor="jobCode"
-          className="block text-sm font-medium"
-        >
+        <label className="block text-sm font-medium">
           Job Code
         </label>
 
-        <input
-          id="jobCode"
-          type="text"
-          value={jobCode}
-          onChange={(event) =>
-            setJobCode(
-              event.target.value.toUpperCase()
-            )
-          }
-          required
-          className="mt-2 w-full rounded-xl border px-4 py-3"
-        />
+        <p className="mt-2 w-full rounded-xl border bg-gray-50 px-4 py-3 text-gray-700">
+          {job.jobCode}
+        </p>
+
+        <p className="mt-1 text-xs text-gray-500">
+          Job codes are assigned automatically and
+          cannot be changed.
+        </p>
       </div>
 
       {/* Gender */}
@@ -208,6 +202,28 @@ export default function EditJobForm({
           value={subject}
           onChange={(event) =>
             setSubject(event.target.value)
+          }
+          required
+          className="mt-2 w-full rounded-xl border px-4 py-3"
+        />
+      </div>
+
+      {/* Place */}
+
+      <div>
+        <label
+          htmlFor="place"
+          className="block text-sm font-medium"
+        >
+          Place
+        </label>
+
+        <input
+          id="place"
+          type="text"
+          value={place}
+          onChange={(event) =>
+            setPlace(event.target.value)
           }
           required
           className="mt-2 w-full rounded-xl border px-4 py-3"

@@ -100,10 +100,10 @@ export async function PATCH(
     const body = await request.json();
 
     const {
-      jobCode,
       gender,
       grade,
       subject,
+      place,
       salary,
       status,
     } = body;
@@ -125,7 +125,7 @@ export async function PATCH(
       );
     }
 
-    if (!jobCode || !gender || !grade || !subject) {
+    if (!gender || !grade || !subject || !place) {
       return NextResponse.json(
         {
           success: false,
@@ -136,21 +136,14 @@ export async function PATCH(
       );
     }
 
-    const normalizedJobCode =
-      String(jobCode)
-        .trim()
-        .toUpperCase();
+    const normalizedPlace =
+      String(place).trim();
 
-    if (
-      !/^[A-Z][A-Z0-9-]*$/.test(
-        normalizedJobCode
-      )
-    ) {
+    if (!normalizedPlace) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Invalid job code format.",
+          message: "Place is required.",
         },
         { status: 400 }
       );
@@ -205,40 +198,18 @@ export async function PATCH(
       );
     }
 
-    const duplicateJob =
-      await prisma.job.findFirst({
-        where: {
-          jobCode: normalizedJobCode,
-          NOT: {
-            id,
-          },
-        },
-      });
-
-    if (duplicateJob) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            `Job code ${normalizedJobCode} already exists.`,
-        },
-        { status: 409 }
-      );
-    }
-
     const updatedJob =
       await prisma.job.update({
         where: {
           id,
         },
         data: {
-          jobCode:
-            normalizedJobCode,
           gender,
           grade:
             String(grade).trim(),
           subject:
             String(subject).trim(),
+          place: normalizedPlace,
           salary: parsedSalary,
           status,
         },

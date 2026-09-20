@@ -13,10 +13,10 @@ import {
 export default function CreateJobForm() {
   const router = useRouter();
 
-  const [jobCode, setJobCode] = useState("");
   const [gender, setGender] = useState("FEMALE");
   const [grade, setGrade] = useState("");
   const [subject, setSubject] = useState("");
+  const [place, setPlace] = useState("");
   const [salary, setSalary] = useState("");
 
   const [daysPerWeek, setDaysPerWeek] =
@@ -52,10 +52,10 @@ export default function CreateJobForm() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            jobCode,
             gender,
             grade,
             subject,
+            place,
             salary,
             daysPerWeek,
             hoursPerDay,
@@ -121,35 +121,17 @@ export default function CreateJobForm() {
           </p>
         </div>
 
+        <div className="mb-5 rounded-xl bg-gray-50 px-4 py-3">
+          <p className="text-sm text-gray-600">
+            <span className="font-semibold text-gray-900">
+              Job Code:
+            </span>{" "}
+            Assigned automatically when the job is
+            created (e.g. E1000, E1001, ...).
+          </p>
+        </div>
+
         <div className="grid gap-5 sm:grid-cols-2">
-          {/* Job Code */}
-          <div>
-            <label
-              htmlFor="jobCode"
-              className="block text-sm font-medium text-gray-900"
-            >
-              Job Code
-            </label>
-
-            <input
-              id="jobCode"
-              type="text"
-              value={jobCode}
-              onChange={(event) =>
-                setJobCode(
-                  event.target.value.toUpperCase()
-                )
-              }
-              placeholder="E337"
-              required
-              className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
-            />
-
-            <p className="mt-1 text-xs text-gray-500">
-              Example: E337
-            </p>
-          </div>
-
           {/* Gender */}
           <div>
             <label
@@ -220,6 +202,28 @@ export default function CreateJobForm() {
                 setSubject(event.target.value)
               }
               placeholder="All Subjects"
+              required
+              className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+            />
+          </div>
+
+          {/* Place */}
+          <div>
+            <label
+              htmlFor="place"
+              className="block text-sm font-medium text-gray-900"
+            >
+              Place
+            </label>
+
+            <input
+              id="place"
+              type="text"
+              value={place}
+              onChange={(event) =>
+                setPlace(event.target.value)
+              }
+              placeholder="Bole, Addis Ababa"
               required
               className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
             />

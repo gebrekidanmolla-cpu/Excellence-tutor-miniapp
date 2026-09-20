@@ -111,6 +111,11 @@ export default async function JobDetailsPage({
           />
 
           <InfoItem
+            label="Place"
+            value={job.place}
+          />
+
+          <InfoItem
             label="Salary"
             value={`${job.salary.toLocaleString()} ETB`}
           />
@@ -133,6 +138,7 @@ export default async function JobDetailsPage({
           gender: job.gender,
           grade: job.grade,
           subject: job.subject,
+          place: job.place,
           salary: job.salary,
         }}
       />

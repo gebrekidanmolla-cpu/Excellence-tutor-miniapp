@@ -8,6 +8,7 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   GraduationCap,
+  MapPin,
   Users,
 } from "lucide-react";
 
@@ -17,6 +18,7 @@ type Job = {
   gender: "MALE" | "FEMALE" | "ANY";
   grade: string;
   subject: string;
+  place: string;
   salary: number;
   status: "OPEN" | "CLOSED";
   createdAt: string;
@@ -211,6 +213,12 @@ function JobCard({ job }: { job: Job }) {
             icon={<BookOpen size={17} />}
             label="Subject"
             value={job.subject}
+          />
+
+          <JobDetail
+            icon={<MapPin size={17} />}
+            label="Place"
+            value={job.place}
           />
 
           <JobDetail
