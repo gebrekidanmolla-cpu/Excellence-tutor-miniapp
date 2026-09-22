@@ -1,7 +1,25 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    /*
+     * Both hosts are fixed, code-controlled URLs (the landing page's hero
+     * photo and university favicons) — never user input — so the wildcard
+     * `search` this leaves implied carries no injection risk.
+     */
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "www.google.com",
+        pathname: "/s2/favicons",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

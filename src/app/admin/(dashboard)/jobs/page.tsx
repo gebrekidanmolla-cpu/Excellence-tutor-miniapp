@@ -77,7 +77,19 @@ export default async function AdminJobsPage() {
       header: "Applications",
       headClassName: "text-right",
       cellClassName: "text-right tabular-nums",
-      cell: (job) => job._count.applications,
+      /* Straight to that job's pool: the count is the reason to open the job
+         in the first place, and the applicants list lives on its page. */
+      cell: (job) =>
+        job._count.applications > 0 ? (
+          <Link
+            href={`/admin/jobs/${job.id}#applicants`}
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            {job._count.applications}
+          </Link>
+        ) : (
+          job._count.applications
+        ),
     },
     {
       id: "created",
@@ -88,6 +100,14 @@ export default async function AdminJobsPage() {
       id: "status",
       header: "Status",
       cell: (job) => <StatusBadge status={job.status} />,
+    },
+    {
+      id: "telegram",
+      header: "Telegram",
+      /* Hidden on mobile so the card doesn't grow another row — the
+         job page is where you act on a failed post anyway. */
+      hideOnMobile: true,
+      cell: (job) => <StatusBadge status={job.telegramPostStatus} />,
     },
     {
       id: "actions",

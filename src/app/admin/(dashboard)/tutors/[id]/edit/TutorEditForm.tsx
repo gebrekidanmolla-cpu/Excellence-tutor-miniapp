@@ -218,7 +218,7 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
             required
             value={form.phone}
             onChange={(event) => updateField("phone", event.target.value)}
-            hint="Stored as the 9 digits after +251."
+            hint="Full number including the +251 country code."
           />
         </div>
       </section>

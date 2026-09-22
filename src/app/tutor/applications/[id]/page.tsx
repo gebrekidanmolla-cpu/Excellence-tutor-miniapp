@@ -35,11 +35,11 @@ interface PageProps {
   }>;
 }
 
-/** `ANY` reads as "Any Tutor" rather than the raw enum. */
+/** `ANY` reads as "Male/Female Tutor" rather than the raw enum. */
 function formatTutorRequirement(gender: "MALE" | "FEMALE" | "ANY"): string {
   if (gender === "MALE") return "Male Tutor";
   if (gender === "FEMALE") return "Female Tutor";
-  return "Any Tutor";
+  return "Male/Female Tutor";
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -223,7 +223,7 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
           <InfoItem label="Email" value={tutor.email} icon={<Mail />} />
           <InfoItem
             label="Phone"
-            value={`+251 ${tutor.phone}`}
+            value={tutor.phone}
             icon={<Phone />}
           />
           <InfoItem label="Gender" value={formatEnum(tutor.gender)} />

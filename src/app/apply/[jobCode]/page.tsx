@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  ArrowLeft,
+  ArrowRight,
   BookOpen,
   CalendarDays,
   CheckCircle2,
   GraduationCap,
   Lock,
   MapPin,
+  Megaphone,
   Users,
   Wallet,
 } from "lucide-react";
@@ -22,11 +25,11 @@ import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
 import ApplicationForm from "@/components/forms/ApplicationForm";
 import { formatDate, formatSalary } from "@/lib/format";
 
-/** `ANY` reads as "Any Tutor" rather than the raw enum. */
+/** `ANY` reads as "Male/Female Tutor" rather than the raw enum. */
 function formatTutorRequirement(gender: "MALE" | "FEMALE" | "ANY"): string {
   if (gender === "MALE") return "Male Tutor";
   if (gender === "FEMALE") return "Female Tutor";
-  return "Any Tutor";
+  return "Male/Female Tutor";
 }
 
 interface PageProps {
@@ -38,7 +41,9 @@ interface PageProps {
 /**
  * The public entry point: `src/lib/job-post.ts` puts `/apply/<jobCode>` in
  * every Telegram post, so this page is reached by people who may not have an
- * account yet.
+ * account yet. It's also where "View details" on `/jobs` now sends signed-in
+ * tutors directly — there is no separate job-detail page, so this page owns
+ * both showing the job and letting a tutor act on it in one visit.
  *
  * It therefore stays readable when signed out — the job details are already
  * public in the Telegram post — and swaps the apply button for a sign-in
@@ -63,6 +68,7 @@ export default async function ApplyPage({ params }: PageProps) {
       place: true,
       salary: true,
       status: true,
+      additionalDetails: true,
       createdAt: true,
     },
   });
@@ -86,12 +92,27 @@ export default async function ApplyPage({ params }: PageProps) {
 
   const isOpen = job.status === "OPEN";
 
+  /* `POST /api/applications` enforces this too. Checking it here as well keeps
+     the button from appearing for someone who can only ever get a 403 from it. */
+  const meetsGenderRequirement =
+    !tutor || job.gender === "ANY" || job.gender === tutor.gender;
+
   return (
     <>
       <PublicHeader tutor={tutor ? { fullName: tutor.fullName } : null} />
 
       <main className="flex-1 bg-muted/30 py-8 sm:py-12">
         <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
+          {tutor ? (
+            <Link
+              href="/jobs"
+              className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Back to available jobs
+            </Link>
+          ) : null}
+
           <div className="mb-6 text-center">
             <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
               Tutor application
@@ -124,7 +145,25 @@ export default async function ApplyPage({ params }: PageProps) {
               <StatusBadge status={job.status} size="lg" />
             </div>
 
-            <div className="p-5 sm:p-6">
+            <div className="space-y-5 p-5 sm:p-6">
+              {job.additionalDetails ? (
+                <div className="flex items-start gap-3 rounded-lg bg-highlight/10 p-3 ring-1 ring-highlight/25">
+                  <Megaphone
+                    className="mt-0.5 size-4 shrink-0 text-highlight-foreground"
+                    aria-hidden="true"
+                  />
+
+                  <p className="flex-1 text-sm font-semibold text-pretty whitespace-pre-line text-highlight-foreground">
+                    {job.additionalDetails}
+                  </p>
+
+                  <ArrowRight
+                    className="mt-0.5 size-4 shrink-0 text-highlight-foreground"
+                    aria-hidden="true"
+                  />
+                </div>
+              ) : null}
+
               <InfoGrid>
                 <InfoItem
                   label="Grade"
@@ -225,6 +264,35 @@ export default async function ApplyPage({ params }: PageProps) {
                       size="lg"
                     >
                       View my applications
+                    </Button>
+                  </div>
+                </div>
+              ) : !meetsGenderRequirement ? (
+                <div className="flex items-start gap-4">
+                  <span
+                    aria-hidden="true"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+                  >
+                    <Users className="size-5" />
+                  </span>
+
+                  <div className="min-w-0 space-y-2">
+                    <h2 className="font-heading font-medium">
+                      This job asks for a different tutor
+                    </h2>
+
+                    <p className="text-sm text-muted-foreground text-pretty">
+                      {formatTutorRequirement(job.gender)} is required for this
+                      job, so you are not eligible to apply. Other jobs may
+                      still be open to you.
+                    </p>
+
+                    <Button
+                      render={<Link href="/jobs" />}
+                      variant="outline"
+                      size="lg"
+                    >
+                      Browse available jobs
                     </Button>
                   </div>
                 </div>

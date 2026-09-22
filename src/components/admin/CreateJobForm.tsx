@@ -17,20 +17,13 @@ import {
 const GENDER_OPTIONS = [
   { value: "FEMALE", label: "Female tutor" },
   { value: "MALE", label: "Male tutor" },
-  { value: "ANY", label: "Any tutor" },
+  { value: "ANY", label: "Male/Female" },
 ];
 
 const STATUS_OPTIONS = [
   { value: "OPEN", label: "Open" },
   { value: "CLOSED", label: "Closed" },
 ];
-
-const DETAILS_PLACEHOLDER = `Example:
-- Student is in Grade 8.
-- Tutor should have strong Mathematics and Physics knowledge.
-- Teaching will take place at the student's home.
-- Tutor should be punctual and highly committed.
-- Preferably available in the afternoon.`;
 
 export default function CreateJobForm() {
   const router = useRouter();
@@ -89,7 +82,13 @@ export default function CreateJobForm() {
         return;
       }
 
-      toast.success("Job created.");
+      /* The server decides the wording — it is the only side that
+         knows whether the channel post actually went out. */
+      if (result.telegram?.status === "FAILED") {
+        toast.warning(result.message);
+      } else {
+        toast.success(result.message ?? "Job created.");
+      }
       router.push(`/admin/jobs/${result.job.id}`);
       router.refresh();
     } catch {
@@ -132,7 +131,6 @@ export default function CreateJobForm() {
             required
             value={grade}
             onChange={(event) => setGrade(event.target.value)}
-            placeholder="KG 1"
           />
 
           <TextField
@@ -141,7 +139,6 @@ export default function CreateJobForm() {
             required
             value={subject}
             onChange={(event) => setSubject(event.target.value)}
-            placeholder="All Subjects"
           />
 
           <TextField
@@ -150,7 +147,6 @@ export default function CreateJobForm() {
             required
             value={place}
             onChange={(event) => setPlace(event.target.value)}
-            placeholder="Bole, Addis Ababa"
           />
 
           <TextField
@@ -161,7 +157,6 @@ export default function CreateJobForm() {
             min="0"
             value={salary}
             onChange={(event) => setSalary(event.target.value)}
-            placeholder="4800"
           />
         </div>
       </section>
@@ -182,8 +177,6 @@ export default function CreateJobForm() {
             max="7"
             value={daysPerWeek}
             onChange={(event) => setDaysPerWeek(event.target.value)}
-            placeholder="3"
-            hint="Example: 3 days per week"
           />
 
           <TextField
@@ -195,8 +188,6 @@ export default function CreateJobForm() {
             step="0.5"
             value={hoursPerDay}
             onChange={(event) => setHoursPerDay(event.target.value)}
-            placeholder="2"
-            hint="Example: 2 hours per day"
           />
         </div>
       </section>
@@ -215,7 +206,6 @@ export default function CreateJobForm() {
             maxLength={5000}
             value={additionalDetails}
             onChange={(event) => setAdditionalDetails(event.target.value)}
-            placeholder={DETAILS_PLACEHOLDER}
           />
         </div>
       </section>

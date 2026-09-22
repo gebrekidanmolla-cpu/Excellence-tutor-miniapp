@@ -96,7 +96,7 @@ export default async function TutorProfilePage() {
           <InfoItem label="Email" value={tutor.email} icon={<Mail />} />
           <InfoItem
             label="Phone"
-            value={`+251 ${tutor.phone}`}
+            value={tutor.phone}
             icon={<Phone />}
           />
           <InfoItem label="Gender" value={formatEnum(tutor.gender)} />

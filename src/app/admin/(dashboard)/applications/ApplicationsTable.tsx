@@ -22,13 +22,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
-import { formatDateTime, formatEnum } from "@/lib/format";
-import ApplicationStatusSelect from "./ApplicationStatusSelect";
-import AssignTutorButton from "./AssignTutorButton";
+import { ExpandableDisclosure } from "@/components/shared/ExpandableRow";
+import {
+  formatDate,
+  formatDateTime,
+  formatEnum,
+  formatSalary,
+} from "@/lib/format";
+import ApplicationRowActions from "./ApplicationRowActions";
 
 type ApplicationStatus = "PENDING" | "REVIEWED" | "ACCEPTED" | "REJECTED";
 
@@ -71,6 +82,14 @@ type Props = {
 type SortDirection = "asc" | "desc" | null;
 
 const PAGE_SIZE = 25;
+
+const STATUS_TABS = [
+  { value: "ALL", label: "All" },
+  { value: "PENDING", label: "Pending" },
+  { value: "REVIEWED", label: "Reviewed" },
+  { value: "ACCEPTED", label: "Accepted" },
+  { value: "REJECTED", label: "Rejected" },
+];
 
 const ENTRANCE_OPTIONS = [
   { value: "ALL", label: "Any entrance %" },
@@ -140,7 +159,79 @@ function SortButton({
   );
 }
 
+/** The label/value pairs revealed by the row chevron. */
+function DetailPanel({ application }: { application: Application }) {
+  const { tutor, job } = application;
+
+  return (
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm lg:grid-cols-4">
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Phone</dt>
+        <dd>
+          <CopyButton
+            value={tutor.phone}
+            variant="ghost"
+            size="sm"
+            successMessage="Phone number copied"
+            className="-ml-2 font-normal"
+          >
+            {tutor.phone}
+          </CopyButton>
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Gender</dt>
+        <dd className="mt-0.5 font-medium">{formatEnum(tutor.gender)}</dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">University</dt>
+        <dd className="mt-0.5 font-medium break-words">
+          {tutor.university || "—"}
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Department</dt>
+        <dd className="mt-0.5 font-medium break-words">
+          {tutor.department || "—"}
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Entrance result</dt>
+        <dd className="mt-0.5 font-medium tabular-nums">
+          {tutor.entranceScore}/{tutor.entranceTotal}
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Job salary</dt>
+        <dd className="mt-0.5 font-medium tabular-nums">
+          {formatSalary(job.salary)}
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Job status</dt>
+        <dd className="mt-0.5">
+          <StatusBadge status={job.status} />
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Applied</dt>
+        <dd className="mt-0.5 font-medium">
+          {formatDateTime(application.createdAt)}
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
 export default function ApplicationsTable({ applications }: Props) {
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [jobSearch, setJobSearch] = useState("");
   const [entranceFilter, setEntranceFilter] = useState("ALL");
   const [timeFilter, setTimeFilter] = useState("ALL");
@@ -180,6 +271,7 @@ export default function ApplicationsTable({ applications }: Props) {
   }
 
   function clearFilters() {
+    setStatusFilter("ALL");
     setJobSearch("");
     setEntranceFilter("ALL");
     setTutorStatusFilter("ALL");
@@ -188,13 +280,37 @@ export default function ApplicationsTable({ applications }: Props) {
   }
 
   const hasFilters =
+    statusFilter !== "ALL" ||
     Boolean(jobSearch.trim()) ||
     entranceFilter !== "ALL" ||
     timeFilter !== "ALL" ||
     tutorStatusFilter !== "ALL";
 
+  /** Tab counts stay on the full set so they don't move as you filter. */
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      ALL: applications.length,
+      PENDING: 0,
+      REVIEWED: 0,
+      ACCEPTED: 0,
+      REJECTED: 0,
+    };
+
+    for (const application of applications) {
+      counts[application.status] += 1;
+    }
+
+    return counts;
+  }, [applications]);
+
   const filteredApplications = useMemo(() => {
     let result = [...applications];
+
+    if (statusFilter !== "ALL") {
+      result = result.filter(
+        (application) => application.status === statusFilter
+      );
+    }
 
     const search = jobSearch.trim().toLowerCase();
 
@@ -258,6 +374,7 @@ export default function ApplicationsTable({ applications }: Props) {
     return result;
   }, [
     applications,
+    statusFilter,
     jobSearch,
     entranceFilter,
     timeCutoff,
@@ -278,127 +395,81 @@ export default function ApplicationsTable({ applications }: Props) {
     currentPage * PAGE_SIZE
   );
 
-  function actionsFor(application: Application) {
-    const jobIsClosed = application.job.status === "CLOSED";
-    const hasAssignedTutor = Boolean(application.job.assignedTutorId);
-    const isAccepted = application.status === "ACCEPTED";
-    const canAssign = !jobIsClosed && !hasAssignedTutor && !isAccepted;
+  function rowActionsFor(application: Application) {
+    /* Both mirror the API guards: the assign route and the status route each
+       refuse a closed job and a job that already has an assigned tutor. */
+    const jobIsActionable =
+      application.job.status !== "CLOSED" &&
+      !application.job.assignedTutorId;
 
     return (
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button
-          render={<Link href={`/admin/applications/${application.id}`} />}
-          variant="outline"
-          size="sm"
-        >
-          View
-        </Button>
-
-        {canAssign ? (
-          <AssignTutorButton
-            applicationId={application.id}
-            tutorName={application.tutor.fullName}
-            jobCode={application.job.jobCode}
-          />
-        ) : null}
-
-        {isAccepted ? (
-          <span className="text-xs font-medium text-muted-foreground">
-            Assigned
-          </span>
-        ) : null}
-
-        {jobIsClosed && !isAccepted ? (
-          <span className="text-xs text-muted-foreground">Closed</span>
-        ) : null}
-      </div>
+      <ApplicationRowActions
+        applicationId={application.id}
+        status={application.status}
+        tutorName={application.tutor.fullName}
+        tutorPhone={application.tutor.phone}
+        jobCode={application.job.jobCode}
+        canAssign={jobIsActionable && application.status !== "ACCEPTED"}
+        canChangeStatus={jobIsActionable}
+      />
     );
   }
 
   const columns: DataTableColumn<Application>[] = [
     {
-      id: "name",
-      header: "Name",
+      id: "tutor",
+      header: "Tutor",
       mobileTitle: true,
+      cellClassName: "whitespace-normal",
       cell: (application) => (
         <div className="min-w-0">
           <Link
             href={`/admin/applications/${application.id}`}
-            className="truncate font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-primary underline-offset-4 hover:underline"
           >
             {application.tutor.fullName}
           </Link>
-          <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-            {application.job.jobCode}
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {formatEnum(application.tutor.tutorStatus)}
           </p>
         </div>
       ),
     },
     {
-      id: "phone",
-      header: "Phone",
+      id: "job",
+      header: "Job",
+      cellClassName: "whitespace-normal",
       cell: (application) => (
-        <CopyButton
-          value={application.tutor.phone}
-          variant="ghost"
-          size="sm"
-          successMessage="Phone number copied"
-          className="-ml-2 font-normal"
-        >
-          {application.tutor.phone}
-        </CopyButton>
+        <div className="min-w-0">
+          <Link
+            href={`/admin/jobs/${application.job.id}`}
+            className="font-mono text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {application.job.jobCode}
+          </Link>
+          <p className="mt-0.5 max-w-44 truncate text-xs text-muted-foreground">
+            {application.job.subject} · {application.job.grade}
+          </p>
+        </div>
       ),
-    },
-    {
-      id: "gender",
-      header: "Gender",
-      cell: (application) => formatEnum(application.tutor.gender),
-    },
-    {
-      id: "university",
-      header: "University",
-      cell: (application) => (
-        <span className="block max-w-40 truncate">
-          {application.tutor.university || "—"}
-        </span>
-      ),
-    },
-    {
-      id: "department",
-      header: "Department",
-      cell: (application) => (
-        <span className="block max-w-40 truncate">
-          {application.tutor.department || "—"}
-        </span>
-      ),
-    },
-    {
-      id: "gpa",
-      header: "GPA / CGPA",
-      cellClassName: "tabular-nums",
-      cell: (application) => formatGPA(application),
     },
     {
       id: "entrance",
       header: (
         <SortButton
-          label="Entrance %"
+          label="Entrance"
           direction={entranceSort}
           onToggle={toggleEntranceSort}
         />
       ),
+      cellClassName: "tabular-nums font-medium",
+      cell: (application) => `${application.tutor.entrancePercentage.toFixed(1)}%`,
+    },
+    {
+      id: "gpa",
+      header: "GPA",
       cellClassName: "tabular-nums",
-      cell: (application) => (
-        <div>
-          <span className="font-medium">
-            {application.tutor.entrancePercentage.toFixed(1)}%
-          </span>
-          <span className="ml-1.5 text-xs text-muted-foreground">
-            {application.tutor.entranceScore}/
-            {application.tutor.entranceTotal}
-          </span>
-        </div>
-      ),
+      cell: (application) => formatGPA(application),
     },
     {
       id: "applied",
@@ -409,35 +480,61 @@ export default function ApplicationsTable({ applications }: Props) {
           onToggle={toggleTimeSort}
         />
       ),
-      cell: (application) => formatDateTime(application.createdAt),
-    },
-    {
-      id: "tutorStatus",
-      header: "Tutor",
-      cell: (application) => formatEnum(application.tutor.tutorStatus),
+      /* The compact date keeps the column narrow; the tooltip carries the
+         exact time the old `formatDateTime` column used to spend width on. */
+      cell: (application) => (
+        <Tooltip>
+          <TooltipTrigger
+            render={<span className="cursor-default text-muted-foreground" />}
+          >
+            {formatDate(application.createdAt)}
+          </TooltipTrigger>
+
+          <TooltipContent>
+            {formatDateTime(application.createdAt)}
+          </TooltipContent>
+        </Tooltip>
+      ),
     },
     {
       id: "status",
       header: "Status",
-      cell: (application) => (
-        <ApplicationStatusSelect
-          applicationId={application.id}
-          initialStatus={application.status}
-        />
-      ),
+      cell: (application) => <StatusBadge status={application.status} />,
     },
     {
       id: "actions",
       header: "",
       hideOnMobile: true,
-      headClassName: "text-right",
+      headClassName: "w-px",
       cellClassName: "text-right",
-      cell: actionsFor,
+      cell: rowActionsFor,
     },
   ];
 
   return (
     <div className="space-y-4">
+      {/* -----------------------------------------------------
+          STATUS TABS
+      ----------------------------------------------------- */}
+      <Tabs
+        value={statusFilter}
+        onValueChange={(value) => {
+          setStatusFilter((value as string) ?? "ALL");
+          setPage(1);
+        }}
+      >
+        <TabsList className="w-full overflow-x-auto sm:w-fit">
+          {STATUS_TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {tab.label}
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {statusCounts[tab.value]}
+              </span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
       {/* -----------------------------------------------------
           FILTER BAR
       ----------------------------------------------------- */}
@@ -514,6 +611,12 @@ export default function ApplicationsTable({ applications }: Props) {
         columns={columns}
         getRowKey={(application) => application.id}
         caption="Tutor applications"
+        renderExpanded={(application) => (
+          <DetailPanel application={application} />
+        )}
+        getExpandLabel={(application) =>
+          `Show more details for ${application.tutor.fullName}`
+        }
         renderMobileCard={(application) => (
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
@@ -532,7 +635,7 @@ export default function ApplicationsTable({ applications }: Props) {
               <StatusBadge status={application.status} />
             </div>
 
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <dl className="grid grid-cols-3 gap-x-4 gap-y-2 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">Entrance</dt>
                 <dd className="font-medium tabular-nums">
@@ -541,45 +644,25 @@ export default function ApplicationsTable({ applications }: Props) {
               </div>
 
               <div>
-                <dt className="text-xs text-muted-foreground">GPA / CGPA</dt>
+                <dt className="text-xs text-muted-foreground">GPA</dt>
                 <dd className="font-medium tabular-nums">
                   {formatGPA(application)}
                 </dd>
               </div>
 
-              <div className="col-span-2">
-                <dt className="text-xs text-muted-foreground">University</dt>
-                <dd className="truncate font-medium">
-                  {application.tutor.university || "—"}
-                </dd>
-              </div>
-
-              <div className="col-span-2">
+              <div>
                 <dt className="text-xs text-muted-foreground">Applied</dt>
                 <dd className="font-medium">
-                  {formatDateTime(application.createdAt)}
+                  {formatDate(application.createdAt)}
                 </dd>
               </div>
             </dl>
 
-            <CopyButton
-              value={application.tutor.phone}
-              variant="outline"
-              size="sm"
-              successMessage="Phone number copied"
-              className="w-full"
-            >
-              {application.tutor.phone}
-            </CopyButton>
+            <ExpandableDisclosure>
+              <DetailPanel application={application} />
+            </ExpandableDisclosure>
 
-            <div className="flex items-center justify-between gap-2 border-t pt-3">
-              <ApplicationStatusSelect
-                applicationId={application.id}
-                initialStatus={application.status}
-              />
-
-              {actionsFor(application)}
-            </div>
+            <div className="border-t pt-3">{rowActionsFor(application)}</div>
           </div>
         )}
         empty={

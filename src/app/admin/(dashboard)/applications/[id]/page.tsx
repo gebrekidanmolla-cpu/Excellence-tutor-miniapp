@@ -110,24 +110,42 @@ export default async function ApplicationDetailsPage({
             <Notice
               tone="success"
               title="Tutor accepted"
-              description="This application has been accepted and the tutor has been assigned to this job."
+              description={
+                <>
+                  This application has been accepted and the tutor has been
+                  assigned to this job. <JobLink jobId={job.id} /> to unassign
+                  them and put every applicant back to pending.
+                </>
+              }
             />
           ) : jobIsClosed ? (
             <Notice
               tone="muted"
               title="Job closed"
-              description="This job has already been closed and its applications can no longer be changed."
+              description={
+                <>
+                  This job is closed, so its applications cannot be changed.{" "}
+                  <JobLink jobId={job.id} /> to pick a tutor from its pool.
+                </>
+              }
             />
           ) : hasAssignedTutor ? (
             <Notice
               tone="muted"
               title="Tutor already assigned"
-              description="Another tutor has been assigned to this job."
+              description={
+                <>
+                  Another tutor has been assigned to this job.{" "}
+                  <JobLink jobId={job.id} /> to choose again.
+                </>
+              }
             />
           ) : canReview ? (
             <StatusActions
               applicationId={application.id}
               currentStatus={application.status}
+              tutorName={tutor.fullName}
+              jobCode={job.jobCode}
             />
           ) : null}
         </div>
@@ -156,7 +174,7 @@ export default async function ApplicationDetailsPage({
                 successMessage="Phone number copied"
                 className="-ml-2 font-medium"
               >
-                +251 {tutor.phone}
+                {tutor.phone}
               </CopyButton>
             }
             icon={<Phone />}
@@ -348,6 +366,18 @@ export default async function ApplicationDetailsPage({
   );
 }
 
+/** Every blocked state above is resolved in the same place: the job page. */
+function JobLink({ jobId }: { jobId: string }) {
+  return (
+    <Link
+      href={`/admin/jobs/${jobId}#applicants`}
+      className="font-medium text-primary underline-offset-4 hover:underline"
+    >
+      Open the job
+    </Link>
+  );
+}
+
 function Notice({
   tone,
   title,
@@ -355,7 +385,7 @@ function Notice({
 }: {
   tone: "success" | "muted";
   title: string;
-  description: string;
+  description: React.ReactNode;
 }) {
   return (
     <div

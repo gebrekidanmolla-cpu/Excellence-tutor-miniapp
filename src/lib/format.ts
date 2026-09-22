@@ -14,7 +14,21 @@ export type ApplicationStatus =
 
 export type JobStatus = "OPEN" | "CLOSED";
 
-export type Status = ApplicationStatus | JobStatus;
+/**
+ * Whether a job's Telegram channel post is live. `PENDING` is shared
+ * with `ApplicationStatus` and reads correctly for both: the post has
+ * not gone out yet.
+ */
+export type TelegramPostStatus =
+  | "PENDING"
+  | "POSTED"
+  | "FAILED"
+  | "DISABLED";
+
+export type Status =
+  | ApplicationStatus
+  | JobStatus
+  | TelegramPostStatus;
 
 const EM_DASH = "—";
 
@@ -104,6 +118,9 @@ const STATUS_LABELS: Record<Status, string> = {
   REJECTED: "Rejected",
   OPEN: "Open",
   CLOSED: "Closed",
+  POSTED: "Posted",
+  FAILED: "Post failed",
+  DISABLED: "Not configured",
 };
 
 export function getStatusLabel(status: string): string {

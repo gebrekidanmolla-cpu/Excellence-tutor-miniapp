@@ -19,11 +19,11 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { formatDate, formatSalary } from "@/lib/format";
 
-/** `ANY` reads as "Any Tutor" rather than the raw enum. */
+/** `ANY` reads as "Male/Female Tutor" rather than the raw enum. */
 function formatTutorRequirement(gender: "MALE" | "FEMALE" | "ANY"): string {
   if (gender === "MALE") return "Male Tutor";
   if (gender === "FEMALE") return "Female Tutor";
-  return "Any Tutor";
+  return "Male/Female";
 }
 
 export default async function MyApplicationsPage() {
@@ -113,7 +113,7 @@ export default async function MyApplicationsPage() {
                   </div>
 
                   <h2 className="mt-3 font-heading text-lg font-semibold">
-                    {application.job.subject}
+                    Subject: {application.job.subject}
                   </h2>
 
                   <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
@@ -179,7 +179,7 @@ function Meta({
       <span aria-hidden="true" className="[&>svg]:size-3.5">
         {icon}
       </span>
-      <dt className="sr-only">{label}</dt>
+      <dt className="text-muted-foreground">{label}:</dt>
       <dd className="font-medium text-foreground">{value}</dd>
     </div>
   );

@@ -1,0 +1,149 @@
+/*
+ * Page-scoped keyframes for the landing page's motion.
+ *
+ * Kept in a CSS Module rather than `globals.css` so this animation
+ * vocabulary (marquee, aurora drift) stays local to the one page that uses
+ * it. Every animation here only touches `transform`/`opacity` (GPU-composited,
+ * no layout thrash) and is disabled under `prefers-reduced-motion`.
+ */
+
+/* ---------------------------------------------------------
+   AURORA — the hero/CTA background wash. Three blurred, tinted
+   ellipses drifting on independent slow loops.
+--------------------------------------------------------- */
+@keyframes auroraDriftA {
+  0%,
+  100% {
+    transform: translate(-8%, -6%) scale(1);
+  }
+  50% {
+    transform: translate(6%, 4%) scale(1.12);
+  }
+}
+
+@keyframes auroraDriftB {
+  0%,
+  100% {
+    transform: translate(10%, 8%) scale(1);
+  }
+  50% {
+    transform: translate(-6%, -10%) scale(1.08);
+  }
+}
+
+.auroraLayer {
+  position: absolute;
+  inset: -10%;
+  z-index: -10;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.auroraOrbA,
+.auroraOrbB {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  opacity: 0.55;
+}
+
+.auroraOrbA {
+  top: -10%;
+  left: 8%;
+  width: 42rem;
+  height: 42rem;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--color-primary) 32%, transparent),
+    transparent 72%
+  );
+  animation: auroraDriftA 22s ease-in-out infinite;
+}
+
+.auroraOrbB {
+  top: 4%;
+  right: 4%;
+  width: 34rem;
+  height: 34rem;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--color-highlight) 30%, transparent),
+    transparent 72%
+  );
+  animation: auroraDriftB 26s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auroraOrbA,
+  .auroraOrbB {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------
+   GRAIN — a static noise overlay for texture. Not animated:
+   moving grain reads as flicker rather than texture.
+--------------------------------------------------------- */
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: -5;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+}
+
+/* ---------------------------------------------------------
+   MARQUEE — the live open-jobs ticker. Two identical tracks
+   placed edge to edge and shifted exactly one track-width, so
+   the loop point is invisible.
+--------------------------------------------------------- */
+@keyframes marqueeScroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marqueeViewport {
+  overflow: hidden;
+  /* Edge fade so cards don't hard-clip at the container boundary. */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 6%,
+    black 94%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 6%,
+    black 94%,
+    transparent
+  );
+}
+
+.marqueeTrack {
+  display: flex;
+  width: max-content;
+  animation: marqueeScroll var(--marquee-duration, 36s) linear infinite;
+}
+
+.marqueeViewport:hover .marqueeTrack,
+.marqueeViewport:focus-within .marqueeTrack {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marqueeTrack {
+    animation: none;
+  }
+
+  .marqueeViewport {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

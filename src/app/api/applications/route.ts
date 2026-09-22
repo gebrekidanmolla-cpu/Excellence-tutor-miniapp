@@ -42,6 +42,7 @@ export async function POST(request: Request) {
         jobCode: true,
         gender: true,
         status: true,
+        assignedTutorId: true,
       },
     });
 
@@ -55,7 +56,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (job.status !== "OPEN") {
+    // `assignedTutorId` is checked alongside status so a job can never take
+    // applications it cannot act on — assigning refuses once a tutor is set.
+    if (job.status !== "OPEN" || job.assignedTutorId) {
       return NextResponse.json(
         {
           success: false,

@@ -144,7 +144,7 @@ export const ENTRANCE_TOTAL_OPTIONS = [
 ========================================================= */
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ETHIOPIAN_PHONE_PATTERN = /^9\d{8}$/;
+const ETHIOPIAN_PHONE_PATTERN = /^[79]\d{8}$/;
 
 function gpaIssue(value: string): boolean {
   const parsed = Number(value);

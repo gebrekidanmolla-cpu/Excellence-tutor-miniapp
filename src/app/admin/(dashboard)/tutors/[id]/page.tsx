@@ -226,7 +226,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
                 successMessage="Phone number copied"
                 className="-ml-2 font-medium"
               >
-                +251 {tutor.phone}
+                {tutor.phone}
               </CopyButton>
             }
             icon={<Phone />}

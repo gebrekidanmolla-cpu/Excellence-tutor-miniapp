@@ -20,6 +20,9 @@ const STATUS_TONES: Record<Status, Tone> = {
   REJECTED: "destructive",
   OPEN: "success",
   CLOSED: "neutral",
+  POSTED: "success",
+  FAILED: "destructive",
+  DISABLED: "neutral",
 };
 
 const TONE_SURFACE: Record<Tone, string> = {

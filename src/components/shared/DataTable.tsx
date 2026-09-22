@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ExpandableRow } from "@/components/shared/ExpandableRow";
 import { cn } from "@/lib/utils";
 
 /**
@@ -36,6 +37,8 @@ export function DataTable<T>({
   columns,
   getRowKey,
   renderMobileCard,
+  renderExpanded,
+  getExpandLabel,
   empty,
   caption,
   className,
@@ -45,6 +48,16 @@ export function DataTable<T>({
   getRowKey: (item: T, index: number) => string;
   /** Overrides the auto-generated mobile card when a bespoke layout is better. */
   renderMobileCard?: (item: T) => React.ReactNode;
+  /**
+   * Supplying this adds a leading expander column whose chevron reveals the
+   * returned node in a full-width row beneath. Omit it and the table renders
+   * exactly as before — the other call sites are unaffected.
+   *
+   * The mobile cards are not expanded automatically: pass a bespoke
+   * `renderMobileCard` using `ExpandableDisclosure` when they need it too.
+   */
+  renderExpanded?: (item: T) => React.ReactNode;
+  getExpandLabel?: (item: T) => string;
   empty?: React.ReactNode;
   caption?: string;
   className?: string;
@@ -103,6 +116,12 @@ export function DataTable<T>({
 
           <TableHeader>
             <TableRow className="bg-muted/50">
+              {renderExpanded ? (
+                <TableHead className="w-px">
+                  <span className="sr-only">Expand</span>
+                </TableHead>
+              ) : null}
+
               {columns.map((column) => (
                 <TableHead
                   key={column.id}
@@ -115,18 +134,34 @@ export function DataTable<T>({
           </TableHeader>
 
           <TableBody>
-            {items.map((item, index) => (
-              <TableRow key={getRowKey(item, index)}>
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.id}
-                    className={cn("align-middle", column.cellClassName)}
-                  >
-                    {column.cell(item)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
+            {items.map((item, index) => {
+              const cells = columns.map((column) => (
+                <TableCell
+                  key={column.id}
+                  className={cn("align-middle", column.cellClassName)}
+                >
+                  {column.cell(item)}
+                </TableCell>
+              ));
+
+              if (renderExpanded) {
+                return (
+                  <ExpandableRow
+                    key={getRowKey(item, index)}
+                    cells={cells}
+                    expanded={renderExpanded(item)}
+                    colSpan={columns.length + 1}
+                    label={
+                      getExpandLabel?.(item) ?? "Show more details for this row"
+                    }
+                  />
+                );
+              }
+
+              return (
+                <TableRow key={getRowKey(item, index)}>{cells}</TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

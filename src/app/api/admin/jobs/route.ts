@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
 import { generateNextJobCode } from "@/lib/job-code";
+import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
+
+/* The create path now waits on a Telegram round-trip. */
+export const maxDuration = 30;
 
 const allowedGenders = [
   "MALE",
@@ -311,11 +315,53 @@ export async function POST(request: Request) {
       );
     }
 
+    // =====================================================
+    // PUBLISH TO TELEGRAM
+    // =====================================================
+    //
+    // Best-effort, after the row has already committed: the job is
+    // real whether or not Telegram is reachable, so a failed post is
+    // recorded on the row (and shown on the job page with a re-post
+    // button) rather than turning a successful creation into a 500.
+    //
+    // Still *awaited*, not fired-and-forgotten — this runs in a
+    // serverless function that can freeze the moment the response is
+    // sent, which would silently drop the post. Awaiting also lets
+    // the response carry the real outcome, so the admin lands on a
+    // detail page that already knows whether the post went out.
+    //
+    // Tighter budget than the manual re-post endpoint: an admin is
+    // waiting on this request, and the retry button exists precisely
+    // for the slow cases.
+    //
+    // =====================================================
+
+    const telegram = await safeSyncJobTelegramPost(job.id, {
+      deadlineMs: 6_000,
+      attempts: 2,
+    });
+
+    // Re-read so the response carries the telegram columns the detail
+    // page renders. `job.id` is unchanged either way — the create
+    // form hard-depends on `result.job.id`.
+    const createdJob =
+      (await prisma.job.findUnique({
+        where: { id: job.id },
+      })) ?? job;
+
     return NextResponse.json(
       {
         success: true,
-        message: "Job created successfully.",
-        job,
+
+        message:
+          telegram.status === "PUBLISHED"
+            ? "Job created and posted to Telegram."
+            : telegram.status === "FAILED"
+              ? "Job created, but the Telegram post failed. You can re-post it from the job page."
+              : "Job created successfully.",
+
+        job: createdJob,
+        telegram,
       },
       { status: 201 }
     );

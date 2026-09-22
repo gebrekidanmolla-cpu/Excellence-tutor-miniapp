@@ -50,11 +50,22 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  nativeButton,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // Base UI's own default is `nativeButton = true` regardless of `render`,
+  // which is right for a plain `<Button>` but wrong the moment `render`
+  // swaps in something else — every call site in this app passes a `<Link>`
+  // (an `<a>`), never a literal `<button>`. Without this, each one warns:
+  // "expected a native <button> because `nativeButton` is true." Callers
+  // that genuinely render a native button through `render` can still pass
+  // `nativeButton` explicitly to override this.
+  const resolvedNativeButton = nativeButton ?? !props.render
+
   return (
     <ButtonPrimitive
       data-slot="button"
+      nativeButton={resolvedNativeButton}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />

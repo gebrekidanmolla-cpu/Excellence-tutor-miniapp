@@ -10,6 +10,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   MapPin,
+  Megaphone,
   RotateCw,
   Search,
   Users,
@@ -34,10 +35,11 @@ type Job = {
   place: string;
   salary: number;
   status: "OPEN" | "CLOSED";
+  additionalDetails: string | null;
   createdAt: string;
 };
 
-/** `ANY` reads as "Any Tutor" here rather than the raw enum. */
+/** `ANY` reads as "Male/Female" here rather than the raw enum. */
 function formatTutorRequirement(gender: Job["gender"]): string {
   switch (gender) {
     case "MALE":
@@ -45,7 +47,7 @@ function formatTutorRequirement(gender: Job["gender"]): string {
     case "FEMALE":
       return "Female Tutor";
     default:
-      return "Any Tutor";
+      return "Male/Female Tutor";
   }
 }
 
@@ -234,6 +236,19 @@ function JobCard({ job }: { job: Job }) {
       </div>
 
       <div className="flex-1 space-y-4 p-5">
+        {job.additionalDetails ? (
+          <div className="flex items-start gap-2 rounded-lg bg-highlight/10 p-3 ring-1 ring-highlight/25">
+            <Megaphone
+              className="mt-0.5 size-4 shrink-0 text-highlight-foreground"
+              aria-hidden="true"
+            />
+
+            <p className="line-clamp-3 flex-1 text-sm font-semibold text-pretty text-highlight-foreground">
+              {job.additionalDetails}
+            </p>
+          </div>
+        ) : null}
+
         <JobDetail
           icon={<BookOpen />}
           label="Subject"
@@ -275,7 +290,7 @@ function JobCard({ job }: { job: Job }) {
 
       <div className="border-t p-4">
         <Button
-          render={<Link href={`/jobs/${job.jobCode}`} />}
+          render={<Link href={`/apply/${job.jobCode}`} />}
           size="xl"
           className="w-full"
         >
