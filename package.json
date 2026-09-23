@@ -16,7 +16,6 @@
     "@hookform/resolvers": "^5.7.1",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
-    "@supabase/supabase-js": "^2.112.3",
     "@telegram-apps/sdk": "^3.11.8",
     "@vercel/oidc": "^3.8.9",
     "bcryptjs": "^3.0.3",

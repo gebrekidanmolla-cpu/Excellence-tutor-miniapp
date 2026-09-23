@@ -74,7 +74,7 @@ The apply button is omitted when `NEXT_PUBLIC_APP_URL` is not publicly reachable
 
 ### Document storage
 
-Tutor-submitted files (transcript, entrance result, government ID, optional CV/graduation doc) go to a private Cloudflare R2 bucket (`tutor-documents` by default) through the S3 API (`src/lib/r2.ts`, `@aws-sdk/client-s3`). The `Tutor.*Url` columns hold bare object keys, not URLs; admins open a document via `/api/admin/tutors/[id]/documents/[document]`, which 302s to a 10-minute presigned GET. `scripts/migrate-documents-to-r2.ts` is the one-off copy from the old Supabase bucket (same keys) — delete it, `@supabase/supabase-js` and the `SUPABASE_*` vars once production is migrated. `src/lib/upload-document.ts` enforces size/type limits before upload (2 MB images for documents, 5 MB image/PDF for CVs) — validation there and in the client-side Zod schema (`src/lib/validation.ts`, 5 MB / PDF+JPEG+PNG) are independent and can drift; check both when changing file constraints.
+Tutor-submitted files (transcript, entrance result, government ID, optional CV/graduation doc) go to a private Cloudflare R2 bucket (`tutor-documents` by default) through the S3 API (`src/lib/r2.ts`, `@aws-sdk/client-s3`). The `Tutor.*Url` columns hold bare object keys, not URLs; admins open a document via `/api/admin/tutors/[id]/documents/[document]`, which 302s to a 10-minute presigned GET. `src/lib/upload-document.ts` enforces size/type limits before upload (2 MB images for documents, 5 MB image/PDF for CVs) — validation there and in the client-side Zod schema (`src/lib/validation.ts`, 5 MB / PDF+JPEG+PNG) are independent and can drift; check both when changing file constraints.
 
 ### UI
 
