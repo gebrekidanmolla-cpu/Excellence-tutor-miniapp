@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
 import { generateNextJobCode } from "@/lib/job-code";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
+import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
 
 /* The create path now waits on a Telegram round-trip. */
 export const maxDuration = 30;
@@ -80,6 +81,8 @@ export async function POST(request: Request) {
       grade,
       subject,
       place,
+      parentName,
+      parentPhone,
       salary,
       daysPerWeek,
       hoursPerDay,
@@ -94,6 +97,8 @@ export async function POST(request: Request) {
       !grade ||
       !subject ||
       !place ||
+      !parentName ||
+      !parentPhone ||
       salary === undefined ||
       salary === null ||
       daysPerWeek === undefined ||
@@ -166,6 +171,34 @@ export async function POST(request: Request) {
         {
           success: false,
           message: "Place is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Parent contact validation
+
+    const normalizedParentName =
+      String(parentName).trim();
+
+    if (!normalizedParentName) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Parent name is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedParentPhone =
+      String(parentPhone).trim();
+
+    if (!normalizedParentPhone) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Parent phone number is required.",
         },
         { status: 400 }
       );
@@ -280,6 +313,8 @@ export async function POST(request: Request) {
             grade: normalizedGrade,
             subject: normalizedSubject,
             place: normalizedPlace,
+            parentName: normalizedParentName,
+            parentPhone: normalizedParentPhone,
             salary: parsedSalary,
             daysPerWeek: parsedDaysPerWeek,
             hoursPerDay: parsedHoursPerDay,
@@ -340,6 +375,11 @@ export async function POST(request: Request) {
       deadlineMs: 6_000,
       attempts: 2,
     });
+
+    // Mirror the new row into the backup Google Sheet. Same
+    // containment contract as Telegram: never throws, never turns a
+    // successful job creation into a 500.
+    await safeSyncJobSheetRow(job.id);
 
     // Re-read so the response carries the telegram columns the detail
     // page renders. `job.id` is unchanged either way — the create

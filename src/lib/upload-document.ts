@@ -1,6 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase-admin";
-
-const BUCKET_NAME = "tutor-documents";
+import { deleteObjects, putObject } from "@/lib/r2";
 
 const MAX_DOCUMENT_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_CV_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -64,37 +62,24 @@ export async function uploadDocument(
 
   const path = `${folder}/${filename}`;
 
-  const { data, error } = await supabaseAdmin.storage
-    .from(BUCKET_NAME)
-    .upload(path, file, {
-      contentType: file.type,
-      upsert: false,
-    });
+  try {
+    await putObject(
+      path,
+      Buffer.from(await file.arrayBuffer()),
+      file.type,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error);
 
-  if (error) {
     throw new Error(
-      `Failed to upload ${filename}: ${error.message}`,
+      `Failed to upload ${filename}: ${message}`,
     );
   }
 
-  return data.path;
+  return path;
 }
 
 export async function deleteDocuments(paths: string[]) {
-  const validPaths = paths.filter(Boolean);
-
-  if (validPaths.length === 0) {
-    return;
-  }
-
-  const { error } = await supabaseAdmin.storage
-    .from(BUCKET_NAME)
-    .remove(validPaths);
-
-  if (error) {
-    console.error(
-      "Failed to clean up uploaded documents:",
-      error,
-    );
-  }
+  await deleteObjects(paths.filter(Boolean));
 }

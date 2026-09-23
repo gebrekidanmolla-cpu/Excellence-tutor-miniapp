@@ -405,7 +405,7 @@ function Notice({
 }
 
 /**
- * The Supabase storage path is never exposed. This links to the admin
+ * The storage key is never exposed. This links to the admin
  * document route, which checks the session and 302s to a 10-minute signed URL.
  */
 function DocumentRow({

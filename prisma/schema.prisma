@@ -54,6 +54,18 @@ model Job {
   status  JobStatus @default(OPEN)
 
   // ==========================================
+  // PARENT CONTACT
+  // ==========================================
+  //
+  // The parent who requested the tutor, for the admin to follow up
+  // with — never shown on the public apply page or the Telegram
+  // channel post (`JobForChannelPost` lists its own fields, so this
+  // never leaks in just by existing on the row).
+
+  parentName  String @default("")
+  parentPhone String @default("")
+
+  // ==========================================
   // JOB SCHEDULE
   // ==========================================
 

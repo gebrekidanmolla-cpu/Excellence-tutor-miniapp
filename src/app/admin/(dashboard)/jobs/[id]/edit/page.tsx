@@ -40,6 +40,8 @@ export default async function EditJobPage({ params }: EditJobPageProps) {
           grade: job.grade,
           subject: job.subject,
           place: job.place,
+          parentName: job.parentName,
+          parentPhone: job.parentPhone,
           salary: job.salary,
           status: job.status,
         }}

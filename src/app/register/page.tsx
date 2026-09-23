@@ -29,6 +29,7 @@ import {
   type RegisterValues,
   type Step,
 } from "@/app/register/schema";
+import { compressImage } from "@/lib/compress-image";
 import { cn } from "@/lib/utils";
 
 const DOCUMENT_FIELDS: FileField[] = [
@@ -51,6 +52,15 @@ export default function RegisterPage() {
   const [fileErrors, setFileErrors] = React.useState<
     Partial<Record<FileField, string>>
   >({});
+  const [filesBusy, setFilesBusy] = React.useState<
+    Partial<Record<FileField, boolean>>
+  >({});
+
+  /**
+   * A file being compressed is not in `files` yet, so advancing now would
+   * fail its own required-document check. Hold the step instead.
+   */
+  const preparingFiles = Object.values(filesBusy).some(Boolean);
 
   /* Email verification */
   const [emailVerified, setEmailVerified] = React.useState(false);
@@ -204,15 +214,37 @@ export default function RegisterPage() {
   /* ---------------------------------------------------------
      FILES
   --------------------------------------------------------- */
-  function handleFileChange(field: FileField, file: File | null) {
-    const message = file
-      ? validateDocument(field, file, getValues("tutorStatus") ?? "")
-      : "";
+  async function handleFileChange(field: FileField, file: File | null) {
+    if (!file) {
+      setFileErrors((previous) => ({ ...previous, [field]: "" }));
+      setFiles((previous) => ({ ...previous, [field]: null }));
+
+      return;
+    }
+
+    setFilesBusy((previous) => ({ ...previous, [field]: true }));
+
+    // Shrink the photo before it is validated, not after: a 6MB camera
+    // picture becomes an acceptable few-hundred-KB document instead of an
+    // error the tutor has no obvious way to act on. `compressImage` never
+    // throws — it returns the original whenever it cannot do better.
+    const prepared = await compressImage(file);
+
+    const message = validateDocument(
+      field,
+      prepared,
+      getValues("tutorStatus") ?? ""
+    );
 
     setFileErrors((previous) => ({ ...previous, [field]: message }));
 
     // A rejected file is not kept, so it can never reach the request.
-    setFiles((previous) => ({ ...previous, [field]: message ? null : file }));
+    setFiles((previous) => ({
+      ...previous,
+      [field]: message ? null : prepared,
+    }));
+
+    setFilesBusy((previous) => ({ ...previous, [field]: false }));
   }
 
   function validateFiles(): boolean {
@@ -494,6 +526,7 @@ export default function RegisterPage() {
                 form={form}
                 files={files}
                 fileErrors={fileErrors}
+                filesBusy={filesBusy}
                 onFileChange={handleFileChange}
               />
             ) : null}
@@ -520,12 +553,21 @@ export default function RegisterPage() {
               </Button>
 
               {step < 5 ? (
-                <Button type="button" size="xl" onClick={goNext}>
+                <Button
+                  type="button"
+                  size="xl"
+                  onClick={goNext}
+                  disabled={preparingFiles}
+                >
                   Continue
                   <ArrowRight data-icon="inline-end" aria-hidden="true" />
                 </Button>
               ) : (
-                <Button type="submit" size="xl" disabled={submitting}>
+                <Button
+                  type="submit"
+                  size="xl"
+                  disabled={submitting || preparingFiles}
+                >
                   {submitting ? (
                     <Loader2
                       className="animate-spin"

@@ -22,11 +22,13 @@ export function DocumentsStep({
   form,
   files,
   fileErrors,
+  filesBusy,
   onFileChange,
 }: {
   form: UseFormReturn<RegisterValues>;
   files: FileState;
   fileErrors: Partial<Record<FileField, string>>;
+  filesBusy: Partial<Record<FileField, boolean>>;
   onFileChange: (field: FileField, file: File | null) => void;
 }) {
   const { register, control, formState } = form;
@@ -81,9 +83,10 @@ export function DocumentsStep({
           label="Transcript"
           required
           accept={DOCUMENT_ACCEPT}
-          hint="JPG, JPEG, PNG or WEBP — max 2MB"
+          hint="JPG, JPEG, PNG or WEBP — large photos are shrunk automatically"
           file={files.transcript}
           error={fileErrors.transcript}
+          busy={filesBusy.transcript}
           onChange={(file) => onFileChange("transcript", file)}
         />
 
@@ -92,9 +95,10 @@ export function DocumentsStep({
           label="Entrance Result"
           required
           accept={DOCUMENT_ACCEPT}
-          hint="JPG, JPEG, PNG or WEBP — max 2MB"
+          hint="JPG, JPEG, PNG or WEBP — large photos are shrunk automatically"
           file={files.entranceResult}
           error={fileErrors.entranceResult}
+          busy={filesBusy.entranceResult}
           onChange={(file) => onFileChange("entranceResult", file)}
         />
 
@@ -103,9 +107,10 @@ export function DocumentsStep({
           label="Government ID"
           required
           accept={DOCUMENT_ACCEPT}
-          hint="JPG, JPEG, PNG or WEBP — max 2MB"
+          hint="JPG, JPEG, PNG or WEBP — large photos are shrunk automatically"
           file={files.governmentId}
           error={fileErrors.governmentId}
+          busy={filesBusy.governmentId}
           onChange={(file) => onFileChange("governmentId", file)}
         />
 
@@ -115,9 +120,10 @@ export function DocumentsStep({
             label="Graduation Document"
             required
             accept={DOCUMENT_ACCEPT}
-            hint="Temporary or Original — JPG, JPEG, PNG or WEBP — max 2MB"
+            hint="Temporary or Original — JPG, JPEG, PNG or WEBP — shrunk automatically"
             file={files.graduationDocument}
             error={fileErrors.graduationDocument}
+            busy={filesBusy.graduationDocument}
             onChange={(file) => onFileChange("graduationDocument", file)}
           />
         ) : null}
@@ -126,9 +132,10 @@ export function DocumentsStep({
           id="cv"
           label="CV / Resume"
           accept={CV_ACCEPT}
-          hint="Optional — JPG, JPEG, PNG, WEBP or PDF — max 5MB"
+          hint="Optional — JPG, JPEG, PNG, WEBP or PDF — PDF max 5MB"
           file={files.cv}
           error={fileErrors.cv}
+          busy={filesBusy.cv}
           onChange={(file) => onFileChange("cv", file)}
         />
       </div>

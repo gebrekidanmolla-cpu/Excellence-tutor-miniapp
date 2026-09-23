@@ -22,6 +22,8 @@ interface EditJobFormProps {
     grade: string;
     subject: string;
     place: string;
+    parentName: string;
+    parentPhone: string;
     salary: number;
     status: "OPEN" | "CLOSED";
   };
@@ -45,6 +47,8 @@ export default function EditJobForm({ job }: EditJobFormProps) {
   const [grade, setGrade] = useState(job.grade);
   const [subject, setSubject] = useState(job.subject);
   const [place, setPlace] = useState(job.place);
+  const [parentName, setParentName] = useState(job.parentName);
+  const [parentPhone, setParentPhone] = useState(job.parentPhone);
   const [salary, setSalary] = useState(String(job.salary));
   const [status, setStatus] = useState<string>(job.status);
 
@@ -58,9 +62,8 @@ export default function EditJobForm({ job }: EditJobFormProps) {
     setIsSubmitting(true);
 
     try {
-      /* Payload deliberately unchanged. `PATCH /api/admin/jobs/[id]` accepts
-         only these six keys — schedule and details cannot be edited without
-         an API change. */
+      /* `PATCH /api/admin/jobs/[id]` accepts only these eight keys —
+         schedule and details cannot be edited without an API change. */
       const response = await fetch(`/api/admin/jobs/${job.id}`, {
         method: "PATCH",
         headers: {
@@ -71,6 +74,8 @@ export default function EditJobForm({ job }: EditJobFormProps) {
           grade,
           subject,
           place,
+          parentName,
+          parentPhone,
           salary,
           status,
         }),
@@ -152,6 +157,24 @@ export default function EditJobForm({ job }: EditJobFormProps) {
             min="0"
             value={salary}
             onChange={(event) => setSalary(event.target.value)}
+          />
+
+          <TextField
+            id="parentName"
+            label="Parent name"
+            required
+            value={parentName}
+            onChange={(event) => setParentName(event.target.value)}
+          />
+
+          <TextField
+            id="parentPhone"
+            label="Parent phone number"
+            required
+            type="tel"
+            inputMode="tel"
+            value={parentPhone}
+            onChange={(event) => setParentPhone(event.target.value)}
           />
         </div>
 

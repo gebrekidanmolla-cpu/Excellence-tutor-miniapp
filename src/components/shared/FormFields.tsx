@@ -1,7 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Check, Eye, EyeOff, Paperclip, Upload, X } from "lucide-react";
+import {
+  Check,
+  Eye,
+  EyeOff,
+  Loader2,
+  Paperclip,
+  Upload,
+  X,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -300,6 +308,7 @@ export function FileUploadField({
   file,
   error,
   required,
+  busy,
   onChange,
 }: {
   id: string;
@@ -309,6 +318,8 @@ export function FileUploadField({
   file: File | null;
   error?: string;
   required?: boolean;
+  /** The picked file is still being compressed — see `compress-image.ts`. */
+  busy?: boolean;
   onChange: (file: File | null) => void;
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -343,7 +354,13 @@ export function FileUploadField({
                 : "bg-muted text-muted-foreground"
             )}
           >
-            {file ? <Check /> : <Upload />}
+            {busy ? (
+              <Loader2 className="animate-spin" />
+            ) : file ? (
+              <Check />
+            ) : (
+              <Upload />
+            )}
           </span>
 
           <div className="min-w-0 flex-1">
@@ -359,7 +376,11 @@ export function FileUploadField({
               ) : null}
             </label>
 
-            {file ? (
+            {busy ? (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Preparing image…
+              </p>
+            ) : file ? (
               <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Paperclip className="size-3 shrink-0" aria-hidden="true" />
                 <span className="truncate">{file.name}</span>
@@ -376,6 +397,7 @@ export function FileUploadField({
               variant="ghost"
               size="icon-sm"
               onClick={clear}
+              disabled={busy}
               aria-label={`Remove ${label}`}
               className="shrink-0 text-muted-foreground"
             >
@@ -387,6 +409,7 @@ export function FileUploadField({
               variant="outline"
               size="sm"
               onClick={() => inputRef.current?.click()}
+              disabled={busy}
               className="shrink-0"
               tabIndex={-1}
             >
@@ -401,6 +424,7 @@ export function FileUploadField({
           type="file"
           accept={accept}
           className="sr-only"
+          disabled={busy}
           aria-invalid={Boolean(error) || undefined}
           aria-describedby={error ? `${id}-error` : undefined}
           onChange={(event) => onChange(event.target.files?.[0] ?? null)}

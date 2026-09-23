@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
-import { supabaseAdmin } from "@/lib/supabase-admin";
-
-const BUCKET_NAME = "tutor-documents";
+import { getSignedDownloadUrl } from "@/lib/r2";
 
 const ALLOWED_DOCUMENTS = {
   transcript: "transcriptUrl",
@@ -114,15 +112,15 @@ export async function GET(
     // GENERATE SIGNED URL
     // =====================================================
 
-    const { data, error } =
-      await supabaseAdmin.storage
-        .from(BUCKET_NAME)
-        .createSignedUrl(
+    let signedUrl: string;
+
+    try {
+      signedUrl =
+        await getSignedDownloadUrl(
           storagePath,
           60 * 10 // 10 minutes
         );
-
-    if (error || !data?.signedUrl) {
+    } catch (error) {
       console.error(
         "Failed to create signed document URL:",
         error
@@ -139,11 +137,11 @@ export async function GET(
     }
 
     // =====================================================
-    // REDIRECT TO SUPABASE DOCUMENT
+    // REDIRECT TO STORED DOCUMENT
     // =====================================================
 
     return NextResponse.redirect(
-      data.signedUrl
+      signedUrl
     );
   } catch (error) {
     console.error(

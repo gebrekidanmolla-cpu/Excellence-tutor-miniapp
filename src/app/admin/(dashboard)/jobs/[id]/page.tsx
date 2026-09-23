@@ -10,6 +10,7 @@ import {
   MapPin,
   MessageSquare,
   Pencil,
+  Phone,
   RefreshCw,
   Send,
   UserRound,
@@ -157,6 +158,27 @@ export default async function JobDetailsPage({
           </>
         }
       />
+
+      {/* -----------------------------------------------------
+          PARENT CONTACT — admin-only, never shown on the public
+          apply page or the Telegram channel post.
+      ----------------------------------------------------- */}
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <h2 className="font-heading font-medium">Parent contact</h2>
+
+        <InfoGrid className="mt-5" columns={3}>
+          <InfoItem
+            label="Parent name"
+            value={job.parentName}
+            icon={<UserRound />}
+          />
+          <InfoItem
+            label="Parent phone"
+            value={job.parentPhone}
+            icon={<Phone />}
+          />
+        </InfoGrid>
+      </section>
 
       {/* -----------------------------------------------------
           JOB INFORMATION

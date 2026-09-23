@@ -14,8 +14,8 @@
 // Messages are sent as plain text, with no `parse_mode`. See the
 // header of `telegram-post.ts` for why.
 //
-// Unlike `supabase-admin.ts` and `prisma.ts`, which throw at module
-// load when their environment is missing, the configuration here is
+// Unlike `prisma.ts`, which throws at module
+// load when its environment is missing, the configuration here is
 // read *per call* and its absence is a normal return value. Posting
 // to Telegram is an optional side effect: a developer without a bot
 // token, and a CI build, must still boot and build the app.

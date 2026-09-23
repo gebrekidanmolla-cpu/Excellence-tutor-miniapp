@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +28,13 @@ const STATUS_OPTIONS = [
 export default function CreateJobForm() {
   const router = useRouter();
 
+  /* Preview only — the code actually assigned on submit is re-derived
+     server-side right before the insert, so two admins racing the
+     form at once can see the same preview and still only one wins it. */
+  const [previewJobCode, setPreviewJobCode] = useState<string | null>(null);
+
+  const [parentName, setParentName] = useState("");
+  const [parentPhone, setParentPhone] = useState("");
   const [gender, setGender] = useState("FEMALE");
   const [grade, setGrade] = useState("");
   const [subject, setSubject] = useState("");
@@ -41,6 +48,26 @@ export default function CreateJobForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/admin/jobs/next-code")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((result) => {
+        if (!cancelled && result?.jobCode) {
+          setPreviewJobCode(result.jobCode);
+        }
+      })
+      .catch(() => {
+        // The preview is a convenience, not a dependency — the real
+        // code is still assigned server-side on submit either way.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -48,14 +75,15 @@ export default function CreateJobForm() {
     setIsSubmitting(true);
 
     try {
-      /* Payload shape is unchanged — `POST /api/admin/jobs` expects these
-         exact keys, all as strings. */
+      /* `POST /api/admin/jobs` expects these exact keys, all as strings. */
       const response = await fetch("/api/admin/jobs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          parentName,
+          parentPhone,
           gender,
           grade,
           subject,
@@ -100,31 +128,56 @@ export default function CreateJobForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      <div className="flex items-center justify-between gap-3 rounded-xl bg-primary/5 px-5 py-4 ring-1 ring-primary/15">
+        <span className="text-sm font-medium text-muted-foreground">
+          Job code
+        </span>
+
+        <span className="font-heading text-lg font-semibold tracking-tight tabular-nums">
+          {previewJobCode ?? (
+            <Loader2
+              className="size-4 animate-spin text-muted-foreground"
+              aria-hidden="true"
+            />
+          )}
+        </span>
+      </div>
+
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
         <SectionHeading
-          title="Job information"
-          description="The job code is generated automatically when the job is created."
+          title="Parent contact"
+          description="Who requested the tutor, so you can follow up with them directly."
         />
 
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
-          <SelectField
-            id="gender"
-            label="Tutor gender"
+          <TextField
+            id="parentName"
+            label="Parent name"
             required
-            options={GENDER_OPTIONS}
-            value={gender}
-            onValueChange={setGender}
+            autoFocus
+            value={parentName}
+            onChange={(event) => setParentName(event.target.value)}
           />
 
-          <SelectField
-            id="status"
-            label="Status"
+          <TextField
+            id="parentPhone"
+            label="Parent phone number"
             required
-            options={STATUS_OPTIONS}
-            value={status}
-            onValueChange={setStatus}
+            type="tel"
+            inputMode="tel"
+            value={parentPhone}
+            onChange={(event) => setParentPhone(event.target.value)}
           />
+        </div>
+      </section>
 
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <SectionHeading
+          title="What the tutor will teach"
+          description="Grade, subject and where the sessions take place."
+        />
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
           <TextField
             id="grade"
             label="Grade"
@@ -149,25 +202,24 @@ export default function CreateJobForm() {
             onChange={(event) => setPlace(event.target.value)}
           />
 
-          <TextField
-            id="salary"
-            label="Monthly salary (ETB)"
+          <SelectField
+            id="gender"
+            label="Tutor gender"
             required
-            type="number"
-            min="0"
-            value={salary}
-            onChange={(event) => setSalary(event.target.value)}
+            options={GENDER_OPTIONS}
+            value={gender}
+            onValueChange={setGender}
           />
         </div>
       </section>
 
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
         <SectionHeading
-          title="Tutoring schedule"
-          description="Define how frequently and how long the tutor will teach."
+          title="Schedule and pay"
+          description="How often the tutor teaches, and what it pays."
         />
 
-        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+        <div className="mt-5 grid gap-5 sm:grid-cols-3">
           <TextField
             id="daysPerWeek"
             label="Days per week"
@@ -189,14 +241,35 @@ export default function CreateJobForm() {
             value={hoursPerDay}
             onChange={(event) => setHoursPerDay(event.target.value)}
           />
+
+          <TextField
+            id="salary"
+            label="Monthly salary (ETB)"
+            required
+            type="number"
+            min="0"
+            value={salary}
+            onChange={(event) => setSalary(event.target.value)}
+          />
         </div>
       </section>
 
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
         <SectionHeading
-          title="Job details"
-          description="Anything a tutor should know before applying."
+          title="Anything else"
+          description="Optional — shown on the job post and the channel listing."
         />
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <SelectField
+            id="status"
+            label="Status"
+            required
+            options={STATUS_OPTIONS}
+            value={status}
+            onValueChange={setStatus}
+          />
+        </div>
 
         <div className="mt-5">
           <TextAreaField

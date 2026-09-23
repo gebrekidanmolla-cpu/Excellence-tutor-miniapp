@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
+import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
 import {
   deleteChannelMessage,
   isTelegramConfigured,
@@ -112,6 +113,8 @@ export async function PATCH(
       grade,
       subject,
       place,
+      parentName,
+      parentPhone,
       salary,
       status,
     } = body;
@@ -133,7 +136,14 @@ export async function PATCH(
       );
     }
 
-    if (!gender || !grade || !subject || !place) {
+    if (
+      !gender ||
+      !grade ||
+      !subject ||
+      !place ||
+      !parentName ||
+      !parentPhone
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -152,6 +162,32 @@ export async function PATCH(
         {
           success: false,
           message: "Place is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedParentName =
+      String(parentName).trim();
+
+    if (!normalizedParentName) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Parent name is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedParentPhone =
+      String(parentPhone).trim();
+
+    if (!normalizedParentPhone) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Parent phone number is required.",
         },
         { status: 400 }
       );
@@ -235,6 +271,8 @@ export async function PATCH(
           subject:
             String(subject).trim(),
           place: normalizedPlace,
+          parentName: normalizedParentName,
+          parentPhone: normalizedParentPhone,
           salary: parsedSalary,
           status,
         },
@@ -247,6 +285,8 @@ export async function PATCH(
       await safeSyncJobTelegramPost(
         updatedJob.id
       );
+
+    await safeSyncJobSheetRow(updatedJob.id);
 
     return NextResponse.json({
       success: true,

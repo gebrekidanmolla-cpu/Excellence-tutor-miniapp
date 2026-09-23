@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
 import { sendApplicationAcceptedEmail } from "@/lib/email";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
+import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
 
 /* Assigning waits on the email and a Telegram edit. */
 export const maxDuration = 30;
@@ -304,6 +305,8 @@ export async function POST(
       await safeSyncJobTelegramPost(
         result.updatedJob.id
       );
+
+    await safeSyncJobSheetRow(result.updatedJob.id);
 
     // =====================================================
     // SUCCESS
