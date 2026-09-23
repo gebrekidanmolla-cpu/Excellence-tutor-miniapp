@@ -25,8 +25,10 @@ export async function GET(request: Request) {
         gender: true,
         grade: true,
         subject: true,
+        place: true,
         salary: true,
         status: true,
+        additionalDetails: true,
         createdAt: true,
       },
     });

@@ -11,6 +11,13 @@ enum JobStatus {
   CLOSED
 }
 
+enum TelegramPostStatus {
+  PENDING
+  POSTED
+  FAILED
+  DISABLED
+}
+
 enum ApplicationStatus {
   PENDING
   REVIEWED
@@ -42,8 +49,21 @@ model Job {
   gender  Gender
   grade   String
   subject String
+  place   String    @default("")
   salary  Int
   status  JobStatus @default(OPEN)
+
+  // ==========================================
+  // PARENT CONTACT
+  // ==========================================
+  //
+  // The parent who requested the tutor, for the admin to follow up
+  // with — never shown on the public apply page or the Telegram
+  // channel post (`JobForChannelPost` lists its own fields, so this
+  // never leaks in just by existing on the row).
+
+  parentName  String @default("")
+  parentPhone String @default("")
 
   // ==========================================
   // JOB SCHEDULE
@@ -67,6 +87,33 @@ model Job {
   assignedTutor Tutor? @relation("AssignedJobs", fields: [assignedTutorId], references: [id])
 
   // ==========================================
+  // TELEGRAM PUBLISHING
+  // ==========================================
+  //
+  // The channel post is a side effect of the job, never a
+  // precondition: the row is written first and these columns
+  // record what happened afterwards, so a Telegram outage can
+  // never block job creation.
+  //
+  // `telegramPostHash` is the sha256 of the rendered text plus
+  // the inline keyboard. It makes re-syncing idempotent — an
+  // unchanged hash skips the API call entirely, which is also
+  // what keeps Telegram's "message is not modified" 400 from
+  // firing on every no-op edit.
+
+  telegramChatId     String?
+  telegramMessageId  Int?
+  telegramPostStatus TelegramPostStatus @default(PENDING)
+  telegramPostHash   String?
+  telegramPostError  String?            @db.Text
+  telegramPostedAt   DateTime?
+  telegramSyncedAt   DateTime?
+
+  // In-flight claim, with a TTL rather than a boolean so a request
+  // that dies mid-send unblocks itself instead of wedging the job.
+  telegramLockedAt   DateTime?
+
+  // ==========================================
   // TIMESTAMPS
   // ==========================================
 
@@ -78,6 +125,8 @@ model Job {
   // ==========================================
 
   applications Application[]
+
+  @@index([telegramPostStatus])
 }
 
 

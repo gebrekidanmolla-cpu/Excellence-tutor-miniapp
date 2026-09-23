@@ -1,149 +1,155 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, Eye, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
-type ApplicationStatus =
-  | "PENDING"
-  | "REVIEWED"
-  | "ACCEPTED"
-  | "REJECTED";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+
+type ApplicationStatus = "PENDING" | "REVIEWED" | "ACCEPTED" | "REJECTED";
 
 interface StatusActionsProps {
   applicationId: string;
   currentStatus: ApplicationStatus;
+  tutorName: string;
+  jobCode: string;
 }
 
+/**
+ * The actions on the application detail page.
+ *
+ * Assigning used to live only on the applications list, so reading a full
+ * application and then choosing that tutor meant navigating back and finding
+ * the row again. It runs the same `POST .../assign` transaction as the list
+ * and the job page — accept, assign, reject the rest, close the job — which
+ * is why it is a confirm dialog spelling out all four effects and not a bare
+ * button.
+ *
+ * The caller only renders this when the job is open and unassigned, so no
+ * state is guarded here beyond the application's own status.
+ */
 export default function StatusActions({
   applicationId,
   currentStatus,
+  tutorName,
+  jobCode,
 }: StatusActionsProps) {
   const router = useRouter();
 
-  const [isUpdating, setIsUpdating] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  async function updateStatus(
-    status: ApplicationStatus
-  ) {
-    if (status === currentStatus) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Are you sure you want to change the application status to ${status}?`
+  /** Throws so `ConfirmDialog` keeps itself open and shows the message. */
+  async function updateStatus(status: ApplicationStatus) {
+    /* No trailing slash: the previous URL ended in `/`, which the router
+       redirects, and a redirected PATCH does not carry its method. */
+    const response = await fetch(
+      `/api/admin/applications/${applicationId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status,
+        }),
+      }
     );
 
-    if (!confirmed) {
-      return;
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(
+        result.message || "Failed to update application status."
+      );
     }
 
-    setIsUpdating(true);
-    setError("");
+    toast.success("Application status updated.");
+    router.refresh();
+  }
 
-    try {
-      const response = await fetch(
-        `/api/admin/applications/${applicationId}/`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            status,
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setError(
-          result.message ||
-            "Failed to update application status."
-        );
-
-        return;
+  async function assign() {
+    const response = await fetch(
+      `/api/admin/applications/${applicationId}/assign`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
+    );
 
-      router.refresh();
-    } catch (error) {
-      console.error(error);
+    const result = await response.json();
 
-      setError(
-        "Something went wrong. Please try again."
-      );
-    } finally {
-      setIsUpdating(false);
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to assign tutor.");
     }
+
+    toast.success(`${tutorName} assigned to ${jobCode}.`);
+    router.refresh();
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-wrap gap-2">
+      <ConfirmDialog
+        trigger={
+          <Button size="xl">
+            <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
+            Assign tutor
+          </Button>
+        }
+        title={`Assign ${tutorName} to ${jobCode}?`}
+        description={
+          <>
+            This will, in one step:
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              <li>Accept this tutor&apos;s application</li>
+              <li>Assign the tutor to the job</li>
+              <li>Reject all other applicants for this job</li>
+              <li>Close the job</li>
+            </ul>
+            <p className="mt-3">
+              Re-opening the job later undoes all of it: the tutor is
+              unassigned and every application goes back to pending.
+            </p>
+          </>
+        }
+        confirmLabel="Assign tutor"
+        onConfirm={assign}
+      />
 
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      <ConfirmDialog
+        trigger={
+          <Button
+            variant="outline"
+            size="xl"
+            disabled={currentStatus === "REVIEWED"}
+          >
+            <Eye data-icon="inline-start" aria-hidden="true" />
+            Mark reviewed
+          </Button>
+        }
+        title="Mark this application as reviewed?"
+        description="This records that the application has been looked at. It does not accept or reject the tutor."
+        confirmLabel="Mark reviewed"
+        onConfirm={() => updateStatus("REVIEWED")}
+      />
 
-      <div className="flex flex-wrap gap-3">
-
-        <button
-          type="button"
-          disabled={
-            isUpdating ||
-            currentStatus === "REVIEWED"
-          }
-          onClick={() =>
-            updateStatus("REVIEWED")
-          }
-          className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isUpdating
-            ? "Updating..."
-            : "Mark Reviewed"}
-        </button>
-
-        <button
-          type="button"
-          disabled={
-            isUpdating ||
-            currentStatus === "ACCEPTED"
-          }
-          onClick={() =>
-            updateStatus("ACCEPTED")
-          }
-          className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Accept
-        </button>
-
-        <button
-          type="button"
-          disabled={
-            isUpdating ||
-            currentStatus === "REJECTED"
-          }
-          onClick={() =>
-            updateStatus("REJECTED")
-          }
-          className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Reject
-        </button>
-
-      </div>
-
-      {isUpdating && (
-        <p className="text-sm text-gray-500">
-          Updating application status...
-        </p>
-      )}
-
+      <ConfirmDialog
+        trigger={
+          <Button
+            variant="destructive"
+            size="xl"
+            disabled={currentStatus === "REJECTED"}
+          >
+            <XCircle data-icon="inline-start" aria-hidden="true" />
+            Reject
+          </Button>
+        }
+        title="Reject this application?"
+        description="The tutor will see this application as rejected. Other applications for this job are unaffected, and re-opening the job puts this one back to pending."
+        confirmLabel="Reject application"
+        variant="destructive"
+        onConfirm={() => updateStatus("REJECTED")}
+      />
     </div>
   );
 }

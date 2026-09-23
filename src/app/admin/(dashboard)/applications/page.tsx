@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
 import { redirect } from "next/navigation";
 import ApplicationsTable from "./ApplicationsTable";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 export default async function ApplicationsPage() {
   // =====================================================
@@ -117,24 +118,12 @@ export default async function ApplicationsPage() {
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
-
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-          Applications
-        </h1>
-
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Review tutor applications and manually assign
-          the best candidate to each job.
-        </p>
-      </div>
-
-      {/* APPLICATION TABLE */}
-
-      <ApplicationsTable
-        applications={serializedApplications}
+      <PageHeader
+        title="Applications"
+        description="Review tutor applications and manually assign the best candidate to each job."
       />
+
+      <ApplicationsTable applications={serializedApplications} />
     </div>
   );
 }

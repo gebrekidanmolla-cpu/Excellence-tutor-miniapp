@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentAdmin } from "@/lib/admin-session";
+import { sendApplicationAcceptedEmail } from "@/lib/email";
+import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
+import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
+
+/* Assigning waits on the email and a Telegram edit. */
+export const maxDuration = 30;
 
 interface RouteContext {
   params: Promise<{
@@ -7,11 +14,36 @@ interface RouteContext {
   }>;
 }
 
+/**
+ * Thrown when the conditional claim inside the transaction matches no row —
+ * i.e. another request assigned this job first. Distinguishing it from a real
+ * failure is what keeps that case a 409 instead of a generic 500.
+ */
+class JobAlreadyAssignedError extends Error {
+  constructor() {
+    super("A tutor has already been assigned to this job.");
+
+    this.name = "JobAlreadyAssignedError";
+  }
+}
+
 
 export async function POST(
   _request: Request,
   { params }: RouteContext
 ) {
+  const admin = await getCurrentAdmin();
+
+  if (!admin) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Unauthorized.",
+      },
+      { status: 401 }
+    );
+  }
+
   try {
     const { id } = await params;
 
@@ -53,6 +85,10 @@ export async function POST(
               jobCode: true,
               status: true,
               assignedTutorId: true,
+              subject: true,
+              grade: true,
+              place: true,
+              salary: true,
             },
           },
         },
@@ -107,12 +143,52 @@ export async function POST(
     // If any operation fails, the entire assignment is
     // rolled back.
     //
+    // The checks above are read outside the transaction, so
+    // they are advisory only — they exist to return a good
+    // message in the common case. The claim in step 1 is
+    // the real guard.
+    //
     // =====================================================
 
     const result = await prisma.$transaction(
       async (tx) => {
         // -------------------------------------------------
-        // 1. Accept selected application
+        // 1. Claim the job
+        // -------------------------------------------------
+        //
+        // A conditional write, not a read-then-write: the
+        // `where` re-states the preconditions, so only one
+        // of two concurrent requests can match. Without it
+        // both would pass the checks above and the second
+        // would overwrite `assignedTutorId` while step 2
+        // (which skips `ACCEPTED` rows) left the first
+        // tutor accepted — two winners on one job.
+        //
+        // -------------------------------------------------
+
+        const claimed = await tx.job.updateMany({
+          where: {
+            id: application.jobId,
+
+            status: "OPEN",
+
+            assignedTutorId: null,
+          },
+
+          data: {
+            assignedTutorId:
+              application.tutorId,
+
+            status: "CLOSED",
+          },
+        });
+
+        if (claimed.count === 0) {
+          throw new JobAlreadyAssignedError();
+        }
+
+        // -------------------------------------------------
+        // 2. Accept selected application
         // -------------------------------------------------
 
         const acceptedApplication =
@@ -143,7 +219,7 @@ export async function POST(
           });
 
         // -------------------------------------------------
-        // 2. Reject all other applications for this job
+        // 3. Reject all other applications for this job
         // -------------------------------------------------
 
         await tx.application.updateMany({
@@ -164,21 +240,10 @@ export async function POST(
           },
         });
 
-        // -------------------------------------------------
-        // 3. Assign tutor to job and close job
-        // -------------------------------------------------
-
         const updatedJob =
-          await tx.job.update({
+          await tx.job.findUniqueOrThrow({
             where: {
               id: application.jobId,
-            },
-
-            data: {
-              assignedTutorId:
-                application.tutorId,
-
-              status: "CLOSED",
             },
 
             select: {
@@ -197,6 +262,53 @@ export async function POST(
     );
 
     // =====================================================
+    // NOTIFY
+    // =====================================================
+    //
+    // Best-effort, after the transaction has already committed: the
+    // assignment is real whether or not Resend is reachable, so a failed
+    // send is logged and swallowed rather than turning a successful
+    // assignment into a 500. Still *awaited*, not fired-and-forgotten —
+    // this runs in a serverless function that can freeze the moment the
+    // response is sent, which would silently drop an un-awaited send.
+    //
+    // Only the accepted tutor is emailed. The applicants this same
+    // transaction rejects are not — see `sendApplicationAcceptedEmail`'s
+    // former sibling, removed on request.
+    //
+    // =====================================================
+
+    try {
+      await sendApplicationAcceptedEmail({
+        to: result.acceptedApplication.tutor.email,
+        tutorName: result.acceptedApplication.tutor.fullName,
+        job: {
+          jobCode: result.updatedJob.jobCode,
+          subject: application.job.subject,
+          grade: application.job.grade,
+        },
+        place: application.job.place,
+        salary: application.job.salary,
+      });
+    } catch (emailError) {
+      console.error(
+        "Failed to send assignment email:",
+        emailError
+      );
+    }
+
+    // The transaction above closed the job, so the channel post needs
+    // its CLOSED marker. Same containment as the email: recorded on
+    // the row, logged, never fatal.
+
+    const telegram =
+      await safeSyncJobTelegramPost(
+        result.updatedJob.id
+      );
+
+    await safeSyncJobSheetRow(result.updatedJob.id);
+
+    // =====================================================
     // SUCCESS
     // =====================================================
 
@@ -211,10 +323,23 @@ export async function POST(
         application: result.acceptedApplication,
 
         job: result.updatedJob,
+
+        telegram,
       },
       { status: 200 }
     );
   } catch (error) {
+    // Lost the race rather than failed — report the conflict, not a 500.
+    if (error instanceof JobAlreadyAssignedError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message,
+        },
+        { status: 409 }
+      );
+    }
+
     console.error(
       "Failed to assign tutor:",
       error

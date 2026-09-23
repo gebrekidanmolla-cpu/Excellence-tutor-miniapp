@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase-admin";
-import { uploadDocument } from "@/lib/upload-document";
+import {
+  deleteDocuments,
+  uploadDocument,
+} from "@/lib/upload-document";
 
 // =====================================================
 // FILE LIMITS
@@ -173,25 +175,6 @@ function canonicalizeEthiopianPhone(
   }
 
   return null;
-}
-
-async function deleteUploadedFiles(
-  paths: string[]
-) {
-  if (paths.length === 0) {
-    return;
-  }
-
-  try {
-    await supabaseAdmin.storage
-      .from("tutor-documents")
-      .remove(paths);
-  } catch (error) {
-    console.error(
-      "Failed to clean up uploaded files:",
-      error
-    );
-  }
 }
 
 // =====================================================
@@ -1222,7 +1205,7 @@ export async function POST(
     // CLEANUP UPLOADED FILES
     // =====================================================
 
-    await deleteUploadedFiles(
+    await deleteDocuments(
       uploadedPaths
     );
 

@@ -3,7 +3,12 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { FormError } from "@/components/shared/ErrorState";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -15,188 +20,148 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "/api/admin/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        }
-      );
+      const response = await fetch("/api/admin/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        setError(
-          data.message ||
-            "Invalid email or password."
-        );
+        setError(data.message || "Invalid email or password.");
         return;
       }
 
       router.push("/admin");
       router.refresh();
     } catch {
-      setError(
-        "Unable to connect to the server. Please try again."
-      );
+      setError("Unable to connect to the server. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-3xl border bg-white p-8 shadow-xl">
-          {/* Header */}
-          <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-black text-white">
-              <LockKeyhole size={26} />
-            </div>
+    <main className="flex min-h-svh items-center justify-center bg-muted/40 px-4 py-12">
+      <div className="w-full max-w-sm">
+        <div className="rounded-2xl bg-card p-6 ring-1 ring-foreground/10 sm:p-8">
+          <div className="text-center">
+            <span
+              aria-hidden="true"
+              className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"
+            >
+              <LockKeyhole className="size-6" />
+            </span>
 
-            <h1 className="text-2xl font-bold tracking-tight">
-              Admin Login
+            <h1 className="mt-5 font-heading text-2xl font-semibold tracking-tight">
+              Admin login
             </h1>
 
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-1.5 text-sm text-muted-foreground">
               Sign in to manage Excellence Tutor.
             </p>
           </div>
 
-          {/* Error */}
-          {error && (
-            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
+          <FormError message={error} className="mt-6" />
 
-          {/* Form */}
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-5"
-          >
-            {/* Email */}
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Email
-              </label>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-5" noValidate>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
 
               <div className="relative">
                 <Mail
-                  size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
                 />
 
-                <input
+                <Input
                   id="email"
+                  name="email"
                   type="email"
+                  size="xl"
                   autoComplete="email"
                   value={email}
-                  onChange={(event) =>
-                    setEmail(event.target.value)
-                  }
+                  onChange={(event) => setEmail(event.target.value)}
                   placeholder="admin@example.com"
                   required
-                  className="w-full rounded-xl border border-gray-300 bg-white py-3 pl-10 pr-4 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-black/10"
+                  className="pl-9"
+                  aria-invalid={Boolean(error) || undefined}
                 />
               </div>
             </div>
 
-            {/* Password */}
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Password
-              </label>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
 
               <div className="relative">
                 <LockKeyhole
-                  size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
                 />
 
-                <input
+                <Input
                   id="password"
-                  type={
-                    showPassword
-                      ? "text"
-                      : "password"
-                  }
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  size="xl"
                   autoComplete="current-password"
                   value={password}
-                  onChange={(event) =>
-                    setPassword(event.target.value)
-                  }
+                  onChange={(event) => setPassword(event.target.value)}
                   placeholder="Enter your password"
                   required
-                  className="w-full rounded-xl border border-gray-300 bg-white py-3 pl-10 pr-12 text-sm outline-none transition focus:border-black focus:ring-2 focus:ring-black/10"
+                  className="pr-11 pl-9"
+                  aria-invalid={Boolean(error) || undefined}
                 />
 
-                <button
+                <Button
                   type="button"
-                  onClick={() =>
-                    setShowPassword(
-                      (current) => !current
-                    )
-                  }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-700"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-pressed={showPassword}
                   aria-label={
-                    showPassword
-                      ? "Hide password"
-                      : "Show password"
+                    showPassword ? "Hide password" : "Show password"
                   }
+                  className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground"
                 >
-                  {showPassword ? (
-                    <EyeOff size={18} />
-                  ) : (
-                    <Eye size={18} />
-                  )}
-                </button>
+                  {showPassword ? <EyeOff /> : <Eye />}
+                </Button>
               </div>
             </div>
 
-            {/* Submit */}
-            <button
+            <Button
               type="submit"
+              size="xl"
               disabled={loading}
-              className="w-full rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full"
             >
-              {loading
-                ? "Signing in..."
-                : "Sign in"}
-            </button>
+              {loading ? "Signing in…" : "Sign in"}
+            </Button>
           </form>
-
-          {/* Footer */}
-          <div className="mt-6 text-center">
-            <Link
-              href="/"
-              className="text-sm text-gray-500 transition hover:text-black"
-            >
-              ← Back to Excellence Tutor
-            </Link>
-          </div>
         </div>
+
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Back to website
+          </Link>
+        </p>
       </div>
     </main>
   );

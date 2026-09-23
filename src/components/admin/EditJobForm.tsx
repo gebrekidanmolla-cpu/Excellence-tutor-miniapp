@@ -2,6 +2,17 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Info, Loader2, Save } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FormError } from "@/components/shared/ErrorState";
+import {
+  SectionHeading,
+  SelectField,
+  TextField,
+} from "@/components/shared/FormFields";
 
 interface EditJobFormProps {
   job: {
@@ -10,308 +21,197 @@ interface EditJobFormProps {
     gender: "MALE" | "FEMALE" | "ANY";
     grade: string;
     subject: string;
+    place: string;
+    parentName: string;
+    parentPhone: string;
     salary: number;
     status: "OPEN" | "CLOSED";
   };
 }
 
-export default function EditJobForm({
-  job,
-}: EditJobFormProps) {
+const GENDER_OPTIONS = [
+  { value: "FEMALE", label: "Female tutor" },
+  { value: "MALE", label: "Male tutor" },
+  { value: "ANY", label: "Any tutor" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "OPEN", label: "Open" },
+  { value: "CLOSED", label: "Closed" },
+];
+
+export default function EditJobForm({ job }: EditJobFormProps) {
   const router = useRouter();
 
-  const [jobCode, setJobCode] =
-    useState(job.jobCode);
+  const [gender, setGender] = useState<string>(job.gender);
+  const [grade, setGrade] = useState(job.grade);
+  const [subject, setSubject] = useState(job.subject);
+  const [place, setPlace] = useState(job.place);
+  const [parentName, setParentName] = useState(job.parentName);
+  const [parentPhone, setParentPhone] = useState(job.parentPhone);
+  const [salary, setSalary] = useState(String(job.salary));
+  const [status, setStatus] = useState<string>(job.status);
 
-  const [gender, setGender] =
-    useState(job.gender);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const [grade, setGrade] =
-    useState(job.grade);
-
-  const [subject, setSubject] =
-    useState(job.subject);
-
-  const [salary, setSalary] =
-    useState(String(job.salary));
-
-  const [status, setStatus] =
-    useState(job.status);
-
-  const [isSubmitting, setIsSubmitting] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
-
-  const [success, setSuccess] =
-    useState("");
-
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
-    setSuccess("");
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(
-        `/api/admin/jobs/${job.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            jobCode,
-            gender,
-            grade,
-            subject,
-            salary,
-            status,
-          }),
-        }
-      );
+      /* `PATCH /api/admin/jobs/[id]` accepts only these eight keys —
+         schedule and details cannot be edited without an API change. */
+      const response = await fetch(`/api/admin/jobs/${job.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          gender,
+          grade,
+          subject,
+          place,
+          parentName,
+          parentPhone,
+          salary,
+          status,
+        }),
+      });
 
-      const result =
-        await response.json();
+      const result = await response.json();
 
       if (!response.ok) {
-        setError(
-          result.message ||
-            "Failed to update job."
-        );
+        setError(result.message || "Failed to update job.");
 
         return;
       }
 
-      setSuccess(
-        "Job updated successfully."
-      );
-
+      toast.success("Job updated.");
       router.refresh();
-    } catch (error) {
-      console.error(error);
-
-      setError(
-        "Something went wrong. Please try again."
-      );
+    } catch {
+      setError("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-6"
-    >
-      {/* Job Code */}
-
-      <div>
-        <label
-          htmlFor="jobCode"
-          className="block text-sm font-medium"
-        >
-          Job Code
-        </label>
-
-        <input
-          id="jobCode"
-          type="text"
-          value={jobCode}
-          onChange={(event) =>
-            setJobCode(
-              event.target.value.toUpperCase()
-            )
-          }
-          required
-          className="mt-2 w-full rounded-xl border px-4 py-3"
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <SectionHeading
+          title="Job information"
+          description={`Update the details for job ${job.jobCode}.`}
         />
-      </div>
 
-      {/* Gender */}
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <SelectField
+            id="gender"
+            label="Tutor gender"
+            required
+            options={GENDER_OPTIONS}
+            value={gender}
+            onValueChange={setGender}
+          />
 
-      <div>
-        <label
-          htmlFor="gender"
-          className="block text-sm font-medium"
-        >
-          Tutor Gender
-        </label>
+          <SelectField
+            id="status"
+            label="Status"
+            required
+            options={STATUS_OPTIONS}
+            value={status}
+            onValueChange={setStatus}
+          />
 
-        <select
-          id="gender"
-          value={gender}
-          onChange={(event) =>
-            setGender(
-              event.target.value as
-                | "MALE"
-                | "FEMALE"
-                | "ANY"
-            )
-          }
-          className="mt-2 w-full rounded-xl border px-4 py-3"
-        >
-          <option value="FEMALE">
-            Female Tutor
-          </option>
+          <TextField
+            id="grade"
+            label="Grade"
+            required
+            value={grade}
+            onChange={(event) => setGrade(event.target.value)}
+          />
 
-          <option value="MALE">
-            Male Tutor
-          </option>
+          <TextField
+            id="subject"
+            label="Subject"
+            required
+            value={subject}
+            onChange={(event) => setSubject(event.target.value)}
+          />
 
-          <option value="ANY">
-            Any Gender
-          </option>
-        </select>
-      </div>
+          <TextField
+            id="place"
+            label="Place"
+            required
+            value={place}
+            onChange={(event) => setPlace(event.target.value)}
+          />
 
-      {/* Grade */}
+          <TextField
+            id="salary"
+            label="Monthly salary (ETB)"
+            required
+            type="number"
+            min="0"
+            value={salary}
+            onChange={(event) => setSalary(event.target.value)}
+          />
 
-      <div>
-        <label
-          htmlFor="grade"
-          className="block text-sm font-medium"
-        >
-          Grade
-        </label>
+          <TextField
+            id="parentName"
+            label="Parent name"
+            required
+            value={parentName}
+            onChange={(event) => setParentName(event.target.value)}
+          />
 
-        <input
-          id="grade"
-          type="text"
-          value={grade}
-          onChange={(event) =>
-            setGrade(event.target.value)
-          }
-          required
-          className="mt-2 w-full rounded-xl border px-4 py-3"
-        />
-      </div>
-
-      {/* Subject */}
-
-      <div>
-        <label
-          htmlFor="subject"
-          className="block text-sm font-medium"
-        >
-          Subject
-        </label>
-
-        <input
-          id="subject"
-          type="text"
-          value={subject}
-          onChange={(event) =>
-            setSubject(event.target.value)
-          }
-          required
-          className="mt-2 w-full rounded-xl border px-4 py-3"
-        />
-      </div>
-
-      {/* Salary */}
-
-      <div>
-        <label
-          htmlFor="salary"
-          className="block text-sm font-medium"
-        >
-          Salary
-        </label>
-
-        <input
-          id="salary"
-          type="number"
-          min="1"
-          step="1"
-          value={salary}
-          onChange={(event) =>
-            setSalary(event.target.value)
-          }
-          required
-          className="mt-2 w-full rounded-xl border px-4 py-3"
-        />
-      </div>
-
-      {/* Status */}
-
-      <div>
-        <label
-          htmlFor="status"
-          className="block text-sm font-medium"
-        >
-          Job Status
-        </label>
-
-        <select
-          id="status"
-          value={status}
-          onChange={(event) =>
-            setStatus(
-              event.target.value as
-                | "OPEN"
-                | "CLOSED"
-            )
-          }
-          className="mt-2 w-full rounded-xl border px-4 py-3"
-        >
-          <option value="OPEN">
-            Open
-          </option>
-
-          <option value="CLOSED">
-            Closed
-          </option>
-        </select>
-      </div>
-
-      {/* Error */}
-
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
+          <TextField
+            id="parentPhone"
+            label="Parent phone number"
+            required
+            type="tel"
+            inputMode="tel"
+            value={parentPhone}
+            onChange={(event) => setParentPhone(event.target.value)}
+          />
         </div>
-      )}
 
-      {/* Success */}
+        <Alert className="mt-5">
+          <Info aria-hidden="true" />
+          <AlertDescription>
+            Days per week, hours per day and additional details are set when
+            the job is created and cannot be edited here.
+          </AlertDescription>
+        </Alert>
+      </section>
 
-      {success && (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-          {success}
-        </div>
-      )}
+      <FormError message={error} />
 
-      {/* Buttons */}
-
-      <div className="flex gap-3">
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="flex-1 rounded-xl bg-black px-5 py-3 font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSubmitting
-            ? "Saving Changes..."
-            : "Save Changes"}
-        </button>
-
-        <button
+      <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:justify-end">
+        <Button
           type="button"
-          onClick={() =>
-            router.push(
-              `/admin/jobs/${job.id}`
-            )
-          }
-          className="rounded-xl border px-5 py-3 font-semibold hover:bg-gray-50"
+          variant="outline"
+          size="xl"
+          onClick={() => router.push(`/admin/jobs/${job.id}`)}
+          disabled={isSubmitting}
         >
           Cancel
-        </button>
+        </Button>
 
+        <Button type="submit" size="xl" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <Loader2
+              className="animate-spin"
+              data-icon="inline-start"
+              aria-hidden="true"
+            />
+          ) : (
+            <Save data-icon="inline-start" aria-hidden="true" />
+          )}
+          {isSubmitting ? "Saving…" : "Save changes"}
+        </Button>
       </div>
     </form>
   );

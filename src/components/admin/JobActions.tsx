@@ -2,126 +2,236 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Lock, RotateCcw, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { FormError } from "@/components/shared/ErrorState";
 
 type JobStatus = "OPEN" | "CLOSED";
 
 interface JobActionsProps {
   jobId: string;
+  jobCode: string;
   currentStatus: JobStatus;
+  /** Named in the re-open dialog, so the admin knows what returns to the pool. */
+  applicationCount: number;
+  assignedTutorName: string | null;
+  /** Whether a channel post will be removed along with the job. */
+  hasChannelPost: boolean;
 }
 
+/**
+ * Two actions: close, and re-open.
+ *
+ * Re-opening never goes through `PATCH .../status`. That only flips `status`
+ * and leaves `assignedTutorId` set — the job would take new applications that
+ * could never be assigned, because both the assign route and the application
+ * status route refuse a job with an assigned tutor. The API rejects that
+ * transition outright, so re-opening is always `POST .../reopen`, which
+ * unassigns, resets the whole pool to pending and opens the job in one
+ * transaction.
+ */
 export default function JobActions({
   jobId,
+  jobCode,
   currentStatus,
+  applicationCount,
+  assignedTutorName,
+  hasChannelPost,
 }: JobActionsProps) {
   const router = useRouter();
 
-  const [isUpdating, setIsUpdating] =
-    useState(false);
+  const [error, setError] = useState("");
 
-  const [error, setError] =
-    useState("");
-
-  async function updateStatus(
-    status: JobStatus
-  ) {
-    if (status === currentStatus) {
-      return;
-    }
-
-    const action =
-      status === "CLOSED"
-        ? "close"
-        : "reopen";
-
-    const confirmed =
-      window.confirm(
-        `Are you sure you want to ${action} this job?`
-      );
-
-    if (!confirmed) {
-      return;
-    }
-
+  /**
+   * Throws on failure so `ConfirmDialog` can keep itself open and show the
+   * message, instead of the old `window.confirm` + inline-div pairing.
+   */
+  async function close() {
     setError("");
-    setIsUpdating(true);
 
-    try {
-      const response = await fetch(
-        `/api/admin/jobs/${jobId}/status`,
-        {
-            method: "PATCH",
-            headers: {
-            "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-            status,
-            }),
-        }
-     );
+    const response = await fetch(`/api/admin/jobs/${jobId}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: "CLOSED",
+      }),
+    });
 
-      const result =
-        await response.json();
+    const result = await response.json();
 
-      if (!response.ok) {
-        setError(
-          result.message ||
-            "Failed to update job status."
-        );
-
-        return;
-      }
-
-      router.refresh();
-    } catch (error) {
-      console.error(error);
-
-      setError(
-        "Something went wrong. Please try again."
-      );
-    } finally {
-      setIsUpdating(false);
+    if (!response.ok) {
+      throw new Error(result.message || "Failed to update job status.");
     }
+
+    toast.success("Job closed.");
+
+    router.refresh();
   }
+
+  async function reopen() {
+    setError("");
+
+    const response = await fetch(`/api/admin/jobs/${jobId}/reopen`, {
+      method: "POST",
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to reopen job.");
+    }
+
+    toast.success(result.message);
+
+    router.refresh();
+  }
+
+  /**
+   * Deleting is for jobs that should not exist at all. The API
+   * refuses once a tutor has applied, so the button is only offered
+   * while the job has no applications — a control that always fails
+   * is worse than no control.
+   */
+  async function remove() {
+    setError("");
+
+    const response = await fetch(`/api/admin/jobs/${jobId}`, {
+      method: "DELETE",
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to delete job.");
+    }
+
+    toast.success(result.message);
+
+    /* The job page this renders on is about to 404. */
+    router.push("/admin/jobs");
+    router.refresh();
+  }
+
+  const deleteAction =
+    applicationCount === 0 ? (
+      <ConfirmDialog
+        trigger={
+          <Button variant="outline" size="xl">
+            <Trash2 data-icon="inline-start" aria-hidden="true" />
+            Delete job
+          </Button>
+        }
+        title={`Delete job ${jobCode}?`}
+        description={
+          <>
+            This removes the job permanently and cannot be undone.
+            {hasChannelPost ? (
+              <> Its Telegram channel post is deleted too.</>
+            ) : null}
+            <p className="mt-3">
+              To end a live vacancy instead, close it — that stops new
+              applications while keeping the record and the channel post.
+            </p>
+          </>
+        }
+        confirmLabel="Delete job"
+        variant="destructive"
+        onConfirm={remove}
+      />
+    ) : null;
+
+  // -------------------------------------------------------
+  // OPEN -> close
+  // -------------------------------------------------------
+
+  if (currentStatus === "OPEN" && !assignedTutorName) {
+    return (
+      <div className="space-y-4">
+        <FormError message={error} />
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <ConfirmDialog
+            trigger={
+              <Button variant="destructive" size="xl">
+                <Lock data-icon="inline-start" aria-hidden="true" />
+                Close job
+              </Button>
+            }
+            title="Close this job?"
+            description="The job will stop accepting new applications. Existing applications are not changed."
+            confirmLabel="Close job"
+            variant="destructive"
+            onConfirm={close}
+          />
+
+          {deleteAction}
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------
+  // CLOSED (or assigned) -> re-open
+  // -------------------------------------------------------
+
+  const applicationLabel =
+    applicationCount === 1
+      ? "application"
+      : `all ${applicationCount} applications`;
 
   return (
     <div className="space-y-4">
+      <FormError message={error} />
 
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {currentStatus === "OPEN" ? (
-        <button
-          type="button"
-          disabled={isUpdating}
-          onClick={() =>
-            updateStatus("CLOSED")
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <ConfirmDialog
+          trigger={
+            <Button size="xl">
+              <RotateCcw data-icon="inline-start" aria-hidden="true" />
+              Re-open job
+            </Button>
           }
-          className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isUpdating
-            ? "Closing Job..."
-            : "Close Job"}
-        </button>
-      ) : (
-        <button
-          type="button"
-          disabled={isUpdating}
-          onClick={() =>
-            updateStatus("OPEN")
-          }
-          className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isUpdating
-            ? "Opening Job..."
-            : "Reopen Job"}
-        </button>
-      )}
+          title="Re-open this job?"
+          description={
+            <>
+              This will, in one step:
+              <ul className="mt-2 list-disc space-y-1 pl-4">
+                {assignedTutorName ? (
+                  <li>
+                    Unassign <strong>{assignedTutorName}</strong> from this job
+                  </li>
+                ) : null}
 
+                {applicationCount > 0 ? (
+                  <li>
+                    Put {applicationLabel} back to <strong>pending</strong>,
+                    including accepted and rejected ones
+                  </li>
+                ) : null}
+
+                <li>Re-open the job so more tutors can apply</li>
+              </ul>
+              {applicationCount > 0 ? (
+                <p className="mt-3">
+                  Nothing is deleted — everyone who already applied stays in the
+                  pool, so you can assign one of them straight away or wait for
+                  new applicants. Tutors who applied before will see their
+                  application as pending again.
+                </p>
+              ) : null}
+            </>
+          }
+          confirmLabel="Re-open job"
+          onConfirm={reopen}
+        />
+
+        {deleteAction}
+      </div>
     </div>
   );
 }

@@ -2,12 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
+
+/**
+ * Tutor sign-out. `/api/auth/logout` answers with JSON — unlike the admin
+ * logout, which redirects and therefore has to stay a form POST.
+ *
+ * A failure used to reset the button silently; it now says what happened.
+ */
 export default function LogoutButton() {
   const router = useRouter();
 
-  const [loading, setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function handleLogout() {
     if (loading) {
@@ -17,10 +26,9 @@ export default function LogoutButton() {
     setLoading(true);
 
     try {
-      const response =
-        await fetch("/api/auth/logout", {
-          method: "POST",
-        });
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
 
       if (!response.ok) {
         throw new Error("Logout failed.");
@@ -29,19 +37,22 @@ export default function LogoutButton() {
       router.push("/login");
       router.refresh();
     } catch {
+      toast.error("Could not sign you out. Please try again.");
       setLoading(false);
     }
   }
 
   return (
-    <button
+    <Button
       type="button"
       onClick={handleLogout}
       disabled={loading}
-      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+      variant="outline"
+      size="lg"
+      className="w-full"
     >
-      {loading ? "Signing out..." : "Sign out"}
-    </button>
+      <LogOut data-icon="inline-start" aria-hidden="true" />
+      {loading ? "Signing out…" : "Sign out"}
+    </Button>
   );
 }
-

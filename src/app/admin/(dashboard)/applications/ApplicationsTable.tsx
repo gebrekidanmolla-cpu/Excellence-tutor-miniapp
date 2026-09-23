@@ -2,46 +2,68 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import ApplicationStatusSelect from "./ApplicationStatusSelect";
-import CopyPhone from "./CopyPhone";
-import AssignTutorButton from "./AssignTutorButton";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Search,
+  X,
+} from "lucide-react";
 
-type ApplicationStatus =
-  | "PENDING"
-  | "REVIEWED"
-  | "ACCEPTED"
-  | "REJECTED";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { CopyButton } from "@/components/shared/CopyButton";
+import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
+import { ExpandableDisclosure } from "@/components/shared/ExpandableRow";
+import {
+  formatDate,
+  formatDateTime,
+  formatEnum,
+  formatSalary,
+} from "@/lib/format";
+import ApplicationRowActions from "./ApplicationRowActions";
+
+type ApplicationStatus = "PENDING" | "REVIEWED" | "ACCEPTED" | "REJECTED";
 
 type TutorStatus = "STUDENT" | "GRADUATE";
 
 type Application = {
   id: string;
-
   status: ApplicationStatus;
-
   createdAt: string;
-
   tutor: {
     id: string;
     fullName: string;
     phone: string;
     gender: "ANY" | "MALE" | "FEMALE";
-
     university: string | null;
     department: string | null;
-
     currentGPA: number | null;
     CGPA: number | null;
-
     tutorStatus: TutorStatus;
-
     entranceScore: number;
     entranceTotal: number;
     entrancePercentage: number;
-
     createdAt: string;
   };
-
   job: {
     id: string;
     jobCode: string;
@@ -59,68 +81,178 @@ type Props = {
 
 type SortDirection = "asc" | "desc" | null;
 
-function formatGPA(application: Application) {
+const PAGE_SIZE = 25;
+
+const STATUS_TABS = [
+  { value: "ALL", label: "All" },
+  { value: "PENDING", label: "Pending" },
+  { value: "REVIEWED", label: "Reviewed" },
+  { value: "ACCEPTED", label: "Accepted" },
+  { value: "REJECTED", label: "Rejected" },
+];
+
+const ENTRANCE_OPTIONS = [
+  { value: "ALL", label: "Any entrance %" },
+  { value: "90", label: "90%+" },
+  { value: "80", label: "80%+" },
+  { value: "70", label: "70%+" },
+  { value: "60", label: "60%+" },
+];
+
+const TIME_OPTIONS = [
+  { value: "ALL", label: "All time" },
+  { value: "24H", label: "Last 24h" },
+  { value: "7D", label: "Last 7d" },
+  { value: "30D", label: "Last 30d" },
+];
+
+const TUTOR_STATUS_OPTIONS = [
+  { value: "ALL", label: "All tutors" },
+  { value: "STUDENT", label: "Students" },
+  { value: "GRADUATE", label: "Graduates" },
+];
+
+const TIME_FILTER_HOURS: Record<string, number> = {
+  "24H": 24,
+  "7D": 24 * 7,
+  "30D": 24 * 30,
+};
+
+function formatGPA(application: Application): string {
   const {
     tutor: { tutorStatus, currentGPA, CGPA },
   } = application;
 
   if (tutorStatus === "STUDENT") {
-    return currentGPA !== null
-      ? currentGPA.toFixed(2)
-      : "—";
+    return currentGPA !== null ? currentGPA.toFixed(2) : "—";
   }
 
   return CGPA !== null ? CGPA.toFixed(2) : "—";
 }
 
-function formatGender(gender: Application["tutor"]["gender"]) {
-  if (gender === "MALE") return "M";
-  if (gender === "FEMALE") return "F";
-  return "—";
+function SortButton({
+  label,
+  direction,
+  onToggle,
+}: {
+  label: string;
+  direction: SortDirection;
+  onToggle: () => void;
+}) {
+  const Icon =
+    direction === "desc"
+      ? ArrowDown
+      : direction === "asc"
+        ? ArrowUp
+        : ArrowUpDown;
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={`Sort by ${label}`}
+      className="inline-flex items-center gap-1 rounded-md transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+    >
+      {label}
+      <Icon className="size-3.5" aria-hidden="true" />
+    </button>
+  );
 }
 
-function formatAppliedTime(date: string) {
-  const value = new Date(date);
+/** The label/value pairs revealed by the row chevron. */
+function DetailPanel({ application }: { application: Application }) {
+  const { tutor, job } = application;
 
-  return value.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return (
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm lg:grid-cols-4">
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Phone</dt>
+        <dd>
+          <CopyButton
+            value={tutor.phone}
+            variant="ghost"
+            size="sm"
+            successMessage="Phone number copied"
+            className="-ml-2 font-normal"
+          >
+            {tutor.phone}
+          </CopyButton>
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Gender</dt>
+        <dd className="mt-0.5 font-medium">{formatEnum(tutor.gender)}</dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">University</dt>
+        <dd className="mt-0.5 font-medium break-words">
+          {tutor.university || "—"}
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Department</dt>
+        <dd className="mt-0.5 font-medium break-words">
+          {tutor.department || "—"}
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Entrance result</dt>
+        <dd className="mt-0.5 font-medium tabular-nums">
+          {tutor.entranceScore}/{tutor.entranceTotal}
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Job salary</dt>
+        <dd className="mt-0.5 font-medium tabular-nums">
+          {formatSalary(job.salary)}
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Job status</dt>
+        <dd className="mt-0.5">
+          <StatusBadge status={job.status} />
+        </dd>
+      </div>
+
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">Applied</dt>
+        <dd className="mt-0.5 font-medium">
+          {formatDateTime(application.createdAt)}
+        </dd>
+      </div>
+    </dl>
+  );
 }
 
-export default function ApplicationsTable({
-  applications,
-}: Props) {
-  // =====================================================
-  // SEARCH / FILTER STATE
-  // =====================================================
-
+export default function ApplicationsTable({ applications }: Props) {
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [jobSearch, setJobSearch] = useState("");
+  const [entranceFilter, setEntranceFilter] = useState("ALL");
+  const [timeFilter, setTimeFilter] = useState("ALL");
+  const [tutorStatusFilter, setTutorStatusFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
 
-  const [entranceFilter, setEntranceFilter] =
-    useState("ALL");
+  /* The cutoff is captured when the filter is chosen. Calling `Date.now()`
+     during render is impure and makes results drift between renders. */
+  const [timeCutoff, setTimeCutoff] = useState<number | null>(null);
 
-  const [timeFilter, setTimeFilter] =
-    useState("ALL");
+  const [entranceSort, setEntranceSort] = useState<SortDirection>("desc");
+  const [timeSort, setTimeSort] = useState<SortDirection>(null);
 
-  const [tutorStatusFilter, setTutorStatusFilter] =
-    useState<"ALL" | TutorStatus>("ALL");
+  function changeTimeFilter(value: string) {
+    setTimeFilter(value);
+    setPage(1);
 
-  // =====================================================
-  // SORT STATE
-  // =====================================================
+    const hours = TIME_FILTER_HOURS[value];
 
-  const [entranceSort, setEntranceSort] =
-    useState<SortDirection>("desc");
-
-  const [timeSort, setTimeSort] =
-    useState<SortDirection>(null);
-
-  // =====================================================
-  // ENTRANCE SORT
-  // =====================================================
+    setTimeCutoff(hours ? Date.now() - hours * 60 * 60 * 1000 : null);
+  }
 
   function toggleEntranceSort() {
     setEntranceSort((current) => {
@@ -130,10 +262,6 @@ export default function ApplicationsTable({
     });
   }
 
-  // =====================================================
-  // TIME SORT
-  // =====================================================
-
   function toggleTimeSort() {
     setTimeSort((current) => {
       if (current === null) return "desc";
@@ -142,99 +270,87 @@ export default function ApplicationsTable({
     });
   }
 
-  // =====================================================
-  // FILTER + SORT
-  // =====================================================
+  function clearFilters() {
+    setStatusFilter("ALL");
+    setJobSearch("");
+    setEntranceFilter("ALL");
+    setTutorStatusFilter("ALL");
+    changeTimeFilter("ALL");
+    setPage(1);
+  }
+
+  const hasFilters =
+    statusFilter !== "ALL" ||
+    Boolean(jobSearch.trim()) ||
+    entranceFilter !== "ALL" ||
+    timeFilter !== "ALL" ||
+    tutorStatusFilter !== "ALL";
+
+  /** Tab counts stay on the full set so they don't move as you filter. */
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      ALL: applications.length,
+      PENDING: 0,
+      REVIEWED: 0,
+      ACCEPTED: 0,
+      REJECTED: 0,
+    };
+
+    for (const application of applications) {
+      counts[application.status] += 1;
+    }
+
+    return counts;
+  }, [applications]);
 
   const filteredApplications = useMemo(() => {
     let result = [...applications];
 
-    // ---------------------------------------------------
-    // JOB CODE SEARCH
-    // ---------------------------------------------------
+    if (statusFilter !== "ALL") {
+      result = result.filter(
+        (application) => application.status === statusFilter
+      );
+    }
 
     const search = jobSearch.trim().toLowerCase();
 
     if (search) {
       result = result.filter((application) =>
-        application.job.jobCode
+        `${application.job.jobCode} ${application.tutor.fullName}`
           .toLowerCase()
           .includes(search)
       );
     }
 
-    // ---------------------------------------------------
-    // ENTRANCE FILTER
-    // ---------------------------------------------------
-
     if (entranceFilter !== "ALL") {
       const minimum = Number(entranceFilter);
 
       result = result.filter(
-        (application) =>
-          application.tutor.entrancePercentage >=
-          minimum
+        (application) => application.tutor.entrancePercentage >= minimum
       );
     }
 
-    // ---------------------------------------------------
-    // TIME FILTER
-    // ---------------------------------------------------
-
-    if (timeFilter !== "ALL") {
-      const now = Date.now();
-
-      const hours =
-        timeFilter === "24H"
-          ? 24
-          : timeFilter === "7D"
-            ? 24 * 7
-            : 24 * 30;
-
-      const cutoff =
-        now - hours * 60 * 60 * 1000;
-
+    if (timeCutoff !== null) {
       result = result.filter(
         (application) =>
-          new Date(application.createdAt).getTime() >=
-          cutoff
+          new Date(application.createdAt).getTime() >= timeCutoff
       );
     }
-
-    // ---------------------------------------------------
-    // TUTOR STATUS FILTER
-    // ---------------------------------------------------
 
     if (tutorStatusFilter !== "ALL") {
       result = result.filter(
-        (application) =>
-          application.tutor.tutorStatus ===
-          tutorStatusFilter
+        (application) => application.tutor.tutorStatus === tutorStatusFilter
       );
     }
 
-    // ---------------------------------------------------
-    // SORT
-    // ---------------------------------------------------
-    //
-    // Entrance has priority when selected.
-    // Time becomes the secondary sort.
-    //
-    // Example:
-    //
-    // Entrance ↓ + Time ↓
-    //
-    // = highest entrance percentage first,
-    //   and among equal entrance scores,
-    //   newest applications first.
-    //
-    // ---------------------------------------------------
-
+    /*
+     * Entrance has priority when selected; time is the secondary sort.
+     * Entrance ↓ + Time ↓ = highest entrance first, newest first within ties.
+     */
     result.sort((a, b) => {
       if (entranceSort) {
         const entranceDifference =
-          a.tutor.entrancePercentage -
-          b.tutor.entrancePercentage;
+          a.tutor.entrancePercentage - b.tutor.entrancePercentage;
 
         if (entranceDifference !== 0) {
           return entranceSort === "desc"
@@ -245,13 +361,10 @@ export default function ApplicationsTable({
 
       if (timeSort) {
         const timeDifference =
-          new Date(a.createdAt).getTime() -
-          new Date(b.createdAt).getTime();
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
 
         if (timeDifference !== 0) {
-          return timeSort === "desc"
-            ? -timeDifference
-            : timeDifference;
+          return timeSort === "desc" ? -timeDifference : timeDifference;
         }
       }
 
@@ -261,532 +374,383 @@ export default function ApplicationsTable({
     return result;
   }, [
     applications,
+    statusFilter,
     jobSearch,
     entranceFilter,
-    timeFilter,
+    timeCutoff,
     tutorStatusFilter,
     entranceSort,
     timeSort,
   ]);
 
-  // =====================================================
-  // COUNTS
-  // =====================================================
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredApplications.length / PAGE_SIZE)
+  );
 
-  const pendingCount = applications.filter(
-    (application) => application.status === "PENDING"
-  ).length;
+  const currentPage = Math.min(page, pageCount);
 
-  const reviewedCount = applications.filter(
-    (application) => application.status === "REVIEWED"
-  ).length;
+  const visibleApplications = filteredApplications.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
-  const acceptedCount = applications.filter(
-    (application) => application.status === "ACCEPTED"
-  ).length;
+  function rowActionsFor(application: Application) {
+    /* Both mirror the API guards: the assign route and the status route each
+       refuse a closed job and a job that already has an assigned tutor. */
+    const jobIsActionable =
+      application.job.status !== "CLOSED" &&
+      !application.job.assignedTutorId;
 
-  // =====================================================
-  // RENDER
-  // =====================================================
+    return (
+      <ApplicationRowActions
+        applicationId={application.id}
+        status={application.status}
+        tutorName={application.tutor.fullName}
+        tutorPhone={application.tutor.phone}
+        jobCode={application.job.jobCode}
+        canAssign={jobIsActionable && application.status !== "ACCEPTED"}
+        canChangeStatus={jobIsActionable}
+      />
+    );
+  }
+
+  const columns: DataTableColumn<Application>[] = [
+    {
+      id: "tutor",
+      header: "Tutor",
+      mobileTitle: true,
+      cellClassName: "whitespace-normal",
+      cell: (application) => (
+        <div className="min-w-0">
+          <Link
+            href={`/admin/applications/${application.id}`}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {application.tutor.fullName}
+          </Link>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {formatEnum(application.tutor.tutorStatus)}
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "job",
+      header: "Job",
+      cellClassName: "whitespace-normal",
+      cell: (application) => (
+        <div className="min-w-0">
+          <Link
+            href={`/admin/jobs/${application.job.id}`}
+            className="font-mono text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {application.job.jobCode}
+          </Link>
+          <p className="mt-0.5 max-w-44 truncate text-xs text-muted-foreground">
+            {application.job.subject} · {application.job.grade}
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "entrance",
+      header: (
+        <SortButton
+          label="Entrance"
+          direction={entranceSort}
+          onToggle={toggleEntranceSort}
+        />
+      ),
+      cellClassName: "tabular-nums font-medium",
+      cell: (application) => `${application.tutor.entrancePercentage.toFixed(1)}%`,
+    },
+    {
+      id: "gpa",
+      header: "GPA",
+      cellClassName: "tabular-nums",
+      cell: (application) => formatGPA(application),
+    },
+    {
+      id: "applied",
+      header: (
+        <SortButton
+          label="Applied"
+          direction={timeSort}
+          onToggle={toggleTimeSort}
+        />
+      ),
+      /* The compact date keeps the column narrow; the tooltip carries the
+         exact time the old `formatDateTime` column used to spend width on. */
+      cell: (application) => (
+        <Tooltip>
+          <TooltipTrigger
+            render={<span className="cursor-default text-muted-foreground" />}
+          >
+            {formatDate(application.createdAt)}
+          </TooltipTrigger>
+
+          <TooltipContent>
+            {formatDateTime(application.createdAt)}
+          </TooltipContent>
+        </Tooltip>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: (application) => <StatusBadge status={application.status} />,
+    },
+    {
+      id: "actions",
+      header: "",
+      hideOnMobile: true,
+      headClassName: "w-px",
+      cellClassName: "text-right",
+      cell: rowActionsFor,
+    },
+  ];
 
   return (
     <div className="space-y-4">
-      {/* =================================================
-          SUMMARY
-          ================================================= */}
+      {/* -----------------------------------------------------
+          STATUS TABS
+      ----------------------------------------------------- */}
+      <Tabs
+        value={statusFilter}
+        onValueChange={(value) => {
+          setStatusFilter((value as string) ?? "ALL");
+          setPage(1);
+        }}
+      >
+        <TabsList className="w-full overflow-x-auto sm:w-fit">
+          {STATUS_TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {tab.label}
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {statusCounts[tab.value]}
+              </span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <SummaryCard
-          label="Total"
-          value={applications.length}
-        />
-
-        <SummaryCard
-          label="Pending"
-          value={pendingCount}
-        />
-
-        <SummaryCard
-          label="Reviewed"
-          value={reviewedCount}
-        />
-
-        <SummaryCard
-          label="Accepted"
-          value={acceptedCount}
-        />
-      </div>
-
-      {/* =================================================
+      {/* -----------------------------------------------------
           FILTER BAR
-          ================================================= */}
+      ----------------------------------------------------- */}
+      <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          {/* JOB SEARCH */}
-
-          <div className="min-w-0 flex-1">
-            <label className="sr-only">
-              Search Job Code
-            </label>
-
-            <input
-              type="text"
+            <Input
+              type="search"
               value={jobSearch}
-              onChange={(event) =>
-                setJobSearch(event.target.value)
-              }
-              placeholder="Search job code..."
-              className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm outline-none transition focus:border-gray-400 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:focus:bg-gray-900"
+              onChange={(event) => {
+                setJobSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search job code or tutor name"
+              aria-label="Search applications"
+              className="pl-9"
             />
           </div>
 
-          {/* ENTRANCE */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto lg:shrink-0">
+            <FilterSelect
+              label="Entrance percentage"
+              options={ENTRANCE_OPTIONS}
+              value={entranceFilter}
+              onChange={(value) => {
+                setEntranceFilter(value);
+                setPage(1);
+              }}
+            />
 
-          <select
-            value={entranceFilter}
-            onChange={(event) =>
-              setEntranceFilter(event.target.value)
-            }
-            className="h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm dark:border-gray-700 dark:bg-gray-800"
-          >
-            <option value="ALL">All Entr.</option>
-            <option value="90">90%+</option>
-            <option value="80">80%+</option>
-            <option value="70">70%+</option>
-            <option value="60">60%+</option>
-          </select>
+            <FilterSelect
+              label="Applied within"
+              options={TIME_OPTIONS}
+              value={timeFilter}
+              onChange={changeTimeFilter}
+            />
 
-          {/* TIME */}
-
-          <select
-            value={timeFilter}
-            onChange={(event) =>
-              setTimeFilter(event.target.value)
-            }
-            className="h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm dark:border-gray-700 dark:bg-gray-800"
-          >
-            <option value="ALL">All Time</option>
-            <option value="24H">Last 24h</option>
-            <option value="7D">Last 7d</option>
-            <option value="30D">Last 30d</option>
-          </select>
-
-          {/* TUTOR STATUS */}
-
-          <select
-            value={tutorStatusFilter}
-            onChange={(event) =>
-              setTutorStatusFilter(
-                event.target.value as
-                  | "ALL"
-                  | TutorStatus
-              )
-            }
-            className="h-10 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm dark:border-gray-700 dark:bg-gray-800"
-          >
-            <option value="ALL">All Tutors</option>
-            <option value="STUDENT">Students</option>
-            <option value="GRADUATE">Graduates</option>
-          </select>
-
-          {/* RESET */}
-
-          <button
-            type="button"
-            onClick={() => {
-              setJobSearch("");
-              setEntranceFilter("ALL");
-              setTimeFilter("ALL");
-              setTutorStatusFilter("ALL");
-              setEntranceSort("desc");
-              setTimeSort(null);
-            }}
-            className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-medium transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-          >
-            Reset
-          </button>
+            <FilterSelect
+              label="Tutor type"
+              options={TUTOR_STATUS_OPTIONS}
+              value={tutorStatusFilter}
+              onChange={(value) => {
+                setTutorStatusFilter(value);
+                setPage(1);
+              }}
+            />
+          </div>
         </div>
 
-        {/* ACTIVE SORT INDICATOR */}
+        {hasFilters ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+            <p className="text-sm text-muted-foreground">
+              {filteredApplications.length} of {applications.length} shown
+            </p>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-          <span>Sort:</span>
-
-          <span
-            className={`rounded-full px-2.5 py-1 ${
-              entranceSort
-                ? "bg-gray-100 font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                : "bg-transparent"
-            }`}
-          >
-            Entr.{" "}
-            {entranceSort === "desc"
-              ? "↓"
-              : entranceSort === "asc"
-                ? "↑"
-                : "—"}
-          </span>
-
-          <span
-            className={`rounded-full px-2.5 py-1 ${
-              timeSort
-                ? "bg-gray-100 font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                : "bg-transparent"
-            }`}
-          >
-            Time{" "}
-            {timeSort === "desc"
-              ? "↓"
-              : timeSort === "asc"
-                ? "↑"
-                : "—"}
-          </span>
-
-          <span className="ml-auto">
-            Showing{" "}
-            <strong className="text-gray-700 dark:text-gray-200">
-              {filteredApplications.length}
-            </strong>{" "}
-            of {applications.length}
-          </span>
-        </div>
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X data-icon="inline-start" aria-hidden="true" />
+              Clear filters
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      {/* =================================================
+      {/* -----------------------------------------------------
           TABLE
-          ================================================= */}
+      ----------------------------------------------------- */}
+      <DataTable
+        items={visibleApplications}
+        columns={columns}
+        getRowKey={(application) => application.id}
+        caption="Tutor applications"
+        renderExpanded={(application) => (
+          <DetailPanel application={application} />
+        )}
+        getExpandLabel={(application) =>
+          `Show more details for ${application.tutor.fullName}`
+        }
+        renderMobileCard={(application) => (
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <Link
+                  href={`/admin/applications/${application.id}`}
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  {application.tutor.fullName}
+                </Link>
+                <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                  {application.job.jobCode} · {application.job.subject}
+                </p>
+              </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-300 text-left text-sm">
-            <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400">
-              <tr>
-                <th className="px-4 py-3 font-semibold">
-                  Name
-                </th>
+              <StatusBadge status={application.status} />
+            </div>
 
-                <th className="px-4 py-3 font-semibold">
-                  Phone
-                </th>
+            <dl className="grid grid-cols-3 gap-x-4 gap-y-2 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">Entrance</dt>
+                <dd className="font-medium tabular-nums">
+                  {application.tutor.entrancePercentage.toFixed(1)}%
+                </dd>
+              </div>
 
-                <th className="px-4 py-3 text-center font-semibold">
-                  G
-                </th>
+              <div>
+                <dt className="text-xs text-muted-foreground">GPA</dt>
+                <dd className="font-medium tabular-nums">
+                  {formatGPA(application)}
+                </dd>
+              </div>
 
-                <th className="px-4 py-3 font-semibold">
-                  Univ.
-                </th>
+              <div>
+                <dt className="text-xs text-muted-foreground">Applied</dt>
+                <dd className="font-medium">
+                  {formatDate(application.createdAt)}
+                </dd>
+              </div>
+            </dl>
 
-                <th className="px-4 py-3 font-semibold">
-                  Dept.
-                </th>
+            <ExpandableDisclosure>
+              <DetailPanel application={application} />
+            </ExpandableDisclosure>
 
-                <th className="px-4 py-3 text-center font-semibold">
-                  GPA/CGPA
-                </th>
+            <div className="border-t pt-3">{rowActionsFor(application)}</div>
+          </div>
+        )}
+        empty={
+          <EmptyState
+            icon={hasFilters ? <Search /> : <FileText />}
+            title={
+              hasFilters ? "No matching applications" : "No applications yet"
+            }
+            description={
+              hasFilters
+                ? "No applications match the current filters."
+                : "Applications will appear here as tutors apply to open jobs."
+            }
+            action={
+              hasFilters ? (
+                <Button variant="outline" size="lg" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              ) : undefined
+            }
+          />
+        }
+      />
 
-                {/* ENTRANCE SORT */}
+      {/* -----------------------------------------------------
+          PAGINATION
+      ----------------------------------------------------- */}
+      {pageCount > 1 ? (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Page {currentPage} of {pageCount}
+          </p>
 
-                <th className="px-4 py-3 font-semibold">
-                  <button
-                    type="button"
-                    onClick={toggleEntranceSort}
-                    className="inline-flex items-center gap-1 transition hover:text-gray-900 dark:hover:text-white"
-                  >
-                    Entr. %
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              disabled={currentPage === 1}
+              onClick={() => setPage(currentPage - 1)}
+            >
+              <ChevronLeft data-icon="inline-start" aria-hidden="true" />
+              Previous
+            </Button>
 
-                    <span className="text-sm">
-                      {entranceSort === "desc"
-                        ? "↓"
-                        : entranceSort === "asc"
-                          ? "↑"
-                          : "↕"}
-                    </span>
-                  </button>
-                </th>
-
-                {/* TIME SORT */}
-
-                <th className="px-4 py-3 font-semibold">
-                  <button
-                    type="button"
-                    onClick={toggleTimeSort}
-                    className="inline-flex items-center gap-1 transition hover:text-gray-900 dark:hover:text-white"
-                  >
-                    Applied
-
-                    <span className="text-sm">
-                      {timeSort === "desc"
-                        ? "↓"
-                        : timeSort === "asc"
-                          ? "↑"
-                          : "↕"}
-                    </span>
-                  </button>
-                </th>
-
-                <th className="px-4 py-3 font-semibold">
-                  Tutor
-                </th>
-
-                <th className="px-4 py-3 font-semibold">
-                  Status
-                </th>
-
-                <th className="px-4 py-3 text-right font-semibold">
-                  Action
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {filteredApplications.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={11}
-                    className="px-6 py-16 text-center"
-                  >
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      No applications found
-                    </div>
-
-                    <div className="mt-1 text-xs text-gray-500">
-                      Try changing your search or filters.
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredApplications.map(
-                  (application) => {
-                    const jobIsClosed =
-                      application.job.status === "CLOSED";
-
-                    const hasAssignedTutor =
-                      Boolean(
-                        application.job
-                          .assignedTutorId
-                      );
-
-                    const isAccepted =
-                      application.status ===
-                      "ACCEPTED";
-
-                    const canAssign =
-                      !jobIsClosed &&
-                      !hasAssignedTutor &&
-                      !isAccepted;
-
-                    return (
-                      <tr
-                        key={application.id}
-                        className="transition hover:bg-gray-50/70 dark:hover:bg-gray-800/40"
-                      >
-                        {/* NAME */}
-
-                        <td className="px-4 py-3">
-                          <div className="max-w-45 truncate font-medium text-gray-900 dark:text-white">
-                            {application.tutor.fullName}
-                          </div>
-
-                          <div className="mt-0.5 text-xs text-gray-400">
-                            {application.job.jobCode}
-                          </div>
-                        </td>
-
-                        {/* PHONE */}
-
-                        <td className="px-4 py-3">
-                          <CopyPhone
-                            phone={
-                              application.tutor.phone
-                            }
-                          />
-                        </td>
-
-                        {/* GENDER */}
-
-                        <td className="px-4 py-3 text-center">
-                          <span className="font-medium">
-                            {formatGender(
-                              application.tutor
-                                .gender
-                            )}
-                          </span>
-                        </td>
-
-                        {/* UNIVERSITY */}
-
-                        <td className="px-4 py-3">
-                          <div className="max-w-37.5 truncate">
-                            {application.tutor
-                              .university || "—"}
-                          </div>
-                        </td>
-
-                        {/* DEPARTMENT */}
-
-                        <td className="px-4 py-3">
-                          <div className="max-w-37.5 truncate">
-                            {application.tutor
-                              .department || "—"}
-                          </div>
-                        </td>
-
-                        {/* GPA */}
-
-                        <td className="px-4 py-3 text-center font-medium">
-                          {formatGPA(application)}
-                        </td>
-
-                        {/* ENTRANCE */}
-
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-gray-900 dark:text-white">
-                            {application.tutor
-                              .entrancePercentage.toFixed(
-                                1
-                              )}
-                            %
-                          </div>
-
-                          <div className="text-xs text-gray-400">
-                            {
-                              application.tutor
-                                .entranceScore
-                            }
-                            /
-                            {
-                              application.tutor
-                                .entranceTotal
-                            }
-                          </div>
-                        </td>
-
-                        {/* APPLIED */}
-
-                        <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                          {formatAppliedTime(
-                            application.createdAt
-                          )}
-                        </td>
-
-                        {/* TUTOR STATUS */}
-
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                              application.tutor
-                                .tutorStatus ===
-                              "STUDENT"
-                                ? "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                                : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                            }`}
-                          >
-                            {application.tutor
-                              .tutorStatus ===
-                            "STUDENT"
-                              ? "Student"
-                              : "Graduate"}
-                          </span>
-                        </td>
-
-                        {/* APPLICATION STATUS */}
-
-                        <td className="px-4 py-3">
-                          <ApplicationStatusSelect
-                            applicationId={
-                              application.id
-                            }
-                            initialStatus={
-                              application.status
-                            }
-                          />
-                        </td>
-
-                        {/* ACTION */}
-
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
-                            {/* VIEW */}
-
-                            <Link
-                              href={`/admin/applications/${application.id}`}
-                              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                            >
-                              View
-                            </Link>
-
-                            {/* ASSIGN */}
-
-                            {canAssign && (
-                              <AssignTutorButton
-                                applicationId={
-                                  application.id
-                                }
-                                tutorName={
-                                  application.tutor
-                                    .fullName
-                                }
-                                jobCode={
-                                  application.job
-                                    .jobCode
-                                }
-                              />
-                            )}
-
-                            {/* ACCEPTED */}
-
-                            {isAccepted && (
-                              <span className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                                Assigned
-                              </span>
-                            )}
-
-                            {/* CLOSED */}
-
-                            {jobIsClosed &&
-                              !isAccepted && (
-                                <span className="text-xs text-gray-400">
-                                  Closed
-                                </span>
-                              )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  }
-                )
-              )}
-            </tbody>
-          </table>
+            <Button
+              variant="outline"
+              size="lg"
+              disabled={currentPage === pageCount}
+              onClick={() => setPage(currentPage + 1)}
+            >
+              Next
+              <ChevronRight data-icon="inline-end" aria-hidden="true" />
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
 
-// =======================================================
-// SUMMARY CARD
-// =======================================================
-
-function SummaryCard({
+function FilterSelect({
   label,
+  options,
   value,
+  onChange,
 }: {
   label: string;
-  value: number;
+  options: readonly { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-      <div className="text-xs font-medium text-gray-500">
-        {label}
-      </div>
+    <Select
+      items={options as { value: string; label: string }[]}
+      value={value}
+      onValueChange={(next) => onChange((next as string) ?? "ALL")}
+    >
+      <SelectTrigger className="w-full" aria-label={label}>
+        <SelectValue />
+      </SelectTrigger>
 
-      <div className="mt-1 text-xl font-bold text-gray-900 dark:text-white">
-        {value}
-      </div>
-    </div>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
-
