@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   BadgeCheck,
@@ -25,6 +26,8 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import DeleteTutorButton from "@/components/admin/DeleteTutorButton";
+import TutorShareLink from "@/components/admin/TutorShareLink";
+import { profileShareLinkBase } from "@/lib/tutor-profile";
 import {
   formatDate,
   formatEnum,
@@ -87,6 +90,14 @@ export default async function TutorDetailsPage({ params }: PageProps) {
   }
 
   const isStudent = tutor.tutorStatus === "STUDENT";
+
+  // The share link is copied into chats, so it has to be absolute. Without
+  // the parent subdomain configured it falls back to this request's own
+  // host, which is right in every environment.
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${protocol}://${host}` : "";
 
   const applicationColumns: DataTableColumn<ApplicationRow>[] = [
     {
@@ -218,6 +229,26 @@ export default async function TutorDetailsPage({ params }: PageProps) {
           }
         />
       </div>
+
+      {/* -----------------------------------------------------
+          PUBLIC PROFILE LINK
+      ----------------------------------------------------- */}
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <h2 className="font-heading font-medium">Public profile link</h2>
+
+        <p className="mt-0.5 mb-5 text-sm text-muted-foreground text-pretty">
+          A page you can send to parents: education, entrance result, and the
+          transcript, entrance result, graduation document and CV. It leaves
+          out the tutor&apos;s phone, email, exact address and government ID.
+          Anyone with the link can open it.
+        </p>
+
+        <TutorShareLink
+          tutorId={tutor.id}
+          initialToken={tutor.profileShareToken}
+          linkBase={profileShareLinkBase(origin)}
+        />
+      </section>
 
       {/* -----------------------------------------------------
           ACCOUNT
