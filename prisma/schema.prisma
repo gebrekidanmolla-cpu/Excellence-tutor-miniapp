@@ -274,8 +274,11 @@ model Tutor {
   // Random token behind `/tutor-profile/<token>`, the page an admin sends
   // to parents. Null means no link exists. Regenerating it kills the old
   // link, so the column is the revocation switch — never derive it from `id`.
+  // A link also dies on its own at `profileShareExpiresAt` (30 days after
+  // it was created or reset); a token with no expiry is treated as expired.
 
-  profileShareToken String? @unique
+  profileShareToken     String?   @unique
+  profileShareExpiresAt DateTime?
 
   // ==========================================
   // TIMESTAMPS
