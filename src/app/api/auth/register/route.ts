@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import {
+  readAddress,
+  secondAddressColumns,
+} from "@/lib/address";
+import {
   deleteDocuments,
   uploadDocument,
 } from "@/lib/upload-document";
@@ -227,17 +231,29 @@ export async function POST(
       formData.get("gender") ?? ""
     );
 
-    const city = String(
-      formData.get("city") ?? ""
-    ).trim();
+    const addressResult = readAddress(
+      (key) => formData.get(key),
+      "",
+      { requireWoreda: true }
+    );
 
-    const subcity = String(
-      formData.get("subcity") ?? ""
-    ).trim();
+    // The second address is optional: absent entirely, or complete.
+    const hasSecondAddress =
+      String(
+        formData.get("address2Subcity") ?? ""
+      ).trim() !== "" ||
+      String(
+        formData.get("address2ExactPlace") ?? ""
+      ).trim() !== "";
 
-    const exactPlace = String(
-      formData.get("exactPlace") ?? ""
-    ).trim();
+    const secondAddressResult =
+      hasSecondAddress
+        ? readAddress(
+            (key) => formData.get(key),
+            "address2",
+            { requireWoreda: true }
+          )
+        : null;
 
     const aboutMe = String(
       formData.get("aboutMe") ?? ""
@@ -494,9 +510,7 @@ export async function POST(
 
     if (
       !genderValue ||
-      !city ||
-      !subcity ||
-      !exactPlace
+      "error" in addressResult
     ) {
       return NextResponse.json(
         {
@@ -507,6 +521,25 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    if (
+      secondAddressResult &&
+      "error" in secondAddressResult
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Second address: ${secondAddressResult.error}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const address =
+      addressResult.address;
+
+    const secondAddress =
+      secondAddressResult?.address ?? null;
 
     if (
       !isValidEnum(
@@ -1062,9 +1095,14 @@ export async function POST(
           // -------------------------------------------------
 
           gender,
-          city,
-          subcity,
-          exactPlace,
+          country: address.country,
+          city: address.city,
+          subcity: address.subcity,
+          woreda: address.woreda,
+          exactPlace: address.exactPlace,
+          ...secondAddressColumns(
+            secondAddress
+          ),
 
           aboutMe:
             aboutMe || null,

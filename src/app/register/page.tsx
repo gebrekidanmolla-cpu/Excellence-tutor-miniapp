@@ -365,9 +365,22 @@ export default function RegisterPage() {
 
       /* Personal */
       formData.append("gender", values.gender);
+      formData.append("country", values.country.trim());
       formData.append("city", values.city.trim());
       formData.append("subcity", values.subcity.trim());
+      formData.append("woreda", values.woreda.trim());
       formData.append("exactPlace", values.exactPlace.trim());
+
+      if (values.hasSecondAddress) {
+        formData.append("address2Country", values.address2Country.trim());
+        formData.append("address2City", values.address2City.trim());
+        formData.append("address2Subcity", values.address2Subcity.trim());
+        formData.append("address2Woreda", values.address2Woreda.trim());
+        formData.append(
+          "address2ExactPlace",
+          values.address2ExactPlace.trim()
+        );
+      }
       formData.append("aboutMe", values.aboutMe.trim());
       formData.append("tutorStatus", values.tutorStatus);
 

@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
 import { SectionHeading } from "@/components/shared/FormFields";
+import { formatAddress } from "@/lib/address";
 import { formatEnum } from "@/lib/format";
 import {
   CURRENT_YEAR_OPTIONS,
@@ -86,12 +87,19 @@ export function ReviewStep({
             value={values.phone ? `+251 ${values.phone}` : ""}
           />
           <InfoItem label="Gender" value={formatEnum(values.gender)} />
-          <InfoItem
-            label="Location"
-            value={[values.city, values.subcity, values.exactPlace]
-              .filter(Boolean)
-              .join(", ")}
-          />
+          <InfoItem label="Address" value={formatAddress(values)} />
+          {values.hasSecondAddress ? (
+            <InfoItem
+              label="Second address"
+              value={formatAddress({
+                country: values.address2Country,
+                city: values.address2City,
+                subcity: values.address2Subcity,
+                woreda: values.address2Woreda,
+                exactPlace: values.address2ExactPlace,
+              })}
+            />
+          ) : null}
           <InfoItem label="Status" value={formatEnum(values.tutorStatus)} />
         </InfoGrid>
 

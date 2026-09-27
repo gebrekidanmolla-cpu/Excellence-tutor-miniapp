@@ -6,7 +6,6 @@ import {
   Check,
   FileText,
   Mail,
-  MapPin,
   Pencil,
   Phone,
   Send,
@@ -21,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
+import { AddressInfo } from "@/components/shared/AddressInfo";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
@@ -245,11 +245,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
 
         <Separator className="my-5" />
 
-        <InfoGrid columns={3}>
-          <InfoItem label="City" value={tutor.city} icon={<MapPin />} />
-          <InfoItem label="Subcity" value={tutor.subcity} />
-          <InfoItem label="Exact place" value={tutor.exactPlace} />
-        </InfoGrid>
+        <AddressInfo tutor={tutor} />
 
         {tutor.aboutMe ? (
           <>

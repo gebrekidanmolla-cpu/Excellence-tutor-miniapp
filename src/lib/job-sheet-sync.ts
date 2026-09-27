@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import {
-  appendSheetRow,
+  appendSheetRows,
+  batchUpdateSheetRows,
+  deleteSheetRowByCode,
   findRowNumberByCode,
   isSheetSyncConfigured,
+  readRowNumbersByCode,
   SheetsApiError,
   SheetsNotConfiguredError,
   updateSheetRow,
@@ -24,18 +27,31 @@ import {
 // Same containment contract as `telegram-job-post.ts`: called after
 // the database write that prompted it has already committed, always
 // awaited, and it never throws — a Sheets outage can never turn a
-// successful admin action into a 500. Unlike the Telegram sync, there
-// is no `Job` column recording the outcome and no admin-facing retry
-// UI; a failure is `console.error`'d and otherwise silent, matching
-// this feature's "just a mirror or backup" scope.
+// successful admin action into a 500. Also like the Telegram sync,
+// every outcome is recorded on the `Job` row (`sheetSyncStatus`,
+// `sheetSyncError`, `sheetSyncedAt`), so a failure shows up in the
+// admin UI with a retry button instead of only in the server log.
 //
 // ==========================================
+
+/** `sheetSyncError` is rendered in the admin UI; keep it readable. */
+const ERROR_MAX_LENGTH = 500;
 
 export type SheetSyncOutcome =
   | { status: "SKIPPED"; reason: "NOT_CONFIGURED" | "JOB_NOT_FOUND"; message: string }
   | { status: "CREATED"; message: string }
   | { status: "UPDATED"; message: string }
   | { status: "FAILED"; message: string };
+
+export type SheetSyncAllOutcome =
+  | { status: "SKIPPED"; reason: "NOT_CONFIGURED"; message: string }
+  | {
+      status: "DONE" | "PARTIAL" | "FAILED";
+      created: number;
+      updated: number;
+      failed: number;
+      message: string;
+    };
 
 const JOB_SELECT = {
   id: true,
@@ -50,9 +66,26 @@ const JOB_SELECT = {
   },
 } as const;
 
+type SheetJob = {
+  jobCode: string;
+  parentName: string;
+  parentPhone: string;
+  assignedTutor: { fullName: string; phone: string } | null;
+};
+
+function toSheetRow(job: SheetJob): SheetRow {
+  return [
+    job.jobCode,
+    job.parentName,
+    job.parentPhone,
+    job.assignedTutor?.fullName ?? "",
+    job.assignedTutor?.phone ?? "",
+  ];
+}
+
 function describe(cause: unknown): string {
   if (cause instanceof SheetsApiError) {
-    return cause.message;
+    return cause.message.slice(0, ERROR_MAX_LENGTH);
   }
 
   if (cause instanceof SheetsNotConfiguredError) {
@@ -60,6 +93,45 @@ function describe(cause: unknown): string {
   }
 
   return "Google Sheets sync failed.";
+}
+
+async function recordSynced(jobIds: string[]): Promise<void> {
+  await prisma.job.updateMany({
+    where: { id: { in: jobIds } },
+    data: {
+      sheetSyncStatus: "SYNCED",
+      sheetSyncError: null,
+      sheetSyncedAt: new Date(),
+    },
+  });
+}
+
+async function recordFailed(jobIds: string[], description: string): Promise<void> {
+  await prisma.job
+    .updateMany({
+      where: { id: { in: jobIds } },
+      data: {
+        sheetSyncStatus: "FAILED",
+        sheetSyncError: description,
+      },
+    })
+    .catch((writeError) => {
+      console.error("Failed to record the Google Sheets error:", writeError);
+    });
+}
+
+/**
+ * Not an error: nobody asked for sheet mirroring. Marks the row so the
+ * UI can say so, but only a job that never reached a sheet — one that
+ * did stays `SYNCED`, since the row it wrote is still there.
+ */
+async function recordDisabled(where: { id?: string }): Promise<void> {
+  await prisma.job
+    .updateMany({
+      where: { ...where, sheetSyncStatus: "PENDING" },
+      data: { sheetSyncStatus: "DISABLED" },
+    })
+    .catch(() => undefined);
 }
 
 /**
@@ -72,6 +144,8 @@ function describe(cause: unknown): string {
  */
 export async function syncJobSheetRow(jobId: string): Promise<SheetSyncOutcome> {
   if (!isSheetSyncConfigured()) {
+    await recordDisabled({ id: jobId });
+
     return {
       status: "SKIPPED",
       reason: "NOT_CONFIGURED",
@@ -92,30 +166,28 @@ export async function syncJobSheetRow(jobId: string): Promise<SheetSyncOutcome> 
     };
   }
 
-  const values: SheetRow = [
-    job.jobCode,
-    job.parentName,
-    job.parentPhone,
-    job.assignedTutor?.fullName ?? "",
-    job.assignedTutor?.phone ?? "",
-  ];
+  const values = toSheetRow(job);
 
   try {
     const rowNumber = await findRowNumberByCode(job.jobCode);
 
     if (rowNumber === null) {
-      await appendSheetRow(values);
-
-      return { status: "CREATED", message: "Row added to the Google Sheet." };
+      await appendSheetRows([values]);
+    } else {
+      await updateSheetRow(rowNumber, values);
     }
 
-    await updateSheetRow(rowNumber, values);
+    await recordSynced([job.id]);
 
-    return { status: "UPDATED", message: "The Google Sheet row was updated." };
+    return rowNumber === null
+      ? { status: "CREATED", message: "Row added to the Google Sheet." }
+      : { status: "UPDATED", message: "The Google Sheet row was updated." };
   } catch (cause) {
     const description = describe(cause);
 
     console.error(`Google Sheets sync failed for job ${job.jobCode}:`, description);
+
+    await recordFailed([job.id], description);
 
     return { status: "FAILED", message: description };
   }
@@ -130,4 +202,158 @@ export async function safeSyncJobSheetRow(jobId: string): Promise<SheetSyncOutco
 
     return { status: "FAILED", message: "Google Sheets sync failed." };
   }
+}
+
+export type SheetRemoveOutcome =
+  | { status: "SKIPPED"; message: string }
+  | { status: "REMOVED" | "NOT_FOUND"; message: string }
+  | { status: "FAILED"; message: string };
+
+/**
+ * Removes a deleted job's row from the sheet. Takes the code rather
+ * than an id because the `Job` row is already gone by the time this
+ * runs — which is also why, unlike the sync, there is nowhere to
+ * record the outcome: the caller reports it in its response instead.
+ * Never throws.
+ */
+export async function safeRemoveJobSheetRow(
+  jobCode: string
+): Promise<SheetRemoveOutcome> {
+  if (!isSheetSyncConfigured()) {
+    return {
+      status: "SKIPPED",
+      message: "Google Sheets sync is not configured.",
+    };
+  }
+
+  try {
+    const removed = await deleteSheetRowByCode(jobCode);
+
+    return removed
+      ? { status: "REMOVED", message: "Row removed from the Google Sheet." }
+      : { status: "NOT_FOUND", message: "The job had no row in the Google Sheet." };
+  } catch (cause) {
+    const description = describe(cause);
+
+    console.error(
+      `Failed to remove the Google Sheet row for job ${jobCode}:`,
+      description
+    );
+
+    return { status: "FAILED", message: description };
+  }
+}
+
+/**
+ * Writes every job into the sheet: rewrites the rows that already
+ * exist and appends the rest, oldest job first. Costs three API calls
+ * however many jobs there are — one read of column A, one batch
+ * update, one append — which is what keeps it inside the Sheets API's
+ * 60-requests-a-minute quota.
+ *
+ * The update and the append succeed or fail independently, and each
+ * job's recorded status reflects the call that carried it.
+ */
+export async function syncAllJobSheetRows(): Promise<SheetSyncAllOutcome> {
+  if (!isSheetSyncConfigured()) {
+    await recordDisabled({});
+
+    return {
+      status: "SKIPPED",
+      reason: "NOT_CONFIGURED",
+      message: "Google Sheets sync is not configured.",
+    };
+  }
+
+  const jobs = await prisma.job.findMany({
+    orderBy: { createdAt: "asc" },
+    select: JOB_SELECT,
+  });
+
+  const allIds = jobs.map((job) => job.id);
+
+  let rowNumbers: Map<string, number>;
+
+  try {
+    rowNumbers = await readRowNumbersByCode();
+  } catch (cause) {
+    const description = describe(cause);
+
+    console.error("Google Sheets sync-all failed reading the sheet:", description);
+
+    await recordFailed(allIds, description);
+
+    return {
+      status: "FAILED",
+      created: 0,
+      updated: 0,
+      failed: jobs.length,
+      message: description,
+    };
+  }
+
+  const toUpdate = jobs.filter((job) => rowNumbers.has(job.jobCode));
+  const toAppend = jobs.filter((job) => !rowNumbers.has(job.jobCode));
+
+  const errors: string[] = [];
+  let updated = 0;
+  let created = 0;
+
+  try {
+    await batchUpdateSheetRows(
+      toUpdate.map((job) => ({
+        rowNumber: rowNumbers.get(job.jobCode)!,
+        values: toSheetRow(job),
+      }))
+    );
+
+    await recordSynced(toUpdate.map((job) => job.id));
+
+    updated = toUpdate.length;
+  } catch (cause) {
+    const description = describe(cause);
+
+    console.error("Google Sheets sync-all failed updating rows:", description);
+
+    await recordFailed(toUpdate.map((job) => job.id), description);
+
+    errors.push(description);
+  }
+
+  try {
+    await appendSheetRows(toAppend.map(toSheetRow));
+
+    await recordSynced(toAppend.map((job) => job.id));
+
+    created = toAppend.length;
+  } catch (cause) {
+    const description = describe(cause);
+
+    console.error("Google Sheets sync-all failed appending rows:", description);
+
+    await recordFailed(toAppend.map((job) => job.id), description);
+
+    errors.push(description);
+  }
+
+  const failed = jobs.length - created - updated;
+  const summary = `${created} added, ${updated} updated`;
+
+  if (errors.length === 0) {
+    return {
+      status: "DONE",
+      created,
+      updated,
+      failed,
+      message: `Google Sheet synced: ${summary}.`,
+    };
+  }
+
+  return {
+    status: created + updated > 0 ? "PARTIAL" : "FAILED",
+    created,
+    updated,
+    failed,
+    message: `${summary}, ${failed} failed: ${errors[0]}`,
+  };
 }

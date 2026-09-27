@@ -23,17 +23,18 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
-import { CopyButton } from "@/components/shared/CopyButton";
 import JobActions from "@/components/admin/JobActions";
-import JobPostPreview from "@/components/admin/JobPostPreview";
 import TelegramPostActions from "@/components/admin/TelegramPostActions";
+import SheetSyncButton from "@/components/admin/SheetSyncButton";
 import JobApplicants from "./JobApplicants";
 import {
   formatDate,
   formatDateTime,
   formatEnum,
   formatSalary,
+  getSheetSyncLabel,
 } from "@/lib/format";
+import { isSheetSyncConfigured } from "@/lib/google-sheets";
 import {
   buildChannelMessageUrl,
   isTelegramConfigured,
@@ -116,16 +117,9 @@ export default async function JobDetailsPage({
     (applicant) => applicant.status === "PENDING"
   ).length;
 
-  const applyPath = `/apply/${job.jobCode}`;
-
-  /* Falls back to the path when the base URL is unset, rather than to the
-     `https://YOUR-DOMAIN.com` placeholder that `job-post.ts` still uses. */
-  const applyUrl = process.env.NEXT_PUBLIC_APP_URL
-    ? `${process.env.NEXT_PUBLIC_APP_URL}${applyPath}`
-    : applyPath;
-
   /* Server-only reads — both stay out of the client bundle. */
   const telegramConfigured = isTelegramConfigured();
+  const sheetConfigured = isSheetSyncConfigured();
 
   const channelMessageUrl = job.telegramMessageId
     ? await buildChannelMessageUrl(job.telegramMessageId)
@@ -408,43 +402,55 @@ export default async function JobDetailsPage({
       </section>
 
       {/* -----------------------------------------------------
-          TELEGRAM POST — manual copy, for posting anywhere else
-      ----------------------------------------------------- */}
-      <JobPostPreview
-        job={{
-          jobCode: job.jobCode,
-          gender: job.gender,
-          grade: job.grade,
-          subject: job.subject,
-          place: job.place,
-          salary: job.salary,
-        }}
-      />
-
-      {/* -----------------------------------------------------
-          APPLY LINK
+          GOOGLE SHEET MIRROR
       ----------------------------------------------------- */}
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
-        <h2 className="font-heading font-medium">Tutor application link</h2>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-heading font-medium">Google Sheet</h2>
 
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          The channel post links here on its own. This is the copy to
-          share anywhere else.
-        </p>
+            <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
+              {sheetConfigured
+                ? "The code, parent contact and assigned tutor are copied to the backup sheet whenever the job is created, edited, assigned or re-opened."
+                : "Sheet mirroring is switched off. Jobs still save normally."}
+            </p>
+          </div>
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <code className="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2.5 text-sm">
-            {applyUrl}
-          </code>
+          <StatusBadge
+            status={job.sheetSyncStatus}
+            label={getSheetSyncLabel(job.sheetSyncStatus)}
+            size="lg"
+          />
+        </div>
 
-          <CopyButton
-            value={applyUrl}
-            size="xl"
-            successMessage="Application link copied"
-            className="shrink-0"
-          >
-            Copy link
-          </CopyButton>
+        <InfoGrid className="mt-5" columns={3}>
+          <InfoItem
+            label="Last synced"
+            value={
+              job.sheetSyncedAt
+                ? formatDateTime(job.sheetSyncedAt)
+                : undefined
+            }
+            icon={<RefreshCw />}
+          />
+        </InfoGrid>
+
+        {job.sheetSyncStatus === "FAILED" && job.sheetSyncError ? (
+          <p className="mt-5 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-[color-mix(in_oklch,var(--destructive),var(--foreground)_30%)]">
+            {job.sheetSyncError}
+          </p>
+        ) : null}
+
+        <div className="mt-5">
+          {sheetConfigured ? (
+            <SheetSyncButton jobId={job.id} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-pretty">
+              Set <code>GOOGLE_SHEETS_SPREADSHEET_ID</code> and the{" "}
+              <code>GOOGLE_WIF_*</code> variables to mirror jobs to the
+              sheet automatically.
+            </p>
+          )}
         </div>
       </section>
 

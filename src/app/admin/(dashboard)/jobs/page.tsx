@@ -7,7 +7,14 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
-import { formatDate, formatEnum, formatSalary } from "@/lib/format";
+import SheetSyncButton from "@/components/admin/SheetSyncButton";
+import {
+  formatDate,
+  formatEnum,
+  formatSalary,
+  getSheetSyncLabel,
+} from "@/lib/format";
+import { isSheetSyncConfigured } from "@/lib/google-sheets";
 
 type JobRow = Awaited<ReturnType<typeof loadJobs>>[number];
 
@@ -28,6 +35,7 @@ async function loadJobs() {
 
 export default async function AdminJobsPage() {
   const jobs = await loadJobs();
+  const sheetConfigured = isSheetSyncConfigured();
 
   /* Replaces a `min-w-225` table that forced horizontal scrolling on every
      phone; `DataTable` renders these same columns as cards below `md:`. */
@@ -110,6 +118,17 @@ export default async function AdminJobsPage() {
       cell: (job) => <StatusBadge status={job.telegramPostStatus} />,
     },
     {
+      id: "sheet",
+      header: "Sheet",
+      hideOnMobile: true,
+      cell: (job) => (
+        <StatusBadge
+          status={job.sheetSyncStatus}
+          label={getSheetSyncLabel(job.sheetSyncStatus)}
+        />
+      ),
+    },
+    {
       id: "actions",
       header: "",
       hideOnMobile: true,
@@ -138,10 +157,18 @@ export default async function AdminJobsPage() {
             : `${jobs.length} ${jobs.length === 1 ? "job" : "jobs"} posted`
         }
         actions={
-          <Button render={<Link href="/admin/jobs/new" />} size="xl">
-            <Plus data-icon="inline-start" aria-hidden="true" />
-            Create job
-          </Button>
+          <>
+            {/* The backfill for jobs that predate sheet mirroring, and
+                the repair for any row whose sync failed since. */}
+            {sheetConfigured && jobs.length > 0 ? (
+              <SheetSyncButton variant="outline" />
+            ) : null}
+
+            <Button render={<Link href="/admin/jobs/new" />} size="xl">
+              <Plus data-icon="inline-start" aria-hidden="true" />
+              Create job
+            </Button>
+          </>
         }
       />
 

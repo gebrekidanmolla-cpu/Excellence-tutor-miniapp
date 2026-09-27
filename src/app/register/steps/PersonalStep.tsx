@@ -2,6 +2,7 @@
 
 import { Controller, useWatch, type UseFormReturn } from "react-hook-form";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   SectionHeading,
   SelectField,
@@ -13,6 +14,75 @@ import {
   TUTOR_STATUS_OPTIONS,
   type RegisterValues,
 } from "@/app/register/schema";
+import { ADDRESS_FIELD_LABELS } from "@/lib/address";
+
+type AddressKey = keyof typeof ADDRESS_FIELD_LABELS;
+
+const ADDRESS_NAMES = {
+  primary: {
+    country: "country",
+    city: "city",
+    subcity: "subcity",
+    woreda: "woreda",
+    exactPlace: "exactPlace",
+  },
+  second: {
+    country: "address2Country",
+    city: "address2City",
+    subcity: "address2Subcity",
+    woreda: "address2Woreda",
+    exactPlace: "address2ExactPlace",
+  },
+} as const satisfies Record<string, Record<AddressKey, keyof RegisterValues>>;
+
+const ADDRESS_PLACEHOLDERS: Record<AddressKey, string | undefined> = {
+  country: undefined,
+  city: "Addis Ababa",
+  subcity: "e.g. Bole, Yeka",
+  woreda: "e.g. Woreda 03",
+  exactPlace: "e.g. 4 Kilo, Ayat, Bethel",
+};
+
+function AddressFields({
+  form,
+  which,
+}: {
+  form: UseFormReturn<RegisterValues>;
+  which: keyof typeof ADDRESS_NAMES;
+}) {
+  const { register, formState } = form;
+  const names = ADDRESS_NAMES[which];
+
+  const field = (key: AddressKey, autoComplete?: string) => (
+    <TextField
+      id={names[key]}
+      label={ADDRESS_FIELD_LABELS[key]}
+      required
+      placeholder={ADDRESS_PLACEHOLDERS[key]}
+      /* Browser autofill only knows one address; keep it off the second. */
+      autoComplete={which === "primary" ? autoComplete : "off"}
+      error={formState.errors[names[key]]?.message}
+      {...register(names[key])}
+    />
+  );
+
+  return (
+    <fieldset className="space-y-5">
+      <legend className="mb-4 font-heading text-sm font-medium">
+        {which === "primary" ? "Address" : "Second address"}
+      </legend>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        {field("country", "country-name")}
+        {field("city", "address-level1")}
+        {field("subcity")}
+        {field("woreda")}
+      </div>
+
+      {field("exactPlace")}
+    </fieldset>
+  );
+}
 
 export function PersonalStep({
   form,
@@ -21,10 +91,11 @@ export function PersonalStep({
   form: UseFormReturn<RegisterValues>;
   onTutorStatusChange: (status: string) => void;
 }) {
-  const { register, control, formState } = form;
+  const { register, control, formState, clearErrors } = form;
   const errors = formState.errors;
 
   const aboutMe = useWatch({ control, name: "aboutMe" });
+  const hasSecondAddress = useWatch({ control, name: "hasSecondAddress" });
 
   return (
     <div className="space-y-6">
@@ -71,35 +142,45 @@ export function PersonalStep({
         />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <TextField
-          id="city"
-          label="City"
-          required
-          placeholder="Addis Ababa"
-          autoComplete="address-level2"
-          error={errors.city?.message}
-          {...register("city")}
-        />
+      <AddressFields form={form} which="primary" />
 
-        <TextField
-          id="subcity"
-          label="Subcity"
-          required
-          placeholder="e.g. Bole"
-          error={errors.subcity?.message}
-          {...register("subcity")}
-        />
-      </div>
+      <Controller
+        control={control}
+        name="hasSecondAddress"
+        render={({ field }) => (
+          <label
+            htmlFor="hasSecondAddress"
+            className="flex cursor-pointer gap-3 rounded-xl border bg-muted/40 p-4 transition-colors hover:bg-muted/70"
+          >
+            <Checkbox
+              id="hasSecondAddress"
+              checked={field.value === true}
+              onCheckedChange={(checked) => {
+                field.onChange(checked === true);
 
-      <TextField
-        id="exactPlace"
-        label="Exact place"
-        required
-        placeholder="e.g. Ayat, Piassa"
-        error={errors.exactPlace?.message}
-        {...register("exactPlace")}
+                if (checked !== true) {
+                  clearErrors(Object.values(ADDRESS_NAMES.second));
+                }
+              }}
+              className="mt-0.5"
+            />
+
+            <span className="space-y-1">
+              <span className="block text-sm font-medium">
+                Add a second address (optional)
+              </span>
+              <span className="block text-sm text-muted-foreground text-pretty">
+                For example, if you live in a university dorm during the week
+                and at your family&apos;s home on weekends.
+              </span>
+            </span>
+          </label>
+        )}
       />
+
+      {hasSecondAddress ? (
+        <AddressFields form={form} which="second" />
+      ) : null}
 
       <TextAreaField
         id="aboutMe"

@@ -84,7 +84,9 @@ export function ConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
 
           {description ? (
-            <DialogDescription>{description}</DialogDescription>
+            // A <div>, not the default <p>: callers pass block content
+            // (paragraphs, lists), which is invalid inside a <p>.
+            <DialogDescription render={<div />}>{description}</DialogDescription>
           ) : null}
         </DialogHeader>
 

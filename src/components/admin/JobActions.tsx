@@ -92,10 +92,8 @@ export default function JobActions({
   }
 
   /**
-   * Deleting is for jobs that should not exist at all. The API
-   * refuses once a tutor has applied, so the button is only offered
-   * while the job has no applications — a control that always fails
-   * is worse than no control.
+   * Deletes the job and every application to it. Offered whatever the
+   * job's state; the dialog names how many applications go with it.
    */
   async function remove() {
     setError("");
@@ -117,33 +115,45 @@ export default function JobActions({
     router.refresh();
   }
 
-  const deleteAction =
-    applicationCount === 0 ? (
-      <ConfirmDialog
-        trigger={
-          <Button variant="outline" size="xl">
-            <Trash2 data-icon="inline-start" aria-hidden="true" />
-            Delete job
-          </Button>
-        }
-        title={`Delete job ${jobCode}?`}
-        description={
-          <>
-            This removes the job permanently and cannot be undone.
-            {hasChannelPost ? (
-              <> Its Telegram channel post is deleted too.</>
-            ) : null}
-            <p className="mt-3">
-              To end a live vacancy instead, close it — that stops new
-              applications while keeping the record and the channel post.
-            </p>
-          </>
-        }
-        confirmLabel="Delete job"
-        variant="destructive"
-        onConfirm={remove}
-      />
-    ) : null;
+  const deleteAction = (
+    <ConfirmDialog
+      trigger={
+        <Button variant="outline" size="xl">
+          <Trash2 data-icon="inline-start" aria-hidden="true" />
+          Delete job
+        </Button>
+      }
+      title={`Delete job ${jobCode}?`}
+      description={
+        <>
+          This removes the job permanently and cannot be undone.
+          {applicationCount > 0 ? (
+            <>
+              {" "}
+              <strong>
+                {applicationCount === 1
+                  ? "Its 1 application is"
+                  : `All ${applicationCount} of its applications are`}{" "}
+                deleted too
+              </strong>
+              , and those tutors will no longer see it in their
+              applications.
+            </>
+          ) : null}
+          {hasChannelPost ? (
+            <> Its Telegram channel post is deleted too.</>
+          ) : null}
+          <p className="mt-3">
+            To end a live vacancy instead, close it — that stops new
+            applications while keeping the record and the channel post.
+          </p>
+        </>
+      }
+      confirmLabel="Delete job"
+      variant="destructive"
+      onConfirm={remove}
+    />
+  );
 
   // -------------------------------------------------------
   // OPEN -> close

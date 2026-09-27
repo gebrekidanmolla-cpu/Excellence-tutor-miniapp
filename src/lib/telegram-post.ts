@@ -11,12 +11,6 @@ import type { InlineKeyboardMarkup } from "@/lib/telegram";
 //
 // SERVER ONLY — it reads `node:crypto` and server env.
 //
-// This is deliberately *not* an extension of `job-post.ts`. That
-// module is imported by `JobPostPreview`, a client component, and it
-// falls back to a `https://YOUR-DOMAIN.com` placeholder that must
-// never reach a real channel post. Keeping the two apart is what
-// makes that structural rather than a rule someone has to remember.
-//
 // The post is sent as PLAIN TEXT — no `parse_mode`. The format below
 // carries no bold or italics, so there is nothing to gain from a
 // markup mode, and a whole class of failure disappears with it: a

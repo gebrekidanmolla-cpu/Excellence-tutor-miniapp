@@ -7,6 +7,7 @@ import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FormError } from "@/components/shared/ErrorState";
 import {
   SectionHeading,
@@ -14,6 +15,48 @@ import {
   TextAreaField,
   TextField,
 } from "@/components/shared/FormFields";
+import {
+  ADDRESS_FIELD_LABELS,
+  EMPTY_SECOND_ADDRESS,
+  type Address,
+} from "@/lib/address";
+
+const ADDRESS_KEYS = Object.keys(ADDRESS_FIELD_LABELS) as (keyof Address)[];
+
+/** Sub-city and specific area are required; woreda is not, since tutors
+    who registered before it was asked for have none. */
+const REQUIRED_ADDRESS_KEYS: (keyof Address)[] = [
+  "country",
+  "city",
+  "subcity",
+  "exactPlace",
+];
+
+function AddressFields({
+  idPrefix,
+  value,
+  onChange,
+}: {
+  idPrefix: string;
+  value: Address;
+  onChange: (field: keyof Address, value: string) => void;
+}) {
+  return (
+    <div className="grid gap-5 sm:grid-cols-2">
+      {ADDRESS_KEYS.map((key) => (
+        <TextField
+          key={key}
+          id={`${idPrefix}${key}`}
+          label={ADDRESS_FIELD_LABELS[key]}
+          required={REQUIRED_ADDRESS_KEYS.includes(key)}
+          className={key === "exactPlace" ? "sm:col-span-2" : undefined}
+          value={value[key]}
+          onChange={(event) => onChange(key, event.target.value)}
+        />
+      ))}
+    </div>
+  );
+}
 
 type TutorData = {
   id: string;
@@ -21,9 +64,8 @@ type TutorData = {
   gender: string;
   email: string;
   phone: string;
-  city: string;
-  subcity: string;
-  exactPlace: string;
+  address: Address;
+  secondAddress: Address | null;
   aboutMe: string;
   tutorStatus: "STUDENT" | "GRADUATE";
 
@@ -76,9 +118,6 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
     gender: tutor.gender,
     email: tutor.email,
     phone: tutor.phone,
-    city: tutor.city,
-    subcity: tutor.subcity,
-    exactPlace: tutor.exactPlace,
     aboutMe: tutor.aboutMe,
 
     university: tutor.university,
@@ -96,6 +135,14 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
     entranceTotal: String(tutor.entranceTotal),
     entrancePercentage: String(tutor.entrancePercentage),
   });
+
+  const [address, setAddress] = useState<Address>(tutor.address);
+  const [hasSecondAddress, setHasSecondAddress] = useState(
+    tutor.secondAddress !== null
+  );
+  const [secondAddress, setSecondAddress] = useState<Address>(
+    tutor.secondAddress ?? EMPTY_SECOND_ADDRESS
+  );
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -129,9 +176,13 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
           email: form.email,
           phone: form.phone,
 
-          city: form.city,
-          subcity: form.subcity,
-          exactPlace: form.exactPlace,
+          ...address,
+          hasSecondAddress,
+          address2Country: secondAddress.country,
+          address2City: secondAddress.city,
+          address2Subcity: secondAddress.subcity,
+          address2Woreda: secondAddress.woreda,
+          address2ExactPlace: secondAddress.exactPlace,
           aboutMe: form.aboutMe,
 
           university: form.university,
@@ -229,34 +280,39 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
           description="Where the tutor is based."
         />
 
-        <div className="mt-5 grid gap-5 sm:grid-cols-2">
-          <TextField
-            id="city"
-            label="City"
-            required
-            value={form.city}
-            onChange={(event) => updateField("city", event.target.value)}
-          />
-
-          <TextField
-            id="subcity"
-            label="Subcity"
-            required
-            value={form.subcity}
-            onChange={(event) => updateField("subcity", event.target.value)}
-          />
-
-          <TextField
-            id="exactPlace"
-            label="Exact place"
-            required
-            className="sm:col-span-2"
-            value={form.exactPlace}
-            onChange={(event) =>
-              updateField("exactPlace", event.target.value)
+        <div className="mt-5">
+          <AddressFields
+            idPrefix=""
+            value={address}
+            onChange={(field, value) =>
+              setAddress((current) => ({ ...current, [field]: value }))
             }
           />
         </div>
+
+        <label
+          htmlFor="hasSecondAddress"
+          className="mt-5 flex cursor-pointer items-center gap-3 text-sm font-medium"
+        >
+          <Checkbox
+            id="hasSecondAddress"
+            checked={hasSecondAddress}
+            onCheckedChange={(checked) => setHasSecondAddress(checked === true)}
+          />
+          Second address
+        </label>
+
+        {hasSecondAddress ? (
+          <div className="mt-5">
+            <AddressFields
+              idPrefix="address2-"
+              value={secondAddress}
+              onChange={(field, value) =>
+                setSecondAddress((current) => ({ ...current, [field]: value }))
+              }
+            />
+          </div>
+        ) : null}
 
         <div className="mt-5">
           <TextAreaField

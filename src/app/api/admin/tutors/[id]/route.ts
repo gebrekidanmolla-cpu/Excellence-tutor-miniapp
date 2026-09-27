@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
+import {
+  readAddress,
+  secondAddressColumns,
+} from "@/lib/address";
 import { EmploymentStatus } from "@prisma/client";
 
 type RouteContext = {
@@ -75,9 +79,6 @@ export async function PATCH(
       gender,
       email,
       phone,
-      city,
-      subcity,
-      exactPlace,
       aboutMe,
 
       university,
@@ -99,19 +100,55 @@ export async function PATCH(
     if (
       !fullName ||
       !email ||
-      !phone ||
-      !city ||
-      !subcity ||
-      !exactPlace
+      !phone
     ) {
       return NextResponse.json(
         {
           error:
-            "Full name, email, phone, city, subcity, and exact place are required.",
+            "Full name, email, and phone are required.",
         },
         { status: 400 }
       );
     }
+
+    // Woreda stays optional here: tutors who registered before it was
+    // asked for have none, and the admin may not know it.
+    const addressResult = readAddress(
+      (key) => body[key],
+      "",
+      { requireWoreda: false }
+    );
+
+    if ("error" in addressResult) {
+      return NextResponse.json(
+        { error: addressResult.error },
+        { status: 400 }
+      );
+    }
+
+    const secondAddressResult =
+      body.hasSecondAddress === true
+        ? readAddress(
+            (key) => body[key],
+            "address2",
+            { requireWoreda: false }
+          )
+        : null;
+
+    if (
+      secondAddressResult &&
+      "error" in secondAddressResult
+    ) {
+      return NextResponse.json(
+        {
+          error: `Second address: ${secondAddressResult.error}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const address =
+      addressResult.address;
 
     if (
       gender !== "MALE" &&
@@ -250,11 +287,20 @@ export async function PATCH(
 
           phone: String(phone).trim(),
 
-          city: String(city).trim(),
+          country: address.country,
 
-          subcity: String(subcity).trim(),
+          city: address.city,
 
-          exactPlace: String(exactPlace).trim(),
+          subcity: address.subcity,
+
+          woreda: address.woreda,
+
+          exactPlace: address.exactPlace,
+
+          ...secondAddressColumns(
+            secondAddressResult?.address ??
+              null
+          ),
 
           aboutMe:
             aboutMe === null ||

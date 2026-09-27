@@ -124,8 +124,8 @@ export async function sendVerificationEmail(
 
 /**
  * Absolute link into the app, for use inside an email where a relative path
- * doesn't resolve. Falls back to `null` (rather than a placeholder domain
- * like `job-post.ts` does) so a template can just omit the link instead of
+ * doesn't resolve. Falls back to `null` (rather than a placeholder domain)
+ * so a template can just omit the link instead of
  * shipping a broken one when `NEXT_PUBLIC_APP_URL` is unset.
  */
 function buildAppUrl(path: string): string | null {

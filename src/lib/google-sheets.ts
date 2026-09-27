@@ -33,7 +33,10 @@ import { getVercelOidcToken } from "@vercel/oidc";
 //
 // This module knows nothing about `Job` or `Tutor` — it is a generic,
 // job-agnostic wrapper for one spreadsheet, one tab, columns A:E, row
-// 1 a header. The job-shaped orchestration lives in
+// 1 a header. The bulk methods (`readRowNumbersByCode`,
+// `appendSheetRows`, `batchUpdateSheetRows`) exist for the backfill:
+// the Sheets API allows 60 requests a minute per user, so a sync of
+// every job has to cost a fixed handful of calls, not two per job. The job-shaped orchestration lives in
 // `job-sheet-sync.ts`, the same split `telegram.ts` /
 // `telegram-job-post.ts` has.
 //
@@ -312,11 +315,11 @@ function encodeRange(tabName: string, range: string): string {
 // ==========================================
 
 /**
- * 1-based row number of the first row (searching from row 2 onward —
- * row 1 is the header) whose column A equals `code`, or `null` if
- * none match. First match wins if the sheet somehow has duplicates.
+ * Every code in column A (from row 2 onward — row 1 is the header),
+ * mapped to its 1-based row number. One API call however long the
+ * sheet is. First match wins if the sheet somehow has duplicates.
  */
-export async function findRowNumberByCode(code: string): Promise<number | null> {
+export async function readRowNumbersByCode(): Promise<Map<string, number>> {
   const config = readConfig();
 
   if (!config) {
@@ -329,25 +332,45 @@ export async function findRowNumberByCode(code: string): Promise<number | null> 
     { method: "GET" }
   );
 
-  const rows = result.values ?? [];
-  const index = rows.findIndex((row) => (row[0] ?? "").trim() === code);
+  const rowNumbers = new Map<string, number>();
 
-  return index === -1 ? null : index + 2;
+  (result.values ?? []).forEach((row, index) => {
+    const code = (row[0] ?? "").trim();
+
+    if (code && !rowNumbers.has(code)) {
+      rowNumbers.set(code, index + 2);
+    }
+  });
+
+  return rowNumbers;
 }
 
 /**
- * Appends one full row to the end of the table (columns A:E).
+ * 1-based row number of the first row whose column A equals `code`,
+ * or `null` if none match.
+ */
+export async function findRowNumberByCode(code: string): Promise<number | null> {
+  return (await readRowNumbersByCode()).get(code) ?? null;
+}
+
+/**
+ * Appends full rows to the end of the table (columns A:E), in order,
+ * in one call.
  *
  * `valueInputOption=RAW` is load-bearing, not incidental:
  * `USER_ENTERED` lets Sheets auto-interpret a numeric-looking string,
  * which would strip a leading `0` off a phone number like
  * `0911223344`. `RAW` stores exactly the string sent.
  */
-export async function appendSheetRow(values: SheetRow): Promise<void> {
+export async function appendSheetRows(rows: readonly SheetRow[]): Promise<void> {
   const config = readConfig();
 
   if (!config) {
     throw new SheetsNotConfiguredError();
+  }
+
+  if (rows.length === 0) {
+    return;
   }
 
   await callSheetsApi(
@@ -356,9 +379,35 @@ export async function appendSheetRow(values: SheetRow): Promise<void> {
       "?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
     {
       method: "POST",
-      body: { values: [values] },
+      body: { values: rows },
     }
   );
+}
+
+/** Overwrites columns A:E of many existing rows in one call. */
+export async function batchUpdateSheetRows(
+  updates: readonly { rowNumber: number; values: SheetRow }[]
+): Promise<void> {
+  const config = readConfig();
+
+  if (!config) {
+    throw new SheetsNotConfiguredError();
+  }
+
+  if (updates.length === 0) {
+    return;
+  }
+
+  await callSheetsApi("values.batchUpdate", "/values:batchUpdate", {
+    method: "POST",
+    body: {
+      valueInputOption: "RAW",
+      data: updates.map(({ rowNumber, values }) => ({
+        range: `'${config.tabName}'!A${rowNumber}:E${rowNumber}`,
+        values: [values],
+      })),
+    },
+  });
 }
 
 /** Overwrites columns A:E of an existing 1-based row number in one call. */
@@ -381,4 +430,72 @@ export async function updateSheetRow(
       body: { values: [values] },
     }
   );
+}
+
+/**
+ * The tab's numeric `sheetId`. Deleting a row is a structural change
+ * (`spreadsheets.batchUpdate` → `deleteDimension`), and that request
+ * addresses the tab by this id, not by its name.
+ */
+async function getTabSheetId(tabName: string): Promise<number> {
+  const result = await callSheetsApi<{
+    sheets?: { properties?: { sheetId?: number; title?: string } }[];
+  }>("spreadsheets.get", "?fields=sheets.properties(sheetId,title)", {
+    method: "GET",
+  });
+
+  const sheetId = result.sheets?.find(
+    (sheet) => sheet.properties?.title === tabName
+  )?.properties?.sheetId;
+
+  if (sheetId === undefined) {
+    throw new SheetsApiError({
+      method: "spreadsheets.get",
+      status: null,
+      description: `The spreadsheet has no tab named "${tabName}".`,
+    });
+  }
+
+  return sheetId;
+}
+
+/**
+ * Deletes the first row whose column A equals `code`, shifting the rows
+ * below it up. Returns whether a row was found.
+ */
+export async function deleteSheetRowByCode(code: string): Promise<boolean> {
+  const config = readConfig();
+
+  if (!config) {
+    throw new SheetsNotConfiguredError();
+  }
+
+  const rowNumber = await findRowNumberByCode(code);
+
+  if (rowNumber === null) {
+    return false;
+  }
+
+  const sheetId = await getTabSheetId(config.tabName);
+
+  await callSheetsApi("spreadsheets.batchUpdate", ":batchUpdate", {
+    method: "POST",
+    body: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: "ROWS",
+              // 0-based, end-exclusive.
+              startIndex: rowNumber - 1,
+              endIndex: rowNumber,
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  return true;
 }

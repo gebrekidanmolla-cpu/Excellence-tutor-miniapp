@@ -25,10 +25,22 @@ export type TelegramPostStatus =
   | "FAILED"
   | "DISABLED";
 
+/**
+ * Whether a job's row in the Google Sheet mirror is current. Shares
+ * `PENDING`, `FAILED` and `DISABLED` with `TelegramPostStatus`, but
+ * reads them differently — see `getSheetSyncLabel`.
+ */
+export type SheetSyncStatus =
+  | "PENDING"
+  | "SYNCED"
+  | "FAILED"
+  | "DISABLED";
+
 export type Status =
   | ApplicationStatus
   | JobStatus
-  | TelegramPostStatus;
+  | TelegramPostStatus
+  | SheetSyncStatus;
 
 const EM_DASH = "—";
 
@@ -121,10 +133,23 @@ const STATUS_LABELS: Record<Status, string> = {
   POSTED: "Posted",
   FAILED: "Post failed",
   DISABLED: "Not configured",
+  SYNCED: "Synced",
 };
 
 export function getStatusLabel(status: string): string {
   return STATUS_LABELS[status as Status] ?? formatEnum(status);
+}
+
+/** "Post failed" and "Pending" describe a Telegram post, not a sheet row. */
+const SHEET_SYNC_LABELS: Record<SheetSyncStatus, string> = {
+  PENDING: "Not synced",
+  SYNCED: "Synced",
+  FAILED: "Sync failed",
+  DISABLED: "Not configured",
+};
+
+export function getSheetSyncLabel(status: SheetSyncStatus): string {
+  return SHEET_SYNC_LABELS[status];
 }
 
 /** The tutor-facing label, which reads as a state rather than a keyword. */

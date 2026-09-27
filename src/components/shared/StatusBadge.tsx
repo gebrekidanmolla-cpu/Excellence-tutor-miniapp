@@ -23,6 +23,7 @@ const STATUS_TONES: Record<Status, Tone> = {
   POSTED: "success",
   FAILED: "destructive",
   DISABLED: "neutral",
+  SYNCED: "success",
 };
 
 const TONE_SURFACE: Record<Tone, string> = {
@@ -46,10 +47,13 @@ const TONE_DOT: Record<Tone, string> = {
 
 export function StatusBadge({
   status,
+  label,
   size = "default",
   className,
 }: {
   status: Status | string;
+  /** Overrides the shared label where the same status reads differently. */
+  label?: string;
   size?: "default" | "lg";
   className?: string;
 }) {
@@ -69,7 +73,7 @@ export function StatusBadge({
         aria-hidden="true"
         className={cn("size-1.5 shrink-0 rounded-full", TONE_DOT[tone])}
       />
-      {getStatusLabel(status)}
+      {label ?? getStatusLabel(status)}
     </Badge>
   );
 }

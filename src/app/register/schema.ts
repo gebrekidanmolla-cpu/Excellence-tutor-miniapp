@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DEFAULT_CITY, DEFAULT_COUNTRY } from "@/lib/address";
+
 /* =========================================================
    FILE CONSTRAINTS
 
@@ -228,9 +230,19 @@ export const registerSchema = z
     gender: z.enum(["MALE", "FEMALE"], {
       message: "Please select your gender.",
     }),
-    city: z.string().trim().min(1, "Please enter your city."),
-    subcity: z.string().trim().min(1, "Please enter your subcity."),
-    exactPlace: z.string().trim().min(1, "Please enter your exact place."),
+    country: z.string().trim().min(1, "Please enter your country."),
+    city: z.string().trim().min(1, "Please enter your city or region."),
+    subcity: z.string().trim().min(1, "Please enter your sub-city or zone."),
+    woreda: z.string().trim().min(1, "Please enter your woreda or kebele."),
+    exactPlace: z.string().trim().min(1, "Please enter your specific area."),
+
+    /* Optional second address — only validated when switched on. */
+    hasSecondAddress: z.boolean(),
+    address2Country: z.string(),
+    address2City: z.string(),
+    address2Subcity: z.string(),
+    address2Woreda: z.string(),
+    address2ExactPlace: z.string(),
     aboutMe: z
       .string()
       .max(500, "About Me must be 500 characters or fewer."),
@@ -273,6 +285,22 @@ export const registerSchema = z
         path: ["confirmPassword"],
         message: "Passwords do not match.",
       });
+    }
+
+    if (values.hasSecondAddress) {
+      const secondAddressFields = [
+        ["address2Country", "Please enter the country."],
+        ["address2City", "Please enter the city or region."],
+        ["address2Subcity", "Please enter the sub-city or zone."],
+        ["address2Woreda", "Please enter the woreda or kebele."],
+        ["address2ExactPlace", "Please enter the specific area."],
+      ] as const;
+
+      for (const [field, message] of secondAddressFields) {
+        if (!values[field].trim()) {
+          ctx.addIssue({ code: "custom", path: [field], message });
+        }
+      }
     }
 
     if (values.tutorStatus === "STUDENT") {
@@ -376,6 +404,13 @@ export const registerSchema = z
           "Entrance score must be between 0 and the selected total.",
       });
     }
+  }, {
+    /* Zod 4 skips refinements while any field above is invalid, and the
+       wizard validates one step at a time — the unchecked `confirmation`
+       alone would keep these conditional rules from ever running before
+       the last step. Every field has a string default, so running on
+       partially invalid values is safe. */
+    when: () => true,
   });
 
 export type RegisterValues = z.input<typeof registerSchema>;
@@ -387,9 +422,17 @@ export const DEFAULT_VALUES: RegisterValues = {
   password: "",
   confirmPassword: "",
   gender: "" as RegisterValues["gender"],
-  city: "Addis Ababa",
+  country: DEFAULT_COUNTRY,
+  city: DEFAULT_CITY,
   subcity: "",
+  woreda: "",
   exactPlace: "",
+  hasSecondAddress: false,
+  address2Country: DEFAULT_COUNTRY,
+  address2City: DEFAULT_CITY,
+  address2Subcity: "",
+  address2Woreda: "",
+  address2ExactPlace: "",
   aboutMe: "",
   tutorStatus: "" as RegisterValues["tutorStatus"],
   university: "",
@@ -423,7 +466,21 @@ export type Step = 1 | 2 | 3 | 4 | 5;
 /** Which fields each step validates, so `trigger()` stays scoped. */
 export const STEP_FIELDS: Record<Step, (keyof RegisterValues)[]> = {
   1: ["fullName", "email", "phone", "password", "confirmPassword"],
-  2: ["gender", "city", "subcity", "exactPlace", "tutorStatus", "aboutMe"],
+  2: [
+    "gender",
+    "country",
+    "city",
+    "subcity",
+    "woreda",
+    "exactPlace",
+    "address2Country",
+    "address2City",
+    "address2Subcity",
+    "address2Woreda",
+    "address2ExactPlace",
+    "tutorStatus",
+    "aboutMe",
+  ],
   3: [
     "university",
     "department",
