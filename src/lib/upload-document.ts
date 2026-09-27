@@ -1,7 +1,7 @@
 import { deleteObjects, putObject } from "@/lib/r2";
 
 const MAX_DOCUMENT_SIZE = 2 * 1024 * 1024; // 2 MB
-const MAX_CV_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_CV_SIZE = 3 * 1024 * 1024; // 3 MB
 
 const IMAGE_TYPES = [
   "image/jpeg",
@@ -28,7 +28,7 @@ function validateFile(
     type === "cv" ? MAX_CV_SIZE : MAX_DOCUMENT_SIZE;
 
   const maxSizeText =
-    type === "cv" ? "5 MB" : "2 MB";
+    type === "cv" ? "3 MB" : "2 MB";
 
   if (file.size > maxSize) {
     throw new Error(

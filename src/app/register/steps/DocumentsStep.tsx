@@ -132,7 +132,7 @@ export function DocumentsStep({
           id="cv"
           label="CV / Resume"
           accept={CV_ACCEPT}
-          hint="Optional — JPG, JPEG, PNG, WEBP or PDF — PDF max 5MB"
+          hint="Optional — JPG, JPEG, PNG, WEBP or PDF — PDF max 3MB. All documents together must stay under 4MB"
           file={files.cv}
           error={fileErrors.cv}
           busy={filesBusy.cv}

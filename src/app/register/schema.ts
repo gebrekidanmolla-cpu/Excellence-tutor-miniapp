@@ -9,7 +9,16 @@ import { z } from "zod";
 ========================================================= */
 
 export const DOCUMENT_MAX_SIZE = 2 * 1024 * 1024; // 2 MB
-export const CV_MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+export const CV_MAX_SIZE = 3 * 1024 * 1024; // 3 MB
+
+/**
+ * Every document travels in one request, and Vercel rejects function
+ * request bodies over 4.5 MB before the route ever runs. 4 MB of files
+ * leaves room for the text fields and multipart overhead. Per-file limits
+ * alone can't guarantee this — four 2 MB documents plus a CV would pass
+ * each check individually.
+ */
+export const TOTAL_UPLOAD_MAX_SIZE = 4 * 1024 * 1024; // 4 MB
 
 export const DOCUMENT_ACCEPT = ".jpg,.jpeg,.png,.webp";
 export const CV_ACCEPT = ".jpg,.jpeg,.png,.webp,.pdf";
@@ -100,6 +109,46 @@ export function validateDocument(
       ? "an image or PDF file"
       : "a JPG, JPEG, PNG, or WEBP image",
   });
+}
+
+/** The files that will actually be sent for this tutor status. */
+export function filesToSend(
+  files: FileState,
+  tutorStatus: string
+): [FileField, File][] {
+  return (Object.keys(files) as FileField[]).flatMap((field) => {
+    const file = files[field];
+
+    if (!file) {
+      return [];
+    }
+
+    if (field === "graduationDocument" && tutorStatus !== "GRADUATE") {
+      return [];
+    }
+
+    return [[field, file]];
+  });
+}
+
+export function validateTotalUploadSize(
+  files: FileState,
+  tutorStatus: string
+): string {
+  const total = filesToSend(files, tutorStatus).reduce(
+    (sum, [, file]) => sum + file.size,
+    0
+  );
+
+  if (total <= TOTAL_UPLOAD_MAX_SIZE) {
+    return "";
+  }
+
+  const totalMb = (total / (1024 * 1024)).toFixed(1);
+
+  return `Your documents add up to ${totalMb}MB, but the limit is ${
+    TOTAL_UPLOAD_MAX_SIZE / (1024 * 1024)
+  }MB in total. Please upload smaller files (for example, a compressed CV or clearer cropped photos).`;
 }
 
 /* =========================================================
