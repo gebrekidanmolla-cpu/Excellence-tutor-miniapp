@@ -34,11 +34,45 @@ npx prisma db seed        # runs prisma/seed.ts (upserts a sample Job + the init
 
 ## Environment variables
 
-Defined in `.env` (gitignored); `.env.example` lists every key. Required across the app: `DIRECT_URL` (Postgres connection string, used by both `prisma.config.ts` and `src/lib/prisma.ts`), `SESSION_SECRET` (HMAC key for both session cookies), `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` (document storage; optional `R2_BUCKET`, default `tutor-documents`), `RESEND_API_KEY` / `EMAIL_FROM` (verification emails), `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` (consumed only by the seed script), `NEXT_PUBLIC_APP_URL` (applicant links in emails and in the Telegram post — a `localhost` value is deliberately ignored when building the channel post's button).
+Defined in `.env` (gitignored); `.env.example` lists every key. Required across the app: `DIRECT_URL` (Postgres connection string, used by both `prisma.config.ts` and `src/lib/prisma.ts`), `SESSION_SECRET` (HMAC key for both session cookies), `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` (document storage; optional `R2_BUCKET`, default `tutor-documents`), `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` / `EMAIL_FROM` (outgoing mail; optional `SMTP_PORT`, default `587`), `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` (consumed only by the seed script), `NEXT_PUBLIC_APP_URL` (applicant links in emails and in the Telegram post — a `localhost` value is deliberately ignored when building the channel post's button).
 
 Telegram channel posting: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHANNEL_ID` (secret — never `NEXT_PUBLIC_`), plus the testing-only `TELEGRAM_ALLOW_LOCAL_LINKS`. With either unset the whole feature is an inert no-op: jobs still save, and `next build` still succeeds — `src/lib/telegram.ts` reads its config per call rather than at module load, like `src/lib/r2.ts`. `NEXT_PUBLIC_BOT_USERNAME` is declared but read nowhere; the product is web-only and the channel post's button links to `/apply/<jobCode>`.
 
 Google Sheets mirroring: `GOOGLE_SHEETS_SPREADSHEET_ID`, `GOOGLE_WIF_PROJECT_NUMBER`, `GOOGLE_WIF_POOL_ID`, `GOOGLE_WIF_PROVIDER_ID`, `GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL`, plus the optional `GOOGLE_SHEETS_TAB_NAME` (defaults to `"Sheet1"`). Same inert-no-op contract as Telegram — `src/lib/google-sheets.ts` reads its config per call. Auth is Workload Identity Federation, **not** a service-account key — this org's `iam.disableServiceAccountKeyCreation` policy forbids downloading one. Vercel signs a short-lived OIDC token into every invocation (`VERCEL_OIDC_TOKEN`, via `@vercel/oidc`'s `getVercelOidcToken()` — never set this by hand; `vercel env pull` / `vercel dev` populate it for local dev), and GCP exchanges it for a token impersonating the service account named by `GOOGLE_SHEETS_SERVICE_ACCOUNT_EMAIL` — that account is what's shared with the sheet as Editor, and it holds no downloadable credential of its own. None of the `GOOGLE_WIF_*` vars are secrets; they're identifiers. Read-only mirror/backup, never a trigger: `src/lib/job-sheet-sync.ts`'s `safeSyncJobSheetRow` is called from the same four routes that call `safeSyncJobTelegramPost` (job create/edit, application assign, job reopen) and writes the job's Code / Parent's Name / Parent's Phone / Tutor's Name / Tutor's Phone into a matching sheet row — nothing ever reads the sheet back.
+
+### Outgoing email
+
+`src/lib/email.ts` sends over plain SMTP through the domain's own DirectAdmin
+mailbox (nodemailer). It replaced Resend — there is no email API key any more,
+and no `resend` dependency.
+
+Two things about this setup are easy to get wrong:
+
+- **`SMTP_HOST` is the shared server's hostname, not `mail.<domain>`.** The host
+  presents a Let's Encrypt certificate covering only its own name, so pointing
+  `SMTP_HOST` at the vanity `mail.` record fails TLS verification even though
+  DNS resolves it to the same machine. Do not "fix" that by disabling
+  `rejectUnauthorized`; either keep the server hostname, or get a certificate
+  issued that covers the vanity name (DirectAdmin's default request asks for a
+  *wildcard*, which forces DNS-01 validation and fails, because DirectAdmin
+  writes the challenge record into a zone it does not serve — DNS is on Vercel).
+- **`EMAIL_FROM` must be a mailbox that actually exists on that account.** An
+  SMTP server rejects a `From:` it does not own. Resend was laxer here, so a
+  value that worked before may not now.
+
+Port 587 (STARTTLS) and 465 (implicit TLS) both work from Vercel functions;
+**port 25 is blocked** and will hang until the socket timeout.
+
+Outgoing mail leaves through the host's outbound filter rather than the web
+server's own IP, which is why the domain's SPF record needs the provider's
+`include:` and not just an `ip4:` of the server. That filter also keeps a
+per-recipient suppression list: a `550 ... suspended — recent hard bounces`
+rejection comes from the filter, not from the recipient's provider, and only
+the host can clear it.
+
+Unlike `telegram.ts`, this module **always throws** on failure. Callers decide
+what that means — the notify steps in the assign and reopen routes catch and
+swallow, because the database write has already committed.
 
 ## Deployment
 

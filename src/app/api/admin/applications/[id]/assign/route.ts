@@ -266,8 +266,8 @@ export async function POST(
     // =====================================================
     //
     // Best-effort, after the transaction has already committed: the
-    // assignment is real whether or not Resend is reachable, so a failed
-    // send is logged and swallowed rather than turning a successful
+    // assignment is real whether or not the mail server is reachable, so a
+    // failed send is logged and swallowed rather than turning a successful
     // assignment into a 500. Still *awaited*, not fired-and-forgotten —
     // this runs in a serverless function that can freeze the moment the
     // response is sent, which would silently drop an un-awaited send.

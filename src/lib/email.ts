@@ -1,14 +1,86 @@
-import { Resend } from "resend";
+import nodemailer, { type Transporter } from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+/**
+ * SMTP transport for the domain's own mailbox on the DirectAdmin host.
+ *
+ * `SMTP_HOST` is deliberately the shared *server's* hostname, not the vanity
+ * `mail.<domain>` name: the host presents a certificate covering only its own
+ * hostname, so verifying TLS against the vanity name fails. If a certificate
+ * covering it is ever issued, this becomes a one-line env change.
+ *
+ * Built lazily and cached rather than at module load, so an unconfigured
+ * environment fails on the first send instead of breaking `next build` — the
+ * same per-call config read `telegram.ts` and `r2.ts` use. Unlike those two,
+ * though, this module keeps its always-throw contract: callers are the ones
+ * that decide whether a send failure is fatal.
+ */
+let transporter: Transporter | null = null;
+
+function getTransporter(): Transporter {
+  if (transporter) {
+    return transporter;
+  }
+
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASSWORD;
+
+  if (!host || !user || !pass) {
+    throw new Error(
+      "Email is not configured — SMTP_HOST, SMTP_USER and SMTP_PASSWORD are all required."
+    );
+  }
+
+  const port = Number(process.env.SMTP_PORT ?? 587);
+
+  transporter = nodemailer.createTransport({
+    host,
+    port,
+    // 465 is implicit TLS from the first byte; 587 opens in plaintext and must
+    // be upgraded, so refuse to send at all if STARTTLS is unavailable.
+    secure: port === 465,
+    requireTLS: port !== 465,
+    auth: { user, pass },
+    // These sends are best-effort side effects on routes that have already
+    // committed. Without bounds, one unreachable mail host stalls the whole
+    // request for the function's full duration.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  });
+
+  return transporter;
+}
+
+/**
+ * Every send in this module funnels through here. Nodemailer rejects on any
+ * delivery failure, which is what preserves this module's always-throw
+ * contract now that there is no `{ data, error }` result to inspect.
+ */
+async function sendMail({
+  to,
+  subject,
+  html,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+}) {
+  const from = process.env.EMAIL_FROM;
+
+  if (!from) {
+    throw new Error("Email is not configured — EMAIL_FROM is required.");
+  }
+
+  return getTransporter().sendMail({ from, to, subject, html });
+}
 
 export async function sendVerificationEmail(
   email: string,
   code: string
 ) {
-  const { data, error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM!,
-    to: [email],
+  return sendMail({
+    to: email,
     subject: "Verify your Excellence Tutor email",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
@@ -37,12 +109,6 @@ export async function sendVerificationEmail(
       </div>
     `,
   });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data;
 }
 
 // ==========================================
@@ -52,7 +118,7 @@ export async function sendVerificationEmail(
 // Sent from the admin application-review and job-reopen routes, always as a
 // best-effort side effect after the database change has already committed —
 // callers wrap these in try/catch (or Promise.allSettled for the reopen
-// route's whole pool) so a Resend outage never fails the underlying action.
+// route's whole pool) so a mail-server outage never fails the underlying action.
 //
 // ==========================================
 
@@ -106,9 +172,8 @@ export async function sendApplicationAcceptedEmail({
   place: string;
   salary: number;
 }) {
-  const { data, error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM!,
-    to: [to],
+  return sendMail({
+    to: to,
     subject: `You've been assigned to job ${job.jobCode}`,
     html: renderEmailLayout(`
       <p>Hi ${tutorName},</p>
@@ -128,12 +193,6 @@ export async function sendApplicationAcceptedEmail({
       ${renderJobLink(buildAppUrl("/tutor/applications"), "View your applications")}
     `),
   });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data;
 }
 
 /**
@@ -159,9 +218,8 @@ export async function sendJobReopenedEmail({
         ? "Your application is being reconsidered, and"
         : "Your application is being looked at again, and";
 
-  const { data, error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM!,
-    to: [to],
+  return sendMail({
+    to: to,
     subject: `Job ${job.jobCode} has reopened`,
     html: renderEmailLayout(`
       <p>Hi ${tutorName},</p>
@@ -176,10 +234,4 @@ export async function sendJobReopenedEmail({
       ${renderJobLink(buildAppUrl("/tutor/applications"), "Check your application status")}
     `),
   });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data;
 }
