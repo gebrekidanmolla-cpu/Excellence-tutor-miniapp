@@ -22,8 +22,10 @@ import {
   EMPTY_FILES,
   STEPS,
   STEP_FIELDS,
+  filesToSend,
   registerSchema,
   validateDocument,
+  validateTotalUploadSize,
   type FileField,
   type FileState,
   type RegisterValues,
@@ -297,6 +299,18 @@ export default function RegisterPage() {
       return;
     }
 
+    if (step === 4) {
+      const totalError = validateTotalUploadSize(
+        files,
+        getValues("tutorStatus") ?? ""
+      );
+
+      if (totalError) {
+        setFormError(totalError);
+        return;
+      }
+    }
+
     if (step < 5) {
       setStep((current) => (current + 1) as Step);
       scrollToTop();
@@ -325,6 +339,13 @@ export default function RegisterPage() {
 
     if (!validateFiles()) {
       setFormError("Please upload all required documents.");
+      return;
+    }
+
+    const totalError = validateTotalUploadSize(files, values.tutorStatus);
+
+    if (totalError) {
+      setFormError(totalError);
       return;
     }
 
@@ -381,12 +402,8 @@ export default function RegisterPage() {
       formData.append("entranceTotal", values.entranceTotal);
 
       /* Documents */
-      for (const field of DOCUMENT_FIELDS) {
-        const file = files[field];
-
-        if (file) {
-          formData.append(field, file);
-        }
+      for (const [field, file] of filesToSend(files, values.tutorStatus)) {
+        formData.append(field, file);
       }
 
       const response = await fetch("/api/auth/register", {
@@ -394,11 +411,21 @@ export default function RegisterPage() {
         body: formData,
       });
 
-      const data = await response.json();
+      // Errors raised before the route runs (Vercel's 413 for an oversized
+      // body, a gateway timeout) come back as HTML or plain text, not JSON.
+      const data = await response.json().catch(() => null);
 
-      if (!response.ok) {
+      if (!response.ok || !data) {
+        if (response.status === 413) {
+          throw new Error(
+            "Your documents are too large to upload together. Please use smaller files and try again."
+          );
+        }
+
         throw new Error(
-          data.error || data.message || "Registration failed."
+          data?.error ||
+            data?.message ||
+            "Registration failed. Please try again."
         );
       }
 

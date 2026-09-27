@@ -11,7 +11,7 @@ import {
 // =====================================================
 
 const DOCUMENT_MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
-const CV_MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const CV_MAX_FILE_SIZE = 3 * 1024 * 1024; // 3 MB
 
 // =====================================================
 // ALLOWED FILE TYPES
@@ -862,7 +862,7 @@ export async function POST(
         {
           success: false,
           message:
-            "Invalid CV. JPG, PNG, WebP, or PDF only, maximum 5 MB.",
+            "Invalid CV. JPG, PNG, WebP, or PDF only, maximum 3 MB.",
         },
         { status: 400 }
       );
