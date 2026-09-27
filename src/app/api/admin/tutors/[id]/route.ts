@@ -6,6 +6,8 @@ import {
   secondAddressColumns,
 } from "@/lib/address";
 import { EmploymentStatus } from "@prisma/client";
+import { deleteObjects } from "@/lib/r2";
+import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
 
 type RouteContext = {
   params: Promise<{
@@ -394,6 +396,128 @@ export async function PATCH(
         error:
           "Failed to update tutor information.",
       },
+      { status: 500 }
+    );
+  }
+}
+
+// =====================================================
+// DELETE
+// =====================================================
+//
+// Deletes the tutor's account outright. Neither relation cascades, so
+// the transaction does it by hand: the tutor's applications are
+// deleted, and any job they were assigned to is unassigned (it stays
+// CLOSED — the admin re-opens it if the vacancy is live again).
+//
+// Afterwards, best-effort: the uploaded documents are removed from R2,
+// and the sheet row of every job they were assigned to is re-synced so
+// it no longer names them. The tutor's session cookie dies on its own,
+// because `getCurrentTutor()` finds no row.
+//
+// =====================================================
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: RouteContext
+) {
+  const admin = await getCurrentAdmin();
+
+  if (!admin) {
+    return NextResponse.json(
+      { error: "Unauthorized." },
+      { status: 401 }
+    );
+  }
+
+  const { id } = await params;
+
+  try {
+    const tutor =
+      await prisma.tutor.findUnique({
+        where: { id },
+
+        select: {
+          id: true,
+          fullName: true,
+          transcriptUrl: true,
+          entranceResultUrl: true,
+          graduationDocumentUrl: true,
+          cvUrl: true,
+          governmentIdUrl: true,
+
+          assignedJobs: {
+            select: { id: true },
+          },
+
+          _count: {
+            select: {
+              applications: true,
+            },
+          },
+        },
+      });
+
+    if (!tutor) {
+      return NextResponse.json(
+        { error: "Tutor not found." },
+        { status: 404 }
+      );
+    }
+
+    await prisma.$transaction([
+      prisma.application.deleteMany({
+        where: { tutorId: tutor.id },
+      }),
+
+      prisma.job.updateMany({
+        where: { assignedTutorId: tutor.id },
+        data: { assignedTutorId: null },
+      }),
+
+      prisma.tutor.delete({
+        where: { id: tutor.id },
+      }),
+    ]);
+
+    await deleteObjects(
+      [
+        tutor.transcriptUrl,
+        tutor.entranceResultUrl,
+        tutor.graduationDocumentUrl,
+        tutor.cvUrl,
+        tutor.governmentIdUrl,
+      ].filter((key): key is string => Boolean(key))
+    );
+
+    for (const job of tutor.assignedJobs) {
+      await safeSyncJobSheetRow(job.id);
+    }
+
+    const applicationCount =
+      tutor._count.applications;
+
+    return NextResponse.json({
+      success: true,
+
+      message:
+        `${tutor.fullName} deleted` +
+        (applicationCount > 0
+          ? ` along with ${applicationCount} ${
+              applicationCount === 1
+                ? "application"
+                : "applications"
+            }.`
+          : "."),
+    });
+  } catch (error) {
+    console.error(
+      "ADMIN_TUTOR_DELETE_ERROR:",
+      error
+    );
+
+    return NextResponse.json(
+      { error: "Failed to delete tutor." },
       { status: 500 }
     );
   }

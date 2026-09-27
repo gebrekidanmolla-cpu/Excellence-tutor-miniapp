@@ -24,6 +24,7 @@ import { AddressInfo } from "@/components/shared/AddressInfo";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
+import DeleteTutorButton from "@/components/admin/DeleteTutorButton";
 import {
   formatDate,
   formatEnum,
@@ -62,6 +63,14 @@ async function loadTutor(id: string) {
         },
         include: {
           job: true,
+        },
+      },
+      assignedJobs: {
+        select: {
+          jobCode: true,
+        },
+        orderBy: {
+          createdAt: "desc",
         },
       },
     },
@@ -175,6 +184,13 @@ export default async function TutorDetailsPage({ params }: PageProps) {
               <Pencil data-icon="inline-start" aria-hidden="true" />
               Edit tutor
             </Button>
+
+            <DeleteTutorButton
+              tutorId={tutor.id}
+              tutorName={tutor.fullName}
+              applicationCount={tutor.applications.length}
+              assignedJobCodes={tutor.assignedJobs.map((job) => job.jobCode)}
+            />
           </>
         }
       />

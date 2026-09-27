@@ -103,6 +103,8 @@ Core models (`prisma/schema.prisma`): `Job` (a posting, optionally `assignedTuto
 
 `DELETE /api/admin/jobs/[id]` deletes a job whether or not tutors have applied. `Application.job` has no cascade, so the route deletes the job's applications itself, in the same `$transaction` as the job — those tutors lose the rows from their application history, and the confirm dialog says how many go. Ending a live vacancy while keeping the record is `PATCH .../status` with `CLOSED`. Deletion also removes the job's Telegram post and Google Sheet row, both best-effort after the transaction commits, and the response names whichever one was left behind.
 
+`DELETE /api/admin/tutors/[id]` is its counterpart for tutors. Neither `Application.tutor` nor `Job.assignedTutor` cascades, so one `$transaction` deletes the tutor's applications, unassigns them from any job (which stays `CLOSED` until an admin re-opens it), and deletes the tutor. After it commits, the R2 documents are removed (best-effort via `deleteObjects`) and each formerly assigned job's sheet row is re-synced so it no longer names them. Their session cookie stops working by itself, because `getCurrentTutor()` finds no row.
+
 ### Telegram channel posting
 
 Creating a job publishes it to the Telegram channel, and later changes edit that same post in place. Three modules, in dependency order: `src/lib/telegram.ts` (Bot API over `fetch`, bounded retry, `TelegramApiError`; server-only — the request URL embeds the bot token, so never let an error carrying it reach the UI), `src/lib/telegram-post.ts` (renders the post text, truncates to Telegram's 4096, builds the inline button), and `src/lib/telegram-job-post.ts` (`safeSyncJobTelegramPost` — the single entry point every route uses).
