@@ -113,12 +113,9 @@ export async function PATCH(
       );
     }
 
-    // Woreda stays optional here: tutors who registered before it was
-    // asked for have none, and the admin may not know it.
     const addressResult = readAddress(
       (key) => body[key],
-      "",
-      { requireWoreda: false }
+      ""
     );
 
     if ("error" in addressResult) {
@@ -132,8 +129,7 @@ export async function PATCH(
       body.hasSecondAddress === true
         ? readAddress(
             (key) => body[key],
-            "address2",
-            { requireWoreda: false }
+            "address2"
           )
         : null;
 
@@ -295,7 +291,6 @@ export async function PATCH(
 
           subcity: address.subcity,
 
-          woreda: address.woreda,
 
           exactPlace: address.exactPlace,
 

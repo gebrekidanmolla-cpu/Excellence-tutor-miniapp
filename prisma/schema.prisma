@@ -177,17 +177,13 @@ model Tutor {
   // ADDRESS
   // ==========================================
   //
-  // `exactPlace` is shown as "Specific area" (4 Kilo, Ayat…). `woreda`
-  // defaults to "" because tutors who registered before it existed
-  // never gave one; registration requires it from now on.
+  // `exactPlace` is shown as "Specific area" (4 Kilo, Ayat…).
 
   country String @default("Ethiopia")
 
   city String
 
   subcity String
-
-  woreda String @default("")
 
   exactPlace String
 
@@ -198,7 +194,6 @@ model Tutor {
   address2Country    String?
   address2City       String?
   address2Subcity    String?
-  address2Woreda     String?
   address2ExactPlace String?
 
   aboutMe String? @db.VarChar(500)

@@ -7,7 +7,10 @@ import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AddAddressButton,
+  SecondAddressCard,
+} from "@/components/shared/SecondAddress";
 import { FormError } from "@/components/shared/ErrorState";
 import {
   SectionHeading,
@@ -22,15 +25,6 @@ import {
 } from "@/lib/address";
 
 const ADDRESS_KEYS = Object.keys(ADDRESS_FIELD_LABELS) as (keyof Address)[];
-
-/** Sub-city and specific area are required; woreda is not, since tutors
-    who registered before it was asked for have none. */
-const REQUIRED_ADDRESS_KEYS: (keyof Address)[] = [
-  "country",
-  "city",
-  "subcity",
-  "exactPlace",
-];
 
 function AddressFields({
   idPrefix,
@@ -48,7 +42,7 @@ function AddressFields({
           key={key}
           id={`${idPrefix}${key}`}
           label={ADDRESS_FIELD_LABELS[key]}
-          required={REQUIRED_ADDRESS_KEYS.includes(key)}
+          required
           className={key === "exactPlace" ? "sm:col-span-2" : undefined}
           value={value[key]}
           onChange={(event) => onChange(key, event.target.value)}
@@ -181,7 +175,6 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
           address2Country: secondAddress.country,
           address2City: secondAddress.city,
           address2Subcity: secondAddress.subcity,
-          address2Woreda: secondAddress.woreda,
           address2ExactPlace: secondAddress.exactPlace,
           aboutMe: form.aboutMe,
 
@@ -290,20 +283,11 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
           />
         </div>
 
-        <label
-          htmlFor="hasSecondAddress"
-          className="mt-5 flex cursor-pointer items-center gap-3 text-sm font-medium"
-        >
-          <Checkbox
-            id="hasSecondAddress"
-            checked={hasSecondAddress}
-            onCheckedChange={(checked) => setHasSecondAddress(checked === true)}
-          />
-          Second address
-        </label>
-
         {hasSecondAddress ? (
-          <div className="mt-5">
+          <SecondAddressCard
+            className="mt-5"
+            onRemove={() => setHasSecondAddress(false)}
+          >
             <AddressFields
               idPrefix="address2-"
               value={secondAddress}
@@ -311,8 +295,13 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
                 setSecondAddress((current) => ({ ...current, [field]: value }))
               }
             />
-          </div>
-        ) : null}
+          </SecondAddressCard>
+        ) : (
+          <AddAddressButton
+            className="mt-5"
+            onClick={() => setHasSecondAddress(true)}
+          />
+        )}
 
         <div className="mt-5">
           <TextAreaField

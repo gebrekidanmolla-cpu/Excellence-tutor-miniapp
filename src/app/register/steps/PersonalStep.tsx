@@ -2,7 +2,10 @@
 
 import { Controller, useWatch, type UseFormReturn } from "react-hook-form";
 
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AddAddressButton,
+  SecondAddressCard,
+} from "@/components/shared/SecondAddress";
 import {
   SectionHeading,
   SelectField,
@@ -23,14 +26,12 @@ const ADDRESS_NAMES = {
     country: "country",
     city: "city",
     subcity: "subcity",
-    woreda: "woreda",
     exactPlace: "exactPlace",
   },
   second: {
     country: "address2Country",
     city: "address2City",
     subcity: "address2Subcity",
-    woreda: "address2Woreda",
     exactPlace: "address2ExactPlace",
   },
 } as const satisfies Record<string, Record<AddressKey, keyof RegisterValues>>;
@@ -39,7 +40,6 @@ const ADDRESS_PLACEHOLDERS: Record<AddressKey, string | undefined> = {
   country: undefined,
   city: "Addis Ababa",
   subcity: "e.g. Bole, Yeka",
-  woreda: "e.g. Woreda 03",
   exactPlace: "e.g. 4 Kilo, Ayat, Bethel",
 };
 
@@ -68,7 +68,14 @@ function AddressFields({
 
   return (
     <fieldset className="space-y-5">
-      <legend className="mb-4 font-heading text-sm font-medium">
+      {/* The second address's visible title is SecondAddressCard's header. */}
+      <legend
+        className={
+          which === "primary"
+            ? "mb-4 font-heading text-sm font-medium"
+            : "sr-only"
+        }
+      >
         {which === "primary" ? "Address" : "Second address"}
       </legend>
 
@@ -76,10 +83,8 @@ function AddressFields({
         {field("country", "country-name")}
         {field("city", "address-level1")}
         {field("subcity")}
-        {field("woreda")}
+        {field("exactPlace")}
       </div>
-
-      {field("exactPlace")}
     </fieldset>
   );
 }
@@ -91,7 +96,7 @@ export function PersonalStep({
   form: UseFormReturn<RegisterValues>;
   onTutorStatusChange: (status: string) => void;
 }) {
-  const { register, control, formState, clearErrors } = form;
+  const { register, control, formState, clearErrors, setValue } = form;
   const errors = formState.errors;
 
   const aboutMe = useWatch({ control, name: "aboutMe" });
@@ -144,43 +149,21 @@ export function PersonalStep({
 
       <AddressFields form={form} which="primary" />
 
-      <Controller
-        control={control}
-        name="hasSecondAddress"
-        render={({ field }) => (
-          <label
-            htmlFor="hasSecondAddress"
-            className="flex cursor-pointer gap-3 rounded-xl border bg-muted/40 p-4 transition-colors hover:bg-muted/70"
-          >
-            <Checkbox
-              id="hasSecondAddress"
-              checked={field.value === true}
-              onCheckedChange={(checked) => {
-                field.onChange(checked === true);
-
-                if (checked !== true) {
-                  clearErrors(Object.values(ADDRESS_NAMES.second));
-                }
-              }}
-              className="mt-0.5"
-            />
-
-            <span className="space-y-1">
-              <span className="block text-sm font-medium">
-                Add a second address (optional)
-              </span>
-              <span className="block text-sm text-muted-foreground text-pretty">
-                For example, if you live in a university dorm during the week
-                and at your family&apos;s home on weekends.
-              </span>
-            </span>
-          </label>
-        )}
-      />
-
       {hasSecondAddress ? (
-        <AddressFields form={form} which="second" />
-      ) : null}
+        <SecondAddressCard
+          onRemove={() => {
+            setValue("hasSecondAddress", false);
+            clearErrors(Object.values(ADDRESS_NAMES.second));
+          }}
+        >
+          <AddressFields form={form} which="second" />
+        </SecondAddressCard>
+      ) : (
+        <AddAddressButton
+          onClick={() => setValue("hasSecondAddress", true)}
+          description="For example, a university dorm during the week and your family's home on weekends."
+        />
+      )}
 
       <TextAreaField
         id="aboutMe"

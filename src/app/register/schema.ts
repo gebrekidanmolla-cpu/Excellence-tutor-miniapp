@@ -233,7 +233,6 @@ export const registerSchema = z
     country: z.string().trim().min(1, "Please enter your country."),
     city: z.string().trim().min(1, "Please enter your city or region."),
     subcity: z.string().trim().min(1, "Please enter your sub-city or zone."),
-    woreda: z.string().trim().min(1, "Please enter your woreda or kebele."),
     exactPlace: z.string().trim().min(1, "Please enter your specific area."),
 
     /* Optional second address — only validated when switched on. */
@@ -241,7 +240,6 @@ export const registerSchema = z
     address2Country: z.string(),
     address2City: z.string(),
     address2Subcity: z.string(),
-    address2Woreda: z.string(),
     address2ExactPlace: z.string(),
     aboutMe: z
       .string()
@@ -292,7 +290,6 @@ export const registerSchema = z
         ["address2Country", "Please enter the country."],
         ["address2City", "Please enter the city or region."],
         ["address2Subcity", "Please enter the sub-city or zone."],
-        ["address2Woreda", "Please enter the woreda or kebele."],
         ["address2ExactPlace", "Please enter the specific area."],
       ] as const;
 
@@ -425,13 +422,11 @@ export const DEFAULT_VALUES: RegisterValues = {
   country: DEFAULT_COUNTRY,
   city: DEFAULT_CITY,
   subcity: "",
-  woreda: "",
   exactPlace: "",
   hasSecondAddress: false,
   address2Country: DEFAULT_COUNTRY,
   address2City: DEFAULT_CITY,
   address2Subcity: "",
-  address2Woreda: "",
   address2ExactPlace: "",
   aboutMe: "",
   tutorStatus: "" as RegisterValues["tutorStatus"],
@@ -471,12 +466,10 @@ export const STEP_FIELDS: Record<Step, (keyof RegisterValues)[]> = {
     "country",
     "city",
     "subcity",
-    "woreda",
     "exactPlace",
     "address2Country",
     "address2City",
     "address2Subcity",
-    "address2Woreda",
     "address2ExactPlace",
     "tutorStatus",
     "aboutMe",

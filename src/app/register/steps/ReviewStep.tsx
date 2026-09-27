@@ -95,7 +95,6 @@ export function ReviewStep({
                 country: values.address2Country,
                 city: values.address2City,
                 subcity: values.address2Subcity,
-                woreda: values.address2Woreda,
                 exactPlace: values.address2ExactPlace,
               })}
             />
