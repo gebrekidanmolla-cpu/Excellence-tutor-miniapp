@@ -18,7 +18,6 @@ export type Address = {
   country: string;
   city: string;
   subcity: string;
-  woreda: string;
   exactPlace: string;
 };
 
@@ -26,7 +25,6 @@ export const EMPTY_SECOND_ADDRESS: Address = {
   country: DEFAULT_COUNTRY,
   city: DEFAULT_CITY,
   subcity: "",
-  woreda: "",
   exactPlace: "",
 };
 
@@ -34,7 +32,6 @@ export const ADDRESS_FIELD_LABELS: Record<keyof Address, string> = {
   country: "Country",
   city: "City / Region",
   subcity: "Sub-city / Zone",
-  woreda: "Woreda / Kebele",
   exactPlace: "Specific area",
 };
 
@@ -42,7 +39,6 @@ type SecondAddressColumns = {
   address2Country: string | null;
   address2City: string | null;
   address2Subcity: string | null;
-  address2Woreda: string | null;
   address2ExactPlace: string | null;
 };
 
@@ -56,16 +52,14 @@ export function secondAddressOf(tutor: SecondAddressColumns): Address | null {
     country: tutor.address2Country ?? "",
     city: tutor.address2City ?? "",
     subcity: tutor.address2Subcity ?? "",
-    woreda: tutor.address2Woreda ?? "",
     exactPlace: tutor.address2ExactPlace ?? "",
   };
 }
 
-/** Most specific part first: "Ayat, Woreda 13, Bole, Addis Ababa, Ethiopia". */
+/** Most specific part first: "Ayat, Bole, Addis Ababa, Ethiopia". */
 export function formatAddress(address: Partial<Address>): string {
   return [
     address.exactPlace,
-    address.woreda,
     address.subcity,
     address.city,
     address.country,
@@ -85,8 +79,7 @@ export function formatAddress(address: Partial<Address>): string {
  */
 export function readAddress(
   get: (key: string) => unknown,
-  prefix: string,
-  { requireWoreda }: { requireWoreda: boolean }
+  prefix: string
 ): { address: Address } | { error: string } {
   const read = (field: keyof Address) => {
     const key = prefix
@@ -101,13 +94,10 @@ export function readAddress(
     country: read("country") || DEFAULT_COUNTRY,
     city: read("city") || DEFAULT_CITY,
     subcity: read("subcity"),
-    woreda: read("woreda"),
     exactPlace: read("exactPlace"),
   };
 
-  const required: (keyof Address)[] = requireWoreda
-    ? ["subcity", "woreda", "exactPlace"]
-    : ["subcity", "exactPlace"];
+  const required: (keyof Address)[] = ["subcity", "exactPlace"];
 
   const missing = required.find((field) => !address[field]);
 
@@ -126,7 +116,6 @@ export function secondAddressColumns(
     address2Country: address?.country ?? null,
     address2City: address?.city ?? null,
     address2Subcity: address?.subcity ?? null,
-    address2Woreda: address?.woreda ?? null,
     address2ExactPlace: address?.exactPlace ?? null,
   };
 }

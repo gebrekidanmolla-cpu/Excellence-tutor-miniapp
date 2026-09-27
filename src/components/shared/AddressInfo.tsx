@@ -19,7 +19,6 @@ function AddressGrid({ address }: { address: Address }) {
       />
       <InfoItem label={ADDRESS_FIELD_LABELS.city} value={address.city} />
       <InfoItem label={ADDRESS_FIELD_LABELS.subcity} value={address.subcity} />
-      <InfoItem label={ADDRESS_FIELD_LABELS.woreda} value={address.woreda} />
       <InfoItem
         label={ADDRESS_FIELD_LABELS.exactPlace}
         value={address.exactPlace}

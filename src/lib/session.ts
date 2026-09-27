@@ -210,12 +210,10 @@ export async function getCurrentTutor() {
         country: true,
         city: true,
         subcity: true,
-        woreda: true,
         exactPlace: true,
         address2Country: true,
         address2City: true,
         address2Subcity: true,
-        address2Woreda: true,
         address2ExactPlace: true,
 
         aboutMe: true,

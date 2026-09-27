@@ -233,8 +233,7 @@ export async function POST(
 
     const addressResult = readAddress(
       (key) => formData.get(key),
-      "",
-      { requireWoreda: true }
+      ""
     );
 
     // The second address is optional: absent entirely, or complete.
@@ -250,8 +249,7 @@ export async function POST(
       hasSecondAddress
         ? readAddress(
             (key) => formData.get(key),
-            "address2",
-            { requireWoreda: true }
+            "address2"
           )
         : null;
 
@@ -1098,7 +1096,6 @@ export async function POST(
           country: address.country,
           city: address.city,
           subcity: address.subcity,
-          woreda: address.woreda,
           exactPlace: address.exactPlace,
           ...secondAddressColumns(
             secondAddress

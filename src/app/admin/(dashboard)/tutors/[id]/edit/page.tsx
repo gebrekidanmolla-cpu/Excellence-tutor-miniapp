@@ -55,7 +55,6 @@ export default async function EditTutorPage({ params }: PageProps) {
             country: tutor.country,
             city: tutor.city,
             subcity: tutor.subcity,
-            woreda: tutor.woreda,
             exactPlace: tutor.exactPlace,
           },
           secondAddress: secondAddressOf(tutor),
