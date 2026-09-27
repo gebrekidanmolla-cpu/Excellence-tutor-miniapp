@@ -13,6 +13,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getObjectContentType } from "@/lib/r2";
 import {
+  PROFILE_TOKEN_PATTERN,
   profileDocumentPath,
   type PublicProfileDocument,
 } from "@/lib/tutor-profile";
@@ -20,7 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Wordmark } from "@/components/layout/Wordmark";
-import { PublicFooter } from "@/components/layout/PublicFooter";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
 import { formatDate, formatEnum } from "@/lib/format";
 
@@ -45,9 +45,18 @@ export const metadata: Metadata = {
  * The profile an admin sends to parents (see `src/lib/tutor-profile.ts`).
  * Contact details, the exact address and the government ID are left out on
  * purpose: parents reach the tutor through the agency.
+ *
+ * It links nowhere else on the site — no nav, no tutor-facing footer — since
+ * on the parent subdomain every other path is a 404 (see `src/proxy.ts`).
  */
 export default async function TutorProfilePage({ params }: PageProps) {
   const { token } = await params;
+
+  // `src/proxy.ts` rewrites every non-token path on the parent subdomain
+  // here, so reject malformed tokens without a database round-trip.
+  if (!PROFILE_TOKEN_PATTERN.test(token)) {
+    notFound();
+  }
 
   const tutor = await prisma.tutor.findUnique({
     where: {
@@ -106,7 +115,7 @@ export default async function TutorProfilePage({ params }: PageProps) {
     <>
       <header className="border-b bg-background">
         <div className="mx-auto flex h-16 max-w-3xl items-center px-4 sm:px-6">
-          <Wordmark />
+          <Wordmark href={null} />
         </div>
       </header>
 
@@ -288,7 +297,11 @@ export default async function TutorProfilePage({ params }: PageProps) {
         </div>
       </main>
 
-      <PublicFooter />
+      <footer className="border-t">
+        <div className="mx-auto max-w-3xl px-4 py-5 text-xs text-muted-foreground sm:px-6">
+          © {new Date().getFullYear()} Excellence Tutor
+        </div>
+      </footer>
     </>
   );
 }

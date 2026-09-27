@@ -14,8 +14,8 @@ import {
  *   sends is short and does not look like part of the main site.
  * - `/api/tutor-profile/...` passes through — the profile page loads its
  *   document images from there with relative URLs.
- * - Everything else redirects to the same path on the main site, so the
- *   subdomain never shows the tutor portal, admin or registration.
+ * - Everything else, `/` included, is a 404 — the subdomain exists only for
+ *   profile links and never shows the landing page, tutor portal or admin.
  *
  * Requests to any other host pass through untouched. With the env var
  * unset (local development) this does nothing at all.
@@ -54,14 +54,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(`/${longForm[1]}`, parentOrigin));
   }
 
-  const mainSite = process.env.NEXT_PUBLIC_APP_URL?.trim();
-
-  if (!mainSite) {
-    return new NextResponse("Not found", { status: 404 });
-  }
-
-  return NextResponse.redirect(
-    new URL(`${pathname}${request.nextUrl.search}`, mainSite)
+  // Anything else — `/` included — is a 404, rendered by the profile route's
+  // own not-found page, which speaks to parents and links nowhere. The
+  // placeholder fails the token check there before touching the database.
+  return NextResponse.rewrite(
+    new URL(profileSharePath("not-found"), request.url)
   );
 }
 
