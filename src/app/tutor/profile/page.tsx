@@ -6,7 +6,6 @@ import {
   FileText,
   GraduationCap,
   Mail,
-  MapPin,
   Phone,
   UserRound,
   X,
@@ -18,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
+import { AddressInfo } from "@/components/shared/AddressInfo";
 import { formatDate, formatEnum } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -113,11 +113,9 @@ export default async function TutorProfilePage() {
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
         <h2 className="font-heading font-medium">Location</h2>
 
-        <InfoGrid className="mt-5" columns={3}>
-          <InfoItem label="City" value={tutor.city} icon={<MapPin />} />
-          <InfoItem label="Subcity" value={tutor.subcity} />
-          <InfoItem label="Exact place" value={tutor.exactPlace} />
-        </InfoGrid>
+        <div className="mt-5">
+          <AddressInfo tutor={tutor} />
+        </div>
 
         {tutor.aboutMe ? (
           <>

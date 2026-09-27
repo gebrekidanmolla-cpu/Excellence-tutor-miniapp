@@ -39,9 +39,9 @@ interface PageProps {
 }
 
 /**
- * The public entry point: `src/lib/job-post.ts` puts `/apply/<jobCode>` in
- * every Telegram post, so this page is reached by people who may not have an
- * account yet. It's also where "View details" on `/jobs` now sends signed-in
+ * The public entry point: `src/lib/telegram-post.ts` puts `/apply/<jobCode>`
+ * behind every Telegram post's button, so this page is reached by people who
+ * may not have an account yet. It's also where "View details" on `/jobs` now sends signed-in
  * tutors directly — there is no separate job-detail page, so this page owns
  * both showing the job and letting a tutor act on it in one visit.
  *

@@ -6,7 +6,6 @@ import {
   ExternalLink,
   FileText,
   Mail,
-  MapPin,
   Phone,
   Send,
   UserRound,
@@ -20,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
+import { AddressInfo } from "@/components/shared/AddressInfo";
 import { CopyButton } from "@/components/shared/CopyButton";
 import StatusActions from "@/components/admin/StatusActions";
 import {
@@ -193,11 +193,7 @@ export default async function ApplicationDetailsPage({
 
         <Separator className="my-5" />
 
-        <InfoGrid columns={3}>
-          <InfoItem label="City" value={tutor.city} icon={<MapPin />} />
-          <InfoItem label="Subcity" value={tutor.subcity} />
-          <InfoItem label="Exact place" value={tutor.exactPlace} />
-        </InfoGrid>
+        <AddressInfo tutor={tutor} />
 
         {tutor.aboutMe ? (
           <>

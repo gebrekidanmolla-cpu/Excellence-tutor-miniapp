@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Info } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+import { secondAddressOf } from "@/lib/address";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageHeader } from "@/components/shared/PageHeader";
 import TutorEditForm from "./TutorEditForm";
@@ -50,9 +51,14 @@ export default async function EditTutorPage({ params }: PageProps) {
           gender: tutor.gender,
           email: tutor.email,
           phone: tutor.phone,
-          city: tutor.city,
-          subcity: tutor.subcity,
-          exactPlace: tutor.exactPlace,
+          address: {
+            country: tutor.country,
+            city: tutor.city,
+            subcity: tutor.subcity,
+            woreda: tutor.woreda,
+            exactPlace: tutor.exactPlace,
+          },
+          secondAddress: secondAddressOf(tutor),
           aboutMe: tutor.aboutMe ?? "",
           tutorStatus: tutor.tutorStatus,
           university: tutor.university ?? "",
