@@ -28,10 +28,10 @@ export type GalleryDocument = {
 };
 
 /**
- * Thumbnail grid with a lightbox for the public tutor profile. Images step
- * through with the arrow buttons or the keyboard; a PDF (only ever the CV)
- * cannot be previewed reliably on phones, so its card opens it in a new tab
- * instead.
+ * The public tutor profile's documents, each shown whole on the page, with a
+ * lightbox for a closer look that steps through with the arrow buttons or the
+ * keyboard. A PDF (only ever the CV) cannot be previewed reliably on phones,
+ * so its card opens it in a new tab instead.
  *
  * Plain <img>s throughout: `next/image` would copy these private documents
  * into the optimizer's cache, where they would outlive a revoked link.
@@ -59,7 +59,9 @@ export function DocumentGallery({
 
   return (
     <>
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Masonry columns: every document is shown whole at its own aspect
+          ratio, so nothing is cropped and tall scans don't stretch a row. */}
+      <ul className="columns-1 gap-5 lg:columns-2 [&>li]:mb-5 [&>li]:break-inside-avoid">
         {documents.map((document) => (
           <li key={document.id}>
             {document.kind === "image" ? (
@@ -70,49 +72,53 @@ export function DocumentGallery({
                     images.findIndex((image) => image.id === document.id)
                   )
                 }
-                className="group block w-full overflow-hidden rounded-2xl bg-card text-left ring-1 ring-foreground/10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/10 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="group block w-full overflow-hidden rounded-2xl bg-card text-left ring-1 ring-foreground/10 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none"
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                <CardLabel
+                  document={document}
+                  action={
+                    <>
+                      <Maximize2 className="size-3" aria-hidden="true" />
+                      <span className="sr-only min-[400px]:not-sr-only">
+                        Enlarge
+                      </span>
+                    </>
+                  }
+                />
+
+                <div className="border-t bg-muted/60 p-2 sm:p-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={document.href}
-                    alt=""
+                    alt={document.title}
                     loading="lazy"
-                    className="size-full object-cover object-top transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                    className="mx-auto block h-auto min-h-32 w-full rounded-lg bg-muted object-contain"
                   />
-
-                  <div className="absolute inset-0 bg-gradient-to-t from-foreground/55 via-foreground/0 to-foreground/0 opacity-70 transition-opacity group-hover:opacity-100" />
-
-                  <span className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1 text-xs font-medium shadow-sm backdrop-blur-sm">
-                    <Maximize2 className="size-3" aria-hidden="true" />
-                    View
-                  </span>
                 </div>
-
-                <CardLabel document={document} />
               </button>
             ) : (
               <a
                 href={document.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group block overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/10 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="group block overflow-hidden rounded-2xl bg-gradient-to-br from-primary/[0.07] via-card to-highlight/10 ring-1 ring-foreground/10 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none"
               >
-                <div className="relative flex aspect-[4/3] flex-col items-center justify-center gap-3 overflow-hidden bg-gradient-to-br from-primary/10 via-muted to-highlight/15">
-                  <span className="flex size-16 items-center justify-center rounded-2xl bg-card text-primary shadow-md ring-1 ring-foreground/5 transition-transform duration-300 group-hover:scale-110 motion-reduce:group-hover:scale-100">
-                    <FileText className="size-7" aria-hidden="true" />
-                  </span>
-                  <span className="rounded-full bg-card/80 px-2.5 py-0.5 font-mono text-[0.6875rem] font-medium tracking-wider text-muted-foreground uppercase">
-                    PDF
-                  </span>
-
-                  <span className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1 text-xs font-medium shadow-sm">
-                    <ExternalLink className="size-3" aria-hidden="true" />
-                    Open
-                  </span>
-                </div>
-
-                <CardLabel document={document} />
+                <CardLabel
+                  document={document}
+                  icon={
+                    <span className="font-mono text-[0.625rem] font-semibold tracking-wider">
+                      PDF
+                    </span>
+                  }
+                  action={
+                    <>
+                      <ExternalLink className="size-3" aria-hidden="true" />
+                      <span className="sr-only min-[400px]:not-sr-only">
+                        Open
+                      </span>
+                    </>
+                  }
+                />
               </a>
             )}
           </li>
@@ -185,22 +191,34 @@ export function DocumentGallery({
   );
 }
 
-function CardLabel({ document }: { document: GalleryDocument }) {
+function CardLabel({
+  document,
+  icon,
+  action,
+}: {
+  document: GalleryDocument;
+  icon?: React.ReactNode;
+  action: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center gap-3 p-4">
+    <div className="flex items-center gap-3 p-3 sm:p-4">
       <span
         aria-hidden="true"
-        className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+        className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
       >
-        <FileText className="size-4" />
+        {icon ?? <FileText className="size-4" />}
       </span>
 
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{document.title}</p>
         <p className="truncate text-xs text-muted-foreground">
           {document.caption}
         </p>
       </div>
+
+      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1.5 text-xs min-[400px]:px-3 min-[400px]:py-1 font-medium text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+        {action}
+      </span>
     </div>
   );
 }

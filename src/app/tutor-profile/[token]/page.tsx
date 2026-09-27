@@ -280,8 +280,8 @@ export default async function TutorProfilePage({ params }: PageProps) {
         {/* -----------------------------------------------------
             HIGHLIGHTS
         ----------------------------------------------------- */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-          <StatCard delay="delay-150" className="col-span-2 sm:col-span-1">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+          <StatCard delay="delay-150" className="col-span-2 lg:col-span-1">
             <div className="flex items-center gap-4">
               <ScoreRing percentage={tutor.entrancePercentage} />
               <div className="min-w-0">
@@ -448,7 +448,7 @@ export default async function TutorProfilePage({ params }: PageProps) {
                   </span>
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Tap any document to view it full size.
+                  Tap a document to enlarge it.
                 </p>
               </div>
               <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary tabular-nums">
