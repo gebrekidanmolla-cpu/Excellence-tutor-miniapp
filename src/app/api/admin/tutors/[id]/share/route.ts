@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
 import { randomBytes } from "node:crypto";
+import { newProfileShareExpiry } from "@/lib/tutor-profile-server";
 
 type RouteContext = {
   params: Promise<{
@@ -13,8 +14,9 @@ type RouteContext = {
 // POST — create the public profile link, or replace it
 // =====================================================
 //
-// Always issues a fresh token, so the same call serves "Create link"
-// and "Reset link": any link sent out before stops working.
+// Always issues a fresh token with a fresh 30-day expiry, so the same
+// call serves "Create link", "Reset link" and renewing an expired one:
+// any link sent out before stops working.
 //
 // =====================================================
 
@@ -39,15 +41,19 @@ export async function POST(
       data: {
         profileShareToken:
           randomBytes(32).toString("base64url"),
+        profileShareExpiresAt:
+          newProfileShareExpiry(),
       },
       select: {
         profileShareToken: true,
+        profileShareExpiresAt: true,
       },
     });
 
     return NextResponse.json({
       success: true,
       token: tutor.profileShareToken,
+      expiresAt: tutor.profileShareExpiresAt,
     });
   } catch (error) {
     if (
@@ -93,7 +99,10 @@ export async function DELETE(
   try {
     const result = await prisma.tutor.updateMany({
       where: { id },
-      data: { profileShareToken: null },
+      data: {
+        profileShareToken: null,
+        profileShareExpiresAt: null,
+      },
     });
 
     if (result.count === 0) {

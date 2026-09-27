@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getSignedDownloadUrl } from "@/lib/r2";
+import { findSharedTutor } from "@/lib/tutor-profile-server";
 import {
   isPublicProfileDocument,
   PUBLIC_PROFILE_DOCUMENTS,
@@ -15,8 +15,8 @@ type RouteContext = {
 
 /**
  * The public counterpart of `/api/admin/tutors/[id]/documents/[document]`:
- * the share token stands in for the admin session, and the government ID
- * is not on the allowlist. 302s to a 10-minute presigned GET, so the
+ * a live (unexpired, unrevoked) share token stands in for the admin
+ * session. 302s to a 10-minute presigned GET, so the
  * `<img>` tags on `/tutor-profile/[token]` keep working however long the
  * page stays open — each load re-signs.
  */
@@ -34,14 +34,12 @@ export async function GET(
   }
 
   try {
-    const tutor = await prisma.tutor.findUnique({
-      where: { profileShareToken: token },
-      select: {
-        transcriptUrl: true,
-        entranceResultUrl: true,
-        graduationDocumentUrl: true,
-        cvUrl: true,
-      },
+    const tutor = await findSharedTutor(token, {
+      transcriptUrl: true,
+      entranceResultUrl: true,
+      graduationDocumentUrl: true,
+      governmentIdUrl: true,
+      cvUrl: true,
     });
 
     const key =

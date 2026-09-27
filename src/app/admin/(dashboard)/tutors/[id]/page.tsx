@@ -28,6 +28,7 @@ import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import DeleteTutorButton from "@/components/admin/DeleteTutorButton";
 import TutorShareLink from "@/components/admin/TutorShareLink";
 import { profileShareLinkBase } from "@/lib/tutor-profile";
+import { isProfileShareExpired } from "@/lib/tutor-profile-server";
 import {
   formatDate,
   formatEnum,
@@ -238,14 +239,21 @@ export default async function TutorDetailsPage({ params }: PageProps) {
 
         <p className="mt-0.5 mb-5 text-sm text-muted-foreground text-pretty">
           A page you can send to parents: education, entrance result, and the
-          transcript, entrance result, graduation document and CV. It leaves
-          out the tutor&apos;s phone, email, exact address and government ID.
-          Anyone with the link can open it.
+          transcript, entrance result, graduation document, government ID and
+          CV. It leaves out the tutor&apos;s phone, email and exact address.
+          Anyone with the link can open it until it expires, 30 days after it
+          is created or reset.
         </p>
 
         <TutorShareLink
           tutorId={tutor.id}
           initialToken={tutor.profileShareToken}
+          initialExpiresAt={
+            tutor.profileShareExpiresAt?.toISOString() ?? null
+          }
+          initialExpired={isProfileShareExpired(
+            tutor.profileShareExpiresAt
+          )}
           linkBase={profileShareLinkBase(origin)}
         />
       </section>

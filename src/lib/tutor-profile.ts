@@ -6,11 +6,13 @@
 // candidate. Anyone holding the link can read it, so the token is 32
 // random bytes stored on the row (`Tutor.profileShareToken`), never
 // anything derived from the tutor's id — regenerating or clearing it is
-// how a link is revoked.
+// how a link is revoked. Every link also expires on its own
+// `PROFILE_LINK_LIFETIME_DAYS` after it was created or reset
+// (`Tutor.profileShareExpiresAt`).
 //
-// The page deliberately leaves out the tutor's contact details, exact
-// address and government ID: parents go through the agency, and the ID
-// is not something a parent needs to see.
+// The page shows the tutor's documents, government ID included, but
+// leaves out their contact details and exact address: parents reach the
+// tutor through the agency.
 //
 // With `PARENT_PROFILE_URL` set (production: the parent subdomain), the
 // link an admin copies is `<that origin>/<token>` instead, and
@@ -19,15 +21,19 @@
 //
 // Imported by client components too, so nothing server-only at module
 // level — the token itself is minted in
-// `api/admin/tutors/[id]/share/route.ts`.
+// `api/admin/tutors/[id]/share/route.ts`, and the database lookup lives
+// in `tutor-profile-server.ts`.
 //
 // ==========================================
+
+export const PROFILE_LINK_LIFETIME_DAYS = 30;
 
 /** Only these documents are reachable through a public link. */
 export const PUBLIC_PROFILE_DOCUMENTS = {
   transcript: "transcriptUrl",
   entranceResult: "entranceResultUrl",
   graduationDocument: "graduationDocumentUrl",
+  governmentId: "governmentIdUrl",
   cv: "cvUrl",
 } as const;
 
