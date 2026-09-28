@@ -1,42 +1,31 @@
 import { z } from "zod";
 
 import { DEFAULT_CITY, DEFAULT_COUNTRY } from "@/lib/address";
+import {
+  TOTAL_UPLOAD_MAX_SIZE,
+  documentRules,
+  formatMegabytes,
+} from "@/lib/document-rules";
+import { ETHIOPIAN_LOCAL_PHONE_PATTERN } from "@/lib/phone";
+
+/*
+ * Shared by the wizard and `POST /api/auth/register`, which parses its
+ * multipart body with this same schema — a rule changed here changes on both
+ * sides. Keep this module free of browser-only and server-only APIs.
+ */
 
 /* =========================================================
-   FILE CONSTRAINTS
+   FILES
 
-   These mirror `src/lib/upload-document.ts`, which enforces
-   the same limits server-side. Changing one without the
-   other lets a file pass here and fail at upload.
+   Size and type rules live in `src/lib/document-rules.ts`,
+   which the server enforces too.
 ========================================================= */
 
-export const DOCUMENT_MAX_SIZE = 2 * 1024 * 1024; // 2 MB
-export const CV_MAX_SIZE = 3 * 1024 * 1024; // 3 MB
-
-/**
- * Every document travels in one request, and Vercel rejects function
- * request bodies over 4.5 MB before the route ever runs. 4 MB of files
- * leaves room for the text fields and multipart overhead. Per-file limits
- * alone can't guarantee this — four 2 MB documents plus a CV would pass
- * each check individually.
- */
-export const TOTAL_UPLOAD_MAX_SIZE = 4 * 1024 * 1024; // 4 MB
-
-export const DOCUMENT_ACCEPT = ".jpg,.jpeg,.png,.webp";
-export const CV_ACCEPT = ".jpg,.jpeg,.png,.webp,.pdf";
-
-export const ALLOWED_DOCUMENT_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-];
-
-export const ALLOWED_CV_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-];
+export {
+  CV_ACCEPT,
+  DOCUMENT_ACCEPT,
+  TOTAL_UPLOAD_MAX_SIZE,
+} from "@/lib/document-rules";
 
 export type FileField =
   | "transcript"
@@ -55,25 +44,51 @@ export const EMPTY_FILES: FileState = {
   cv: null,
 };
 
+export const FILE_FIELDS = Object.keys(EMPTY_FILES) as FileField[];
+
+export function isFileField(field: string): field is FileField {
+  return (FILE_FIELDS as string[]).includes(field);
+}
+
+/** Display labels, shared by the form and the server's error messages. */
+export const FILE_LABELS: Record<FileField, string> = {
+  transcript: "Transcript",
+  entranceResult: "Entrance result",
+  governmentId: "Government ID",
+  graduationDocument: "Graduation document",
+  cv: "CV",
+};
+
+export function isDocumentRequired(
+  field: FileField,
+  tutorStatus: string
+): boolean {
+  if (field === "cv") {
+    return false;
+  }
+
+  return field !== "graduationDocument" || tutorStatus === "GRADUATE";
+}
+
 /**
  * Files stay outside the Zod schema: `File` does not exist while the client
  * component is server-rendered, and `z.instanceof(File)` at module scope would
- * evaluate there. The rules are identical to the previous inline version.
+ * evaluate there.
  */
-export function validateFile(
+export function validateDocument(
+  field: FileField,
   file: File | null,
-  options: {
-    required?: boolean;
-    maxSize: number;
-    allowedTypes: string[];
-    typeLabel: string;
-  }
+  tutorStatus: string
 ): string {
-  const { required = false, maxSize, allowedTypes, typeLabel } = options;
-
   if (!file) {
-    return required ? "This document is required." : "";
+    return isDocumentRequired(field, tutorStatus)
+      ? "This document is required."
+      : "";
   }
+
+  const { maxSize, allowedTypes, typeLabel } = documentRules(
+    field === "cv" ? "cv" : "document"
+  );
 
   if (file.size <= 0) {
     return "The selected file is empty.";
@@ -84,33 +99,10 @@ export function validateFile(
   }
 
   if (file.size > maxSize) {
-    return `File must be ${maxSize / (1024 * 1024)}MB or smaller.`;
+    return `File must be ${formatMegabytes(maxSize, 0)} or smaller.`;
   }
 
   return "";
-}
-
-export function validateDocument(
-  field: FileField,
-  file: File | null,
-  tutorStatus: string
-): string {
-  const isCv = field === "cv";
-
-  const required =
-    field === "transcript" ||
-    field === "entranceResult" ||
-    field === "governmentId" ||
-    (field === "graduationDocument" && tutorStatus === "GRADUATE");
-
-  return validateFile(file, {
-    required,
-    maxSize: isCv ? CV_MAX_SIZE : DOCUMENT_MAX_SIZE,
-    allowedTypes: isCv ? ALLOWED_CV_TYPES : ALLOWED_DOCUMENT_TYPES,
-    typeLabel: isCv
-      ? "an image or PDF file"
-      : "a JPG, JPEG, PNG, or WEBP image",
-  });
 }
 
 /** The files that will actually be sent for this tutor status. */
@@ -118,7 +110,7 @@ export function filesToSend(
   files: FileState,
   tutorStatus: string
 ): [FileField, File][] {
-  return (Object.keys(files) as FileField[]).flatMap((field) => {
+  return FILE_FIELDS.flatMap((field) => {
     const file = files[field];
 
     if (!file) {
@@ -133,24 +125,27 @@ export function filesToSend(
   });
 }
 
+export function totalUploadSize(files: FileState, tutorStatus: string): number {
+  return filesToSend(files, tutorStatus).reduce(
+    (sum, [, file]) => sum + file.size,
+    0
+  );
+}
+
 export function validateTotalUploadSize(
   files: FileState,
   tutorStatus: string
 ): string {
-  const total = filesToSend(files, tutorStatus).reduce(
-    (sum, [, file]) => sum + file.size,
-    0
-  );
+  const total = totalUploadSize(files, tutorStatus);
 
   if (total <= TOTAL_UPLOAD_MAX_SIZE) {
     return "";
   }
 
-  const totalMb = (total / (1024 * 1024)).toFixed(1);
-
-  return `Your documents add up to ${totalMb}MB, but the limit is ${
-    TOTAL_UPLOAD_MAX_SIZE / (1024 * 1024)
-  }MB in total. Please upload smaller files (for example, a compressed CV or clearer cropped photos).`;
+  return `Your documents add up to ${formatMegabytes(total)}, but the limit is ${formatMegabytes(
+    TOTAL_UPLOAD_MAX_SIZE,
+    0
+  )} in total. Please upload smaller files (for example, a compressed CV or clearer cropped photos).`;
 }
 
 /* =========================================================
@@ -195,12 +190,29 @@ export const ENTRANCE_TOTAL_OPTIONS = [
 ========================================================= */
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ETHIOPIAN_PHONE_PATTERN = /^[79]\d{8}$/;
+
+export const NAME_MAX_LENGTH = 100;
+export const TEXT_MAX_LENGTH = 120;
+export const ABOUT_ME_MAX_LENGTH = 500;
+
+/** bcrypt ignores everything past 72 bytes, so a longer password is a lie. */
+const PASSWORD_MAX_BYTES = 72;
+
+function text(label: string) {
+  return z
+    .string()
+    .trim()
+    .max(TEXT_MAX_LENGTH, `${label} must be ${TEXT_MAX_LENGTH} characters or fewer.`);
+}
+
+function requiredText(label: string, message: string) {
+  return text(label).min(1, message);
+}
 
 function gpaIssue(value: string): boolean {
   const parsed = Number(value);
 
-  return !Number.isFinite(parsed) || parsed < 0 || parsed > 4;
+  return value.trim() === "" || !Number.isFinite(parsed) || parsed < 0 || parsed > 4;
 }
 
 export const registerSchema = z
@@ -209,57 +221,70 @@ export const registerSchema = z
     fullName: z
       .string()
       .trim()
-      .min(2, "Please enter your full name."),
+      .min(2, "Please enter your full name.")
+      .max(
+        NAME_MAX_LENGTH,
+        `Full name must be ${NAME_MAX_LENGTH} characters or fewer.`
+      ),
     email: z
       .string()
       .trim()
       .min(1, "Please enter your email address.")
+      .max(254, "Please enter a valid email address.")
       .regex(EMAIL_PATTERN, "Please enter a valid email address."),
     phone: z
       .string()
       .regex(
-        ETHIOPIAN_PHONE_PATTERN,
+        ETHIOPIAN_LOCAL_PHONE_PATTERN,
         "Please enter a valid Ethiopian mobile number."
       ),
     password: z
       .string()
-      .min(8, "Password must contain at least 8 characters."),
+      .min(8, "Password must contain at least 8 characters.")
+      .refine(
+        (value) => new TextEncoder().encode(value).length <= PASSWORD_MAX_BYTES,
+        "Password must be 72 characters or fewer."
+      ),
     confirmPassword: z.string(),
 
     /* Personal */
     gender: z.enum(["MALE", "FEMALE"], {
       message: "Please select your gender.",
     }),
-    country: z.string().trim().min(1, "Please enter your country."),
-    city: z.string().trim().min(1, "Please enter your city or region."),
-    subcity: z.string().trim().min(1, "Please enter your sub-city or zone."),
-    exactPlace: z.string().trim().min(1, "Please enter your specific area."),
+    country: requiredText("Country", "Please enter your country."),
+    city: requiredText("City", "Please enter your city or region."),
+    subcity: requiredText("Sub-city", "Please enter your sub-city or zone."),
+    exactPlace: requiredText("Specific area", "Please enter your specific area."),
 
-    /* Optional second address — only validated when switched on. */
+    /* Optional second address — only required when switched on. */
     hasSecondAddress: z.boolean(),
-    address2Country: z.string(),
-    address2City: z.string(),
-    address2Subcity: z.string(),
-    address2ExactPlace: z.string(),
+    address2Country: text("Country"),
+    address2City: text("City"),
+    address2Subcity: text("Sub-city"),
+    address2ExactPlace: text("Specific area"),
     aboutMe: z
       .string()
-      .max(500, "About Me must be 500 characters or fewer."),
+      .trim()
+      .max(
+        ABOUT_ME_MAX_LENGTH,
+        `About Me must be ${ABOUT_ME_MAX_LENGTH} characters or fewer.`
+      ),
     tutorStatus: z.enum(["STUDENT", "GRADUATE"], {
       message: "Please select your current status.",
     }),
 
     /* Student */
-    university: z.string(),
-    department: z.string(),
+    university: text("University"),
+    department: text("Department"),
     currentYear: z.string(),
-    currentGPA: z.string(),
+    currentGPA: z.string().trim(),
 
     /* Graduate */
-    fieldOfGraduation: z.string(),
-    universityGraduatedFrom: z.string(),
-    CGPA: z.string(),
+    fieldOfGraduation: text("Field of graduation"),
+    universityGraduatedFrom: text("University"),
+    CGPA: z.string().trim(),
     employmentStatus: z.string(),
-    currentJob: z.string(),
+    currentJob: text("Current job"),
 
     /* Entrance */
     entranceScore: z
@@ -317,7 +342,11 @@ export const registerSchema = z
         });
       }
 
-      if (!values.currentYear) {
+      if (
+        !CURRENT_YEAR_OPTIONS.some(
+          (option) => option.value === values.currentYear
+        )
+      ) {
         ctx.addIssue({
           code: "custom",
           path: ["currentYear"],
@@ -360,8 +389,8 @@ export const registerSchema = z
       }
 
       if (
-        !["EMPLOYED", "SELF_EMPLOYED", "UNEMPLOYED", "OTHER"].includes(
-          values.employmentStatus
+        !EMPLOYMENT_STATUS_OPTIONS.some(
+          (option) => option.value === values.employmentStatus
         )
       ) {
         ctx.addIssue({
@@ -411,6 +440,7 @@ export const registerSchema = z
   });
 
 export type RegisterValues = z.input<typeof registerSchema>;
+export type ParsedRegisterValues = z.output<typeof registerSchema>;
 
 export const DEFAULT_VALUES: RegisterValues = {
   fullName: "",
@@ -449,11 +479,15 @@ export const DEFAULT_VALUES: RegisterValues = {
 ========================================================= */
 
 export const STEPS = [
-  { id: 1, label: "Account" },
-  { id: 2, label: "Personal" },
-  { id: 3, label: "Education" },
-  { id: 4, label: "Entrance & Documents" },
-  { id: 5, label: "Confirmation" },
+  { id: 1, label: "Account", description: "Email, phone and password" },
+  { id: 2, label: "Personal", description: "About you and where you live" },
+  { id: 3, label: "Education", description: "Your studies or degree" },
+  {
+    id: 4,
+    label: "Entrance & Documents",
+    description: "Exam result and uploads",
+  },
+  { id: 5, label: "Confirmation", description: "Review and submit" },
 ] as const;
 
 export type Step = 1 | 2 | 3 | 4 | 5;
@@ -489,24 +523,89 @@ export const STEP_FIELDS: Record<Step, (keyof RegisterValues)[]> = {
   5: ["confirmation"],
 };
 
+/** The step that owns a form or file field — where to send the tutor back. */
+export function stepOfField(field: string): Step | null {
+  if (isFileField(field)) {
+    return 4;
+  }
+
+  for (const [step, fields] of Object.entries(STEP_FIELDS)) {
+    if ((fields as string[]).includes(field)) {
+      return Number(step) as Step;
+    }
+  }
+
+  return null;
+}
+
 /* =========================================================
-   PHONE
+   DRAFT
+
+   Saved to sessionStorage so a reload or an accidental back
+   navigation doesn't wipe the form. Passwords and the
+   confirmation tick are never saved and files can't be, so a
+   restored draft always reopens at step 1 — continuing through
+   the filled-in steps is quick.
 ========================================================= */
 
-/**
- * The user types only the 9 digits after +251. Strips a leading country code
- * or trunk zero so a pasted `+251912345678` or `0912345678` still works.
- */
-export function normalizeEthiopianPhone(value: string): string {
-  let digits = value.replace(/\D/g, "");
+export const DRAFT_STORAGE_KEY = "register-draft-v1";
 
-  if (digits.startsWith("251")) {
-    digits = digits.slice(3);
+const DRAFT_EXCLUDED: (keyof RegisterValues)[] = [
+  "password",
+  "confirmPassword",
+  "confirmation",
+];
+
+export type RegisterDraft = {
+  values: Partial<RegisterValues>;
+  /**
+   * The address the tutor verified, so a reload doesn't ask for a new code.
+   * Only a UI hint — the register route checks verification itself.
+   */
+  verifiedEmail: string | null;
+};
+
+export function toDraft(
+  values: RegisterValues,
+  verifiedEmail: string | null
+): RegisterDraft {
+  const saved: Partial<RegisterValues> = { ...values };
+
+  for (const key of DRAFT_EXCLUDED) {
+    delete saved[key];
   }
 
-  if (digits.startsWith("0")) {
-    digits = digits.slice(1);
+  return { values: saved, verifiedEmail };
+}
+
+/** Parses a stored draft, ignoring anything that isn't a known field. */
+export function fromDraft(raw: string | null): RegisterDraft | null {
+  if (!raw) {
+    return null;
   }
 
-  return digits.slice(0, 9);
+  try {
+    const parsed = JSON.parse(raw) as Partial<RegisterDraft>;
+    const values: Record<string, unknown> = {};
+
+    for (const key of Object.keys(DEFAULT_VALUES) as (keyof RegisterValues)[]) {
+      if (DRAFT_EXCLUDED.includes(key)) {
+        continue;
+      }
+
+      const value = parsed.values?.[key];
+
+      if (typeof value === typeof DEFAULT_VALUES[key]) {
+        values[key] = value;
+      }
+    }
+
+    return {
+      values: values as Partial<RegisterValues>,
+      verifiedEmail:
+        typeof parsed.verifiedEmail === "string" ? parsed.verifiedEmail : null,
+    };
+  } catch {
+    return null;
+  }
 }

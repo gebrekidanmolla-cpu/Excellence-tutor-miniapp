@@ -1,83 +1,89 @@
 import { deleteObjects, putObject } from "@/lib/r2";
+import {
+  documentRules,
+  formatMegabytes,
+  type DocumentKind,
+} from "@/lib/document-rules";
 
-const MAX_DOCUMENT_SIZE = 2 * 1024 * 1024; // 2 MB
-const MAX_CV_SIZE = 3 * 1024 * 1024; // 3 MB
+/** A document that failed validation; its message is safe to show the user. */
+export class DocumentError extends Error {}
 
-const IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-];
+export type PreparedDocument = {
+  body: Uint8Array;
+  /** Detected from the bytes, never the browser-supplied `File.type`. */
+  contentType: string;
+};
 
-const CV_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-];
-
-function validateFile(
-  file: File,
-  type: "document" | "cv",
-) {
-  if (!file || file.size === 0) {
-    throw new Error("A file is required.");
-  }
-
-  const maxSize =
-    type === "cv" ? MAX_CV_SIZE : MAX_DOCUMENT_SIZE;
-
-  const maxSizeText =
-    type === "cv" ? "3 MB" : "2 MB";
-
-  if (file.size > maxSize) {
-    throw new Error(
-      `${file.name} is too large. Maximum allowed size is ${maxSizeText}.`,
-    );
-  }
-
-  const allowedTypes =
-    type === "cv" ? CV_TYPES : IMAGE_TYPES;
-
-  if (!allowedTypes.includes(file.type)) {
-    if (type === "cv") {
-      throw new Error(
-        `${file.name} must be an image or PDF.`,
-      );
-    }
-
-    throw new Error(
-      `${file.name} must be a JPG, PNG, or WebP image.`,
-    );
-  }
+function startsWith(bytes: Uint8Array, signature: number[], offset = 0) {
+  return signature.every((byte, index) => bytes[offset + index] === byte);
 }
 
-export async function uploadDocument(
+/** The real type of the file, judged by its leading bytes. */
+function sniffContentType(bytes: Uint8Array): string | null {
+  if (startsWith(bytes, [0xff, 0xd8, 0xff])) {
+    return "image/jpeg";
+  }
+
+  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+    return "image/png";
+  }
+
+  // "RIFF" <size> "WEBP"
+  if (
+    startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) &&
+    startsWith(bytes, [0x57, 0x45, 0x42, 0x50], 8)
+  ) {
+    return "image/webp";
+  }
+
+  // "%PDF-"
+  if (startsWith(bytes, [0x25, 0x50, 0x44, 0x46, 0x2d])) {
+    return "application/pdf";
+  }
+
+  return null;
+}
+
+/**
+ * Validates a submitted file and reads it into memory. Throws `DocumentError`
+ * naming `label` when it is empty, too large, or not actually one of the
+ * allowed types — whatever extension or MIME type it claims.
+ */
+export async function prepareDocument(
   file: File,
-  folder: string,
-  filename: string,
-  type: "document" | "cv" = "document",
-) {
-  validateFile(file, type);
+  kind: DocumentKind,
+  label: string
+): Promise<PreparedDocument> {
+  const { maxSize, allowedTypes, typeLabel } = documentRules(kind);
 
-  const path = `${folder}/${filename}`;
+  if (file.size === 0) {
+    throw new DocumentError(`${label}: the selected file is empty.`);
+  }
 
-  try {
-    await putObject(
-      path,
-      Buffer.from(await file.arrayBuffer()),
-      file.type,
-    );
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : String(error);
-
-    throw new Error(
-      `Failed to upload ${filename}: ${message}`,
+  if (file.size > maxSize) {
+    throw new DocumentError(
+      `${label} must be ${formatMegabytes(maxSize, 0)} or smaller.`
     );
   }
 
-  return path;
+  const body = new Uint8Array(await file.arrayBuffer());
+  const contentType = sniffContentType(body);
+
+  if (!contentType || !allowedTypes.includes(contentType)) {
+    throw new DocumentError(`${label} must be ${typeLabel}.`);
+  }
+
+  return { body, contentType };
+}
+
+export async function storeDocument(key: string, document: PreparedDocument) {
+  try {
+    await putObject(key, document.body, document.contentType);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    throw new Error(`Failed to upload ${key}: ${message}`);
+  }
 }
 
 export async function deleteDocuments(paths: string[]) {

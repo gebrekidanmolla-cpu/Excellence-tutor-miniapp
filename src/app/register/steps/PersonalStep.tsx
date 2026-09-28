@@ -1,25 +1,38 @@
 "use client";
 
+import { BookOpen, GraduationCap } from "lucide-react";
 import { Controller, useWatch, type UseFormReturn } from "react-hook-form";
 
 import {
   AddAddressButton,
   SecondAddressCard,
 } from "@/components/shared/SecondAddress";
+import { TextAreaField, TextField } from "@/components/shared/FormFields";
+import { ChoiceGroup, type Choice } from "@/app/register/components/ChoiceGroup";
+import { FormSection } from "@/app/register/components/FormSection";
 import {
-  SectionHeading,
-  SelectField,
-  TextAreaField,
-  TextField,
-} from "@/components/shared/FormFields";
-import {
+  ABOUT_ME_MAX_LENGTH,
   GENDER_OPTIONS,
-  TUTOR_STATUS_OPTIONS,
   type RegisterValues,
 } from "@/app/register/schema";
 import { ADDRESS_FIELD_LABELS } from "@/lib/address";
 
 type AddressKey = keyof typeof ADDRESS_FIELD_LABELS;
+
+const TUTOR_STATUS_CHOICES: Choice[] = [
+  {
+    value: "STUDENT",
+    label: "University student",
+    description: "Currently enrolled at a university or college.",
+    icon: BookOpen,
+  },
+  {
+    value: "GRADUATE",
+    label: "Graduate",
+    description: "You have completed your degree.",
+    icon: GraduationCap,
+  },
+];
 
 const ADDRESS_NAMES = {
   primary: {
@@ -67,15 +80,9 @@ function AddressFields({
   );
 
   return (
-    <fieldset className="space-y-5">
-      {/* The second address's visible title is SecondAddressCard's header. */}
-      <legend
-        className={
-          which === "primary"
-            ? "mb-4 font-heading text-sm font-medium"
-            : "sr-only"
-        }
-      >
+    <fieldset className="min-w-0">
+      {/* The visible title is the enclosing section or card header. */}
+      <legend className="sr-only">
         {which === "primary" ? "Address" : "Second address"}
       </legend>
 
@@ -103,78 +110,83 @@ export function PersonalStep({
   const hasSecondAddress = useWatch({ control, name: "hasSecondAddress" });
 
   return (
-    <div className="space-y-6">
-      <SectionHeading
-        title="Personal information"
-        description="Tell us a little about yourself and where you are based."
-      />
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Controller
-          control={control}
-          name="gender"
-          render={({ field }) => (
-            <SelectField
-              id="gender"
-              label="Gender"
-              required
-              options={GENDER_OPTIONS}
-              value={field.value ?? ""}
-              onValueChange={field.onChange}
-              error={errors.gender?.message}
-            />
-          )}
-        />
-
+    <div className="space-y-10">
+      <FormSection title="About you">
         <Controller
           control={control}
           name="tutorStatus"
           render={({ field }) => (
-            <SelectField
-              id="tutorStatus"
-              label="Current status"
+            <ChoiceGroup
+              name="tutorStatus"
+              legend="Which describes you?"
               required
-              options={TUTOR_STATUS_OPTIONS}
+              variant="card"
+              options={TUTOR_STATUS_CHOICES}
               value={field.value ?? ""}
-              onValueChange={(value) => {
+              inputRef={field.ref}
+              onChange={(value) => {
                 field.onChange(value);
                 onTutorStatusChange(value);
               }}
-              error={errors.tutorStatus?.message}
               hint="This decides which education details we ask for next."
+              error={errors.tutorStatus?.message}
             />
           )}
         />
-      </div>
 
-      <AddressFields form={form} which="primary" />
-
-      {hasSecondAddress ? (
-        <SecondAddressCard
-          onRemove={() => {
-            setValue("hasSecondAddress", false);
-            clearErrors(Object.values(ADDRESS_NAMES.second));
-          }}
-        >
-          <AddressFields form={form} which="second" />
-        </SecondAddressCard>
-      ) : (
-        <AddAddressButton
-          onClick={() => setValue("hasSecondAddress", true)}
-          description="For example, a university dorm during the week and your family's home on weekends."
+        <Controller
+          control={control}
+          name="gender"
+          render={({ field }) => (
+            <ChoiceGroup
+              name="gender"
+              legend="Gender"
+              required
+              options={GENDER_OPTIONS}
+              value={field.value ?? ""}
+              inputRef={field.ref}
+              onChange={field.onChange}
+              error={errors.gender?.message}
+            />
+          )}
         />
-      )}
+      </FormSection>
 
-      <TextAreaField
-        id="aboutMe"
-        label="About me"
-        maxLength={500}
-        rows={5}
-        placeholder="Briefly introduce yourself, your strengths, teaching interests, or experience..."
-        error={errors.aboutMe?.message}
-        value={aboutMe}
-        {...register("aboutMe")}
-      />
+      <FormSection
+        title="Where you live"
+        description="Helps us match you with families nearby."
+      >
+        <AddressFields form={form} which="primary" />
+
+        {hasSecondAddress ? (
+          <SecondAddressCard
+            onRemove={() => {
+              setValue("hasSecondAddress", false);
+              clearErrors(Object.values(ADDRESS_NAMES.second));
+            }}
+          >
+            <AddressFields form={form} which="second" />
+          </SecondAddressCard>
+        ) : (
+          <AddAddressButton
+            onClick={() => setValue("hasSecondAddress", true)}
+            description="For example, a university dorm during the week and your family's home on weekends."
+          />
+        )}
+      </FormSection>
+
+      <FormSection title="Introduce yourself">
+        <TextAreaField
+          id="aboutMe"
+          label="About me"
+          maxLength={ABOUT_ME_MAX_LENGTH}
+          rows={5}
+          placeholder="Briefly introduce yourself, your strengths, teaching interests, or experience..."
+          error={errors.aboutMe?.message}
+          value={aboutMe}
+          {...register("aboutMe")}
+        />
+      </FormSection>
     </div>
   );
 }
