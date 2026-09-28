@@ -30,6 +30,7 @@ const LINKS = [
   { href: "/jobs", label: "Find Jobs" },
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/#why-us", label: "Why Us" },
+  { href: "/#faq", label: "FAQ" },
 ];
 
 export function PublicHeader({
@@ -42,16 +43,16 @@ export function PublicHeader({
   const closeDrawer = React.useCallback(() => setOpen(false), []);
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/90 backdrop-blur-sm supports-backdrop-filter:bg-background/75">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+    <header className="header-settle sticky top-0 z-50 border-b bg-background/90 backdrop-blur-md supports-backdrop-filter:bg-background/80">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
         <Wordmark />
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-7 md:flex">
           {LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              className="rounded-sm text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               {link.label}
             </Link>
@@ -77,7 +78,7 @@ export function PublicHeader({
               <Button
                 render={<Link href="/register" />}
                 size="lg"
-                className="hidden sm:inline-flex"
+                className="hidden rounded-md bg-foreground px-4 text-background hover:bg-primary sm:inline-flex"
               >
                 Register
               </Button>

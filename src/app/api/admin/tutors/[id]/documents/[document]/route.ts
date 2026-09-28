@@ -9,6 +9,7 @@ const ALLOWED_DOCUMENTS = {
   graduationDocument: "graduationDocumentUrl",
   cv: "cvUrl",
   governmentId: "governmentIdUrl",
+  profilePhoto: "profilePhotoUrl",
 } as const;
 
 type DocumentType = keyof typeof ALLOWED_DOCUMENTS;

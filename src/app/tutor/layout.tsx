@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { getCurrentTutor } from "@/lib/session";
 import { PortalShell } from "@/components/layout/PortalShell";
+import { tutorFileHref } from "@/lib/tutor-files";
 
 export default async function TutorLayout({
   children,
@@ -15,7 +16,13 @@ export default async function TutorLayout({
   }
 
   return (
-    <PortalShell tutor={{ fullName: tutor.fullName, email: tutor.email }}>
+    <PortalShell
+      tutor={{
+        fullName: tutor.fullName,
+        email: tutor.email,
+        photoUrl: tutorFileHref("photo", tutor.profilePhotoUrl),
+      }}
+    >
       {children}
     </PortalShell>
   );

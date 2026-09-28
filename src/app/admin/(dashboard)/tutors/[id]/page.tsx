@@ -262,7 +262,27 @@ export default async function TutorDetailsPage({ params }: PageProps) {
           ACCOUNT
       ----------------------------------------------------- */}
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
-        <h2 className="font-heading font-medium">Account information</h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-heading font-medium">Account information</h2>
+
+          {tutor.profilePhotoUrl ? (
+            <a
+              href={`/api/admin/tutors/${tutor.id}/documents/profilePhoto`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded-full focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- a 302 to a presigned R2 URL */}
+              <img
+                src={`/api/admin/tutors/${tutor.id}/documents/profilePhoto`}
+                alt={`Profile photo of ${tutor.fullName}`}
+                className="size-14 rounded-full object-cover ring-1 ring-foreground/10"
+              />
+            </a>
+          ) : (
+            <span className="text-xs text-muted-foreground">No profile photo</span>
+          )}
+        </div>
 
         <InfoGrid className="mt-5" columns={3}>
           <InfoItem

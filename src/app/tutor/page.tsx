@@ -2,22 +2,46 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowRight,
+  ArrowUpRight,
+  BookOpen,
   BriefcaseBusiness,
+  CalendarDays,
   CheckCircle2,
   Clock,
+  Eye,
   FileText,
+  GraduationCap,
+  Mail,
   MapPin,
   Sparkles,
   UserRound,
+  Wallet,
 } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentTutor } from "@/lib/session";
 import { Button } from "@/components/ui/button";
-import { StatCard } from "@/components/shared/StatCard";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { formatDate, formatEnum, formatSalary } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { profileStrength } from "@/lib/profile-strength";
+import { tutorFileHref } from "@/lib/tutor-files";
+import { ProfileStrengthNudge } from "@/app/tutor/profile/components/ProfileStrengthCard";
+import {
+  formatDate,
+  formatEnum,
+  formatSalary,
+  getStatusLabel,
+  type ApplicationStatus,
+} from "@/lib/format";
+
+/** Pipeline order and colors, shared by the segmented bar and its legend. */
+const PIPELINE: { status: ApplicationStatus; bar: string }[] = [
+  { status: "PENDING", bar: "bg-warning" },
+  { status: "REVIEWED", bar: "bg-info" },
+  { status: "ACCEPTED", bar: "bg-success" },
+  { status: "REJECTED", bar: "bg-muted-foreground/40" },
+];
 
 export default async function TutorDashboard() {
   const tutor = await getCurrentTutor();
@@ -26,294 +50,270 @@ export default async function TutorDashboard() {
     redirect("/login");
   }
 
-  const [
-    availableJobs,
-    totalApplications,
-    pendingApplications,
-    acceptedApplications,
-  ] = await Promise.all([
-    prisma.job.count({
-      where: {
-        status: "OPEN",
-      },
-    }),
+  const [availableJobs, statusGroups, recentApplications, freshJobs] =
+    await Promise.all([
+      prisma.job.count({ where: { status: "OPEN" } }),
 
-    prisma.application.count({
-      where: {
-        tutorId: tutor.id,
-      },
-    }),
+      prisma.application.groupBy({
+        by: ["status"],
+        where: { tutorId: tutor.id },
+        _count: { _all: true },
+      }),
 
-    prisma.application.count({
-      where: {
-        tutorId: tutor.id,
-        status: "PENDING",
-      },
-    }),
-
-    prisma.application.count({
-      where: {
-        tutorId: tutor.id,
-        status: "ACCEPTED",
-      },
-    }),
-  ]);
-
-  const recentApplications = await prisma.application.findMany({
-    where: {
-      tutorId: tutor.id,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 5,
-    select: {
-      id: true,
-      status: true,
-      createdAt: true,
-      job: {
+      prisma.application.findMany({
+        where: { tutorId: tutor.id },
+        orderBy: { createdAt: "desc" },
+        take: 5,
         select: {
-          jobCode: true,
-          grade: true,
-          subject: true,
-          salary: true,
+          id: true,
+          status: true,
+          createdAt: true,
+          job: {
+            select: {
+              jobCode: true,
+              grade: true,
+              subject: true,
+              salary: true,
+            },
+          },
         },
-      },
-    },
-  });
+      }),
+
+      // Open jobs this tutor has not applied to yet.
+      prisma.job.findMany({
+        where: {
+          status: "OPEN",
+          applications: { none: { tutorId: tutor.id } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+        select: {
+          id: true,
+          jobCode: true,
+          subject: true,
+          grade: true,
+          place: true,
+          salary: true,
+          daysPerWeek: true,
+          hoursPerDay: true,
+        },
+      }),
+    ]);
+
+  const counts = Object.fromEntries(
+    statusGroups.map((group) => [group.status, group._count._all])
+  ) as Partial<Record<ApplicationStatus, number>>;
+
+  const countOf = (status: ApplicationStatus) => counts[status] ?? 0;
+
+  const totalApplications = PIPELINE.reduce(
+    (sum, { status }) => sum + countOf(status),
+    0
+  );
 
   const isStudent = tutor.tutorStatus === "STUDENT";
 
   const affiliation = isStudent
     ? [tutor.university, tutor.department].filter(Boolean).join(" · ")
-    : (tutor.fieldOfGraduation ?? "");
+    : [tutor.fieldOfGraduation, tutor.universityGraduatedFrom]
+        .filter(Boolean)
+        .join(" · ");
 
   const firstName = tutor.fullName.split(" ")[0];
 
-  const applicationSuccessRate =
-    totalApplications > 0
-      ? Math.round((acceptedApplications / totalApplications) * 100)
-      : 0;
+  const strength = profileStrength(tutor);
+  const photoHref = tutorFileHref("photo", tutor.profilePhotoUrl);
+
+  const initials = tutor.fullName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((name) => name[0])
+    .join("")
+    .toUpperCase();
 
   return (
-    <div className="relative space-y-8 pb-10">
-      {/* Ambient dashboard background */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-105 overflow-hidden"
-      >
-        <div className="absolute -left-24 top-0 size-72 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute right-0 top-16 size-80 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute left-1/2 top-24 h-40 w-lg -translate-x-1/2 rounded-full bg-linear-to-r from-primary/5 via-primary/10 to-transparent blur-3xl" />
+    <div className="space-y-6">
+      {/* -----------------------------------------------------
+          HERO + PIPELINE
+      ----------------------------------------------------- */}
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+        <section className="relative isolate overflow-hidden rounded-[1.75rem] bg-[color-mix(in_oklch,var(--primary),black_22%)] p-6 text-primary-foreground shadow-xl shadow-primary/20 sm:p-8 lg:col-span-2">
+          <div
+            aria-hidden="true"
+            className="absolute -top-24 -right-16 -z-10 size-80 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--highlight)_45%,transparent),transparent)] blur-2xl"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute -bottom-32 -left-20 -z-10 size-96 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--primary)_90%,white_10%),transparent)] blur-2xl"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,rgb(255_255_255/0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgb(255_255_255/0.06)_1px,transparent_1px)] bg-size-[2.5rem_2.5rem] mask-[linear-gradient(to_left,black,transparent_70%)]"
+          />
+
+          <p className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
+            <Sparkles className="size-3.5 text-highlight" aria-hidden="true" />
+            Tutor workspace
+          </p>
+
+          <h1 className="mt-5 font-heading text-3xl font-semibold tracking-[-0.035em] text-balance sm:text-4xl lg:text-[2.75rem] lg:leading-[1.05]">
+            Welcome back,{" "}
+            <span className="font-serif font-normal text-highlight italic">
+              {firstName}.
+            </span>
+          </h1>
+
+          <p className="mt-3 max-w-lg text-sm leading-6 text-primary-foreground/75 sm:text-base sm:leading-7">
+            {availableJobs > 0 ? (
+              <>
+                There {availableJobs === 1 ? "is" : "are"}{" "}
+                <span className="font-semibold text-primary-foreground">
+                  {availableJobs} open {availableJobs === 1 ? "job" : "jobs"}
+                </span>{" "}
+                right now. Find one that fits your subjects and schedule.
+              </>
+            ) : (
+              "No open jobs right now — new ones are posted regularly, so check back soon."
+            )}
+          </p>
+
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <Button
+              render={<Link href="/jobs" />}
+              size="xl"
+              className="group rounded-full bg-background px-5 text-foreground shadow-lg hover:bg-background/90"
+            >
+              <BriefcaseBusiness data-icon="inline-start" aria-hidden="true" />
+              Explore jobs
+              <ArrowRight
+                data-icon="inline-end"
+                aria-hidden="true"
+                className="transition-transform group-hover:translate-x-1"
+              />
+            </Button>
+
+            <Button
+              render={<Link href="/tutor/profile" />}
+              variant="outline"
+              size="xl"
+              className="rounded-full border-white/25 bg-white/5 px-5 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground"
+            >
+              <UserRound data-icon="inline-start" aria-hidden="true" />
+              View profile
+            </Button>
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="pipeline-heading"
+          className="flex flex-col rounded-[1.75rem] border bg-card p-6 shadow-sm"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2
+                id="pipeline-heading"
+                className="text-sm font-medium text-muted-foreground"
+              >
+                Application pipeline
+              </h2>
+              <p className="mt-1 font-heading text-4xl font-semibold tracking-tight tabular-nums">
+                {totalApplications}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                total {totalApplications === 1 ? "application" : "applications"}
+              </p>
+            </div>
+
+            <span className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <FileText className="size-5" aria-hidden="true" />
+            </span>
+          </div>
+
+          <div
+            aria-hidden="true"
+            className="mt-6 flex h-2.5 gap-1 overflow-hidden rounded-full bg-muted"
+          >
+            {totalApplications > 0
+              ? PIPELINE.map(({ status, bar }) =>
+                  countOf(status) > 0 ? (
+                    <span
+                      key={status}
+                      className={cn("h-full rounded-full", bar)}
+                      style={{ flexGrow: countOf(status) }}
+                    />
+                  ) : null
+                )
+              : null}
+          </div>
+
+          <dl className="mt-5 grid flex-1 grid-cols-2 content-end gap-x-4 gap-y-3">
+            {PIPELINE.map(({ status, bar }) => (
+              <div key={status} className="flex items-center gap-2 text-sm">
+                <span
+                  aria-hidden="true"
+                  className={cn("size-2 shrink-0 rounded-full", bar)}
+                />
+                <dt className="truncate text-muted-foreground">
+                  {getStatusLabel(status)}
+                </dt>
+                <dd className="ml-auto font-semibold tabular-nums">
+                  {countOf(status)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       </div>
 
       {/* -----------------------------------------------------
-          PREMIUM WELCOME HERO
+          STATS
       ----------------------------------------------------- */}
-      <section className="relative overflow-hidden rounded-[2rem] border border-border/60 bg-card shadow-[0_20px_70px_-35px_rgba(0,0,0,0.35)]">
-        {/* Decorative layers */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,color-mix(in_oklch,var(--primary)_16%,transparent),transparent_30%),radial-gradient(circle_at_15%_100%,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_30%)]"
+      <section aria-label="Your activity" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <Metric
+          label="Open jobs"
+          value={availableJobs}
+          hint="Available now"
+          icon={<BriefcaseBusiness />}
+          tone="primary"
+          href="/jobs"
         />
-
-        <div
-          aria-hidden="true"
-          className="absolute -right-32 -top-32 size-64 rounded-full border border-primary/10 bg-primary/5 blur-[1px]"
+        <Metric
+          label="Applications"
+          value={totalApplications}
+          hint="Submitted so far"
+          icon={<FileText />}
+          tone="info"
+          href="/tutor/applications"
         />
-
-        <div
-          aria-hidden="true"
-          className="absolute -bottom-20 right-1/3 size-40 rounded-full border border-primary/10"
+        <Metric
+          label="In review"
+          value={countOf("PENDING") + countOf("REVIEWED")}
+          hint="Awaiting a decision"
+          icon={<Clock />}
+          tone="warning"
         />
-
-        <div className="relative flex flex-col gap-8 p-6 sm:p-8 lg:flex-row lg:items-end lg:justify-between lg:p-10">
-          <div className="max-w-2xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3.5 py-1.5 text-xs font-semibold text-primary">
-              <Sparkles className="size-3.5" aria-hidden="true" />
-              Tutor workspace
-            </div>
-
-            <h1 className="max-w-3xl font-heading text-4xl font-semibold tracking-[-0.04em] sm:text-5xl lg:text-6xl">
-              Welcome back,{" "}
-              <span className="bg-linear-to-r from-primary via-primary/80 to-primary/50 bg-clip-text text-transparent">
-                {firstName}.
-              </span>
-            </h1>
-
-            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-              Your tutoring opportunities, applications, and profile—all in
-              one place.
-            </p>
-
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Button
-                render={<Link href="/jobs" />}
-                size="xl"
-                className="group shadow-lg shadow-primary/15"
-              >
-                <BriefcaseBusiness
-                  data-icon="inline-start"
-                  aria-hidden="true"
-                />
-                Explore opportunities
-                <ArrowRight
-                  className="transition-transform group-hover:translate-x-1"
-                  data-icon="inline-end"
-                  aria-hidden="true"
-                />
-              </Button>
-
-              <Button
-                render={<Link href="/tutor/profile" />}
-                variant="outline"
-                size="xl"
-                className="bg-background/60 backdrop-blur"
-              >
-                <UserRound data-icon="inline-start" aria-hidden="true" />
-                View profile
-              </Button>
-            </div>
-          </div>
-
-          {/* Compact application overview */}
-          <div className="relative w-full max-w-sm shrink-0 lg:max-w-70">
-            <div className="rounded-3xl border border-border/60 bg-background/70 p-5 shadow-xl shadow-black/5 backdrop-blur-xl">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Application overview
-                  </p>
-                  <p className="mt-2 font-heading text-3xl font-semibold tracking-tight">
-                    {totalApplications}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    total applications
-                  </p>
-                </div>
-
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <FileText className="size-5" aria-hidden="true" />
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">
-                    Accepted applications
-                  </span>
-                  <span className="font-semibold">
-                    {applicationSuccessRate}%
-                  </span>
-                </div>
-
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-linear-to-r from-primary to-primary/60 transition-all"
-                    style={{
-                      width: `${Math.min(applicationSuccessRate, 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-muted/60 p-3">
-                  <p className="text-xs text-muted-foreground">Open jobs</p>
-                  <p className="mt-1 text-lg font-semibold">{availableJobs}</p>
-                </div>
-
-                <div className="rounded-2xl bg-muted/60 p-3">
-                  <p className="text-xs text-muted-foreground">In review</p>
-                  <p className="mt-1 text-lg font-semibold">
-                    {pendingApplications}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Metric
+          label="Accepted"
+          value={countOf("ACCEPTED")}
+          hint="Jobs you've landed"
+          icon={<CheckCircle2 />}
+          tone="success"
+        />
       </section>
 
       {/* -----------------------------------------------------
-          STATISTICS
+          RECENT APPLICATIONS + PROFILE
       ----------------------------------------------------- */}
-      <section>
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-              Your activity
-            </p>
-            <h2 className="mt-1 font-heading text-xl font-semibold tracking-tight">
-              At a glance
-            </h2>
-          </div>
-
-          <Link
-            href="/tutor/applications"
-            className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex sm:items-center sm:gap-1.5"
-          >
-            Application history
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Available jobs"
-            value={availableJobs}
-            hint="Currently open opportunities"
-            icon={<BriefcaseBusiness />}
-            href="/jobs"
-          />
-
-          <StatCard
-            label="My applications"
-            value={totalApplications}
-            hint="Applications submitted"
-            icon={<FileText />}
-            href="/tutor/applications"
-          />
-
-          <StatCard
-            label="Under review"
-            value={pendingApplications}
-            hint="Awaiting a decision"
-            icon={<Clock />}
-          />
-
-          <StatCard
-            label="Accepted"
-            value={acceptedApplications}
-            hint="Successful applications"
-            icon={<CheckCircle2 />}
-          />
-        </div>
-      </section>
-
-      {/* -----------------------------------------------------
-          MAIN CONTENT
-      ----------------------------------------------------- */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.75fr)]">
-        {/* ---------------------------------------------------
-            RECENT APPLICATIONS
-        --------------------------------------------------- */}
-        <section className="overflow-hidden rounded-[1.75rem] border border-border/60 bg-card shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 p-5 sm:p-6">
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+        <section className="overflow-hidden rounded-[1.75rem] border bg-card shadow-sm lg:col-span-2">
+          <div className="flex items-center justify-between gap-4 px-5 pt-5 pb-3 sm:px-6 sm:pt-6">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-primary shadow-[0_0_12px_color-mix(in_oklch,var(--primary)_80%,transparent)]" />
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-                  Activity
-                </p>
-              </div>
-
-              <h2 className="mt-2 font-heading text-xl font-semibold tracking-tight">
+              <h2 className="font-heading text-lg font-semibold tracking-tight">
                 Recent applications
               </h2>
-
-              <p className="mt-1 text-sm text-muted-foreground">
-                Keep track of your latest tutoring opportunities.
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Your latest activity at a glance.
               </p>
             </div>
 
@@ -322,13 +322,13 @@ export default async function TutorDashboard() {
                 render={<Link href="/tutor/applications" />}
                 variant="ghost"
                 size="sm"
-                className="group"
+                className="group shrink-0 rounded-full"
               >
                 View all
                 <ArrowRight
-                  className="transition-transform group-hover:translate-x-1"
                   data-icon="inline-end"
                   aria-hidden="true"
+                  className="transition-transform group-hover:translate-x-0.5"
                 />
               </Button>
             ) : null}
@@ -336,67 +336,53 @@ export default async function TutorDashboard() {
 
           {recentApplications.length === 0 ? (
             <EmptyState
-              className="rounded-none border-0 py-16"
+              className="m-5 mt-2 sm:m-6 sm:mt-2"
               icon={<FileText />}
               title="No applications yet"
-              description="Explore available jobs and submit your first application."
+              description="When you apply for a job, it will show up here with its current status."
               action={
-                <Button render={<Link href="/jobs" />} size="lg">
-                  Explore jobs
+                <Button render={<Link href="/jobs" />} size="lg" className="rounded-full px-4">
+                  Find your first job
                 </Button>
               }
             />
           ) : (
-            <ul className="divide-y divide-border/60">
+            <ul className="px-2 pb-2 sm:px-3 sm:pb-3">
               {recentApplications.map((application) => (
                 <li key={application.id}>
                   <Link
                     href={`/tutor/applications/${application.id}`}
-                    className="group relative flex flex-col gap-4 p-5 transition-all duration-300 hover:bg-muted/30 focus-visible:bg-muted/30 focus-visible:outline-none sm:flex-row sm:items-center sm:justify-between sm:p-6"
+                    className="group flex items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none sm:gap-4"
                   >
-                    {/* Timeline accent */}
-                    <div className="absolute bottom-0 left-0 top-0 w-0.5 origin-top scale-y-0 bg-primary transition-transform duration-300 group-hover:scale-y-100" />
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      <BookOpen className="size-5" aria-hidden="true" />
+                    </span>
 
-                    <div className="flex min-w-0 items-center gap-4">
-                      <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-muted/40 text-primary transition-all duration-300 group-hover:border-primary/20 group-hover:bg-primary/10 group-hover:shadow-lg group-hover:shadow-primary/10">
-                        <FileText className="size-5" aria-hidden="true" />
-                      </div>
-
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate font-semibold">
-                             {application.job.jobCode}
-                          </p>
-
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Subject: {application.job.subject}
-                          </span>
-                        </div>
-
-                        <p className="mt-1.5 truncate text-sm text-muted-foreground">
-                          Grade {application.job.grade}{" "}
-                          <span className="mx-1">·</span>{" "}
-                          {formatDate(application.createdAt)}
-                        </p>
-
-                        {application.job.salary ? (
-                          <p className="mt-2 text-xs font-medium text-foreground/70">
-                            {formatSalary(application.job.salary)}
-                          </p>
-                        ) : null}
-                      </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">
+                        {application.job.subject}
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · Grade {application.job.grade}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        <span className="font-mono">{application.job.jobCode}</span>
+                        <span className="mx-1.5">·</span>
+                        Applied {formatDate(application.createdAt)}
+                        <span className="hidden sm:inline">
+                          <span className="mx-1.5">·</span>
+                          {formatSalary(application.job.salary)}
+                        </span>
+                      </p>
                     </div>
 
-                    <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
-                      <StatusBadge status={application.status} />
+                    <StatusBadge status={application.status} className="shrink-0" />
 
-                      <span className="flex size-9 items-center justify-center rounded-full border border-border/60 bg-background transition-all duration-300 group-hover:border-primary/20 group-hover:bg-primary group-hover:text-primary-foreground">
-                        <ArrowRight
-                          className="size-4 transition-transform duration-300 group-hover:translate-x-0.5"
-                          aria-hidden="true"
-                        />
-                      </span>
-                    </div>
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="hidden size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block"
+                    />
                   </Link>
                 </li>
               ))}
@@ -404,114 +390,237 @@ export default async function TutorDashboard() {
           )}
         </section>
 
-        {/* ---------------------------------------------------
-            PREMIUM PROFILE
-        --------------------------------------------------- */}
-        <section className="relative overflow-hidden rounded-[1.75rem] border border-border/60 bg-card shadow-sm">
-          {/* Decorative profile background */}
+        <section className="relative overflow-hidden rounded-[1.75rem] border bg-card shadow-sm">
           <div
             aria-hidden="true"
-            className="absolute inset-x-0 top-0 h-32 bg-linear-to-br from-primary/15 via-primary/5 to-transparent"
+            className="h-20 bg-linear-to-br from-primary/20 via-primary/5 to-highlight/15"
           />
 
-          <div
-            aria-hidden="true"
-            className="absolute -right-12 -top-12 size-32 rounded-full border border-primary/10"
-          />
-
-          <div className="relative p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="flex size-14 items-center justify-center rounded-2xl bg-linear-to-br from-primary via-primary/80 to-primary/50 text-lg font-bold text-primary-foreground shadow-lg shadow-primary/20">
-                    {tutor.fullName
-                      .split(" ")
-                      .slice(0, 2)
-                      .map((name) => name[0])
-                      .join("")
-                      .toUpperCase()}
-                  </div>
-
-                  <span
-                    className="absolute -bottom-1 -right-1 size-4 rounded-full border-2 border-card bg-success"
-                    aria-label="Profile active"
-                  />
-                </div>
-
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-                    My profile
-                  </p>
-
-                  <h2 className="mt-1 truncate font-heading text-lg font-semibold">
-                    {tutor.fullName}
-                  </h2>
-
-                  <p className="text-sm text-muted-foreground">
-                    {isStudent ? "Student Tutor" : "Graduate Tutor"}
-                  </p>
-                </div>
-              </div>
+          <div className="-mt-10 px-6 pb-6">
+            <div className="relative w-fit">
+              {photoHref ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a 302 to a presigned R2 URL
+                <img
+                  src={photoHref}
+                  alt=""
+                  className="size-20 rounded-3xl border-4 border-card object-cover shadow-lg shadow-primary/20"
+                />
+              ) : (
+                <span className="flex size-20 items-center justify-center rounded-3xl border-4 border-card bg-linear-to-br from-primary to-[color-mix(in_oklch,var(--primary),var(--highlight)_40%)] font-heading text-2xl font-semibold text-primary-foreground shadow-lg shadow-primary/20">
+                  {initials}
+                </span>
+              )}
             </div>
 
-            <div className="mt-10 space-y-5">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Email
-                </p>
-                <p className="mt-1.5 truncate text-sm font-medium">
-                  {tutor.email}
-                </p>
-              </div>
+            <h2 className="mt-4 truncate font-heading text-lg font-semibold tracking-tight">
+              {tutor.fullName}
+            </h2>
+            <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+              <GraduationCap className="size-4" aria-hidden="true" />
+              {isStudent ? "Student tutor" : "Graduate tutor"}
+            </p>
 
-              <div>
-                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  <MapPin className="size-3.5" aria-hidden="true" />
-                  Location
-                </p>
-                <p className="mt-1.5 text-sm font-medium">
-                  {tutor.city}, {tutor.subcity}
-                </p>
-              </div>
+            <dl className="mt-6 space-y-3.5 text-sm">
+              <ProfileLine icon={<Mail />} label="Email">
+                {tutor.email}
+              </ProfileLine>
+              <ProfileLine icon={<MapPin />} label="Location">
+                {[tutor.subcity, tutor.city].filter(Boolean).join(", ")}
+              </ProfileLine>
+              <ProfileLine
+                icon={<GraduationCap />}
+                label={isStudent ? "University" : "Field"}
+              >
+                {affiliation || formatEnum(tutor.tutorStatus)}
+              </ProfileLine>
+            </dl>
 
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {isStudent ? "Academic affiliation" : "Professional field"}
-                </p>
-
-                <p className="mt-1.5 line-clamp-2 text-sm font-medium leading-6">
-                  {affiliation || formatEnum(tutor.tutorStatus)}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 rounded-2xl border border-primary/10 bg-primary/5 p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <UserRound className="size-4" aria-hidden="true" />
-                </div>
-
-                <div>
-                  <p className="text-sm font-semibold">Thanks for being our community member</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Your profile helps you stay prepared
-                    for new opportunities.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <ProfileStrengthNudge strength={strength} className="mt-6" />
 
             <Button
               render={<Link href="/tutor/profile" />}
               variant="outline"
               size="xl"
-              className="mt-5 w-full bg-background/70 transition-all hover:border-primary/30 hover:bg-primary/5"
+              className="mt-5 w-full rounded-full"
             >
-              View my profile
-              <ArrowRight data-icon="inline-end" aria-hidden="true" />
+              <Eye data-icon="inline-start" aria-hidden="true" />
+              View full profile
             </Button>
           </div>
         </section>
+      </div>
+
+      {/* -----------------------------------------------------
+          FRESH OPPORTUNITIES
+      ----------------------------------------------------- */}
+      <section>
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-heading text-lg font-semibold tracking-tight">
+              Fresh opportunities
+            </h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              The newest open jobs you haven&apos;t applied to yet.
+            </p>
+          </div>
+
+          <Link
+            href="/jobs"
+            className="group inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-primary"
+          >
+            All jobs
+            <ArrowUpRight
+              aria-hidden="true"
+              className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            />
+          </Link>
+        </div>
+
+        {freshJobs.length === 0 ? (
+          <EmptyState
+            className="rounded-[1.75rem] bg-card"
+            icon={<BriefcaseBusiness />}
+            title="You're all caught up"
+            description="You've applied to every open job. New ones are posted regularly — check back soon."
+          />
+        ) : (
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {freshJobs.map((job) => (
+              <li key={job.id}>
+                <Link
+                  href={`/apply/${job.jobCode}`}
+                  className="group flex h-full flex-col rounded-[1.5rem] border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="rounded-full bg-muted px-2.5 py-1 font-mono text-[0.7rem] text-muted-foreground">
+                      {job.jobCode}
+                    </span>
+                    <span className="flex size-8 items-center justify-center rounded-full border bg-background text-muted-foreground transition-colors group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground">
+                      <ArrowUpRight className="size-4" aria-hidden="true" />
+                    </span>
+                  </div>
+
+                  <p className="mt-4 font-heading text-base font-semibold">
+                    {job.subject}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Grade {job.grade}
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-x-4 gap-y-2 border-t pt-4 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin className="size-3.5" aria-hidden="true" />
+                      {job.place || "Flexible"}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <CalendarDays className="size-3.5" aria-hidden="true" />
+                      {job.daysPerWeek} days/wk · {job.hoursPerDay} h
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
+                      <Wallet className="size-3.5 text-highlight" aria-hidden="true" />
+                      {formatSalary(job.salary)}
+                    </span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
+
+const METRIC_TONES = {
+  primary: "bg-primary/10 text-primary",
+  info: "bg-info/10 text-info",
+  warning:
+    "bg-warning/15 text-[color-mix(in_oklch,var(--warning),var(--foreground)_35%)]",
+  success: "bg-success/10 text-success",
+} as const;
+
+function Metric({
+  label,
+  value,
+  hint,
+  icon,
+  tone,
+  href,
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  icon: React.ReactNode;
+  tone: keyof typeof METRIC_TONES;
+  href?: string;
+}) {
+  const body = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex size-10 items-center justify-center rounded-2xl [&>svg]:size-5",
+            METRIC_TONES[tone]
+          )}
+        >
+          {icon}
+        </span>
+        {href ? (
+          <ArrowUpRight
+            aria-hidden="true"
+            className="size-4 text-muted-foreground/60 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary"
+          />
+        ) : null}
+      </div>
+      <p className="mt-4 font-heading text-3xl font-semibold tracking-tight tabular-nums">
+        {value}
+      </p>
+      <p className="mt-0.5 text-sm font-medium">{label}</p>
+      <p className="hidden text-xs text-muted-foreground sm:block">{hint}</p>
+    </>
+  );
+
+  const className =
+    "group block h-full rounded-[1.5rem] border bg-card p-4 shadow-sm sm:p-5";
+
+  if (!href) {
+    return <div className={className}>{body}</div>;
+  }
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        className,
+        "transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      )}
+    >
+      {body}
+    </Link>
+  );
+}
+
+function ProfileLine({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <span
+        aria-hidden="true"
+        className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground [&>svg]:size-4"
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <dt className="text-xs text-muted-foreground">{label}</dt>
+        <dd className="truncate font-medium">{children}</dd>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@
  * reference to `File` at module scope.
  */
 
-export type DocumentKind = "document" | "cv";
+export type DocumentKind = "document" | "cv" | "photo";
 
 export const DOCUMENT_MAX_SIZE = 2 * 1024 * 1024; // 2 MB
 export const CV_MAX_SIZE = 3 * 1024 * 1024; // 3 MB
@@ -32,7 +32,22 @@ export const ALLOWED_CV_TYPES = [...ALLOWED_DOCUMENT_TYPES, "application/pdf"];
 export const DOCUMENT_ACCEPT = ".jpg,.jpeg,.png,.webp";
 export const CV_ACCEPT = ".jpg,.jpeg,.png,.webp,.pdf";
 
+/**
+ * The profile photo is uploaded on its own from `/tutor/profile`, after
+ * registration, so it is outside the 4 MB combined registration limit.
+ */
+export const PHOTO_MAX_SIZE = 2 * 1024 * 1024; // 2 MB
+export const PHOTO_ACCEPT = DOCUMENT_ACCEPT;
+
 export function documentRules(kind: DocumentKind) {
+  if (kind === "photo") {
+    return {
+      maxSize: PHOTO_MAX_SIZE,
+      allowedTypes: ALLOWED_DOCUMENT_TYPES,
+      typeLabel: "a JPG, PNG or WEBP image",
+    };
+  }
+
   return kind === "cv"
     ? {
         maxSize: CV_MAX_SIZE,

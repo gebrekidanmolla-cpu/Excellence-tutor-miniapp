@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -16,13 +16,14 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-/* Display face, used for accent words and index numerals. Single weight,
-   latin subset only, so it costs one small woff2 pair. */
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-instrument-serif",
+/* Display face for headlines. Fraunces is variable: `opsz` lets large
+   headings use the high-contrast display cut, and `SOFT` rounds the
+   terminals slightly so it reads warm rather than bookish. */
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
-  weight: "400",
   style: ["normal", "italic"],
+  axes: ["opsz", "SOFT"],
   display: "swap",
 });
 
@@ -62,7 +63,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         {children}
