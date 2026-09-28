@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  /*
+   * The assignment email attaches this PDF, read from disk at send time —
+   * a path the file tracer can't follow on its own, so without this entry
+   * the file is left out of the deployed function.
+   */
+  outputFileTracingIncludes: {
+    "/api/admin/applications/*/assign": ["src/assets/attendance-sheet.pdf"],
+  },
   images: {
     /*
      * Both hosts are fixed, code-controlled URLs (the landing page's hero

@@ -89,6 +89,8 @@ export async function POST(
               grade: true,
               place: true,
               salary: true,
+              parentName: true,
+              parentPhone: true,
             },
           },
         },
@@ -289,6 +291,10 @@ export async function POST(
         },
         place: application.job.place,
         salary: application.job.salary,
+        // Only the assigned tutor ever receives these — the applicants
+        // rejected in the same transaction get no email at all.
+        parentName: application.job.parentName,
+        parentPhone: application.job.parentPhone,
       });
     } catch (emailError) {
       console.error(
