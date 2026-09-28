@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword } from "@/lib/auth";
 import { createAdminSession } from "@/lib/admin-session";
+import {
+  LOGIN_RATE_LIMITED_MESSAGE,
+  LOGIN_RETRY_AFTER_SECONDS,
+  clearLoginFailures,
+  compareAgainstDummyHash,
+  isLoginRateLimited,
+  recordLoginFailure,
+} from "@/lib/login-rate-limit";
 
 export async function POST(request: Request) {
   try {
@@ -27,13 +35,40 @@ export async function POST(request: Request) {
       );
     }
 
+    if (await isLoginRateLimited("ADMIN", email, request)) {
+      return NextResponse.json(
+        { success: false, message: LOGIN_RATE_LIMITED_MESSAGE },
+        {
+          status: 429,
+          headers: { "Retry-After": String(LOGIN_RETRY_AFTER_SECONDS) },
+        }
+      );
+    }
+
     const admin = await prisma.admin.findUnique({
       where: {
         email,
       },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        passwordHash: true,
+      },
     });
 
-    if (!admin) {
+    let passwordMatches = false;
+
+    if (admin) {
+      passwordMatches = await comparePassword(password, admin.passwordHash);
+    } else {
+      await compareAgainstDummyHash(password);
+    }
+
+    // Same message and the same bcrypt time whether or not the email exists.
+    if (!admin || !passwordMatches) {
+      await recordLoginFailure("ADMIN", email, request);
+
       return NextResponse.json(
         {
           success: false,
@@ -43,20 +78,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const passwordMatches = await comparePassword(
-      password,
-      admin.passwordHash
-    );
-
-    if (!passwordMatches) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid email or password.",
-        },
-        { status: 401 }
-      );
-    }
+    await clearLoginFailures("ADMIN", email);
 
     await createAdminSession(admin.id);
 

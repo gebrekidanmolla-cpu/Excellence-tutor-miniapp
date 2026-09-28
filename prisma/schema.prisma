@@ -320,6 +320,26 @@ model EmailVerification {
   @@index([requestIp, createdAt])
 }
 
+// Failed sign-in attempts, for the login rate limit (src/lib/login-rate-limit.ts).
+// Only failures are stored; a successful login clears that email's rows.
+model LoginAttempt {
+  id String @id @default(cuid())
+
+  // "TUTOR" or "ADMIN" — the two logins are limited independently.
+  scope String
+
+  // As submitted (normalized), whether or not an account exists.
+  email String
+
+  // Null when unknown (local dev).
+  ip String?
+
+  createdAt DateTime @default(now())
+
+  @@index([scope, email, createdAt])
+  @@index([scope, ip, createdAt])
+}
+
 model Application {
   id String @id @default(cuid())
 
