@@ -1,6 +1,27 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+
+  /*
+   * No page is ever embedded — the product is web-only, and Telegram opens
+   * links in its own browser rather than a frame — so framing is refused
+   * outright, which closes clickjacking on the admin and tutor screens.
+   */
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+    ];
+  },
+
   /*
    * The assignment email attaches this PDF, read from disk at send time —
    * a path the file tracer can't follow on its own, so without this entry
