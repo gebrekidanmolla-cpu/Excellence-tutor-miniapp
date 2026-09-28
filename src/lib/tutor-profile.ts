@@ -35,6 +35,8 @@ export const PUBLIC_PROFILE_DOCUMENTS = {
   graduationDocument: "graduationDocumentUrl",
   governmentId: "governmentIdUrl",
   cv: "cvUrl",
+  // Not a document, but served the same way: the portrait on the page.
+  profilePhoto: "profilePhotoUrl",
 } as const;
 
 export type PublicProfileDocument =

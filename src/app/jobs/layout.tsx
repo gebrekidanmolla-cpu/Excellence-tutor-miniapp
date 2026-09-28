@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { getCurrentTutor } from "@/lib/session";
 import { PortalShell } from "@/components/layout/PortalShell";
+import { tutorFileHref } from "@/lib/tutor-files";
 
 /**
  * `/jobs` is signed-in-only and is linked from the portal nav, so it renders
@@ -19,7 +20,13 @@ export default async function JobsLayout({
   }
 
   return (
-    <PortalShell tutor={{ fullName: tutor.fullName, email: tutor.email }}>
+    <PortalShell
+      tutor={{
+        fullName: tutor.fullName,
+        email: tutor.email,
+        photoUrl: tutorFileHref("photo", tutor.profilePhotoUrl),
+      }}
+    >
       {children}
     </PortalShell>
   );

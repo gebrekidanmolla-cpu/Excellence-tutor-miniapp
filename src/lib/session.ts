@@ -240,6 +240,7 @@ export async function getCurrentTutor() {
         entranceResultUrl: true,
         graduationDocumentUrl: true,
         cvUrl: true,
+        profilePhotoUrl: true,
 
         telegramId: true,
 

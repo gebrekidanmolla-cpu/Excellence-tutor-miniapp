@@ -25,6 +25,9 @@
  */
 const MAX_DIMENSION = 2000;
 
+/** A profile photo is shown at avatar size; 800px is ample for a retina card. */
+export const PHOTO_MAX_DIMENSION = 800;
+
 const QUALITY = 0.82;
 
 /** Below this, re-encoding costs CPU on a cheap phone and saves nothing. */
@@ -47,7 +50,10 @@ const EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg",
 };
 
-export async function compressImage(file: File): Promise<File> {
+export async function compressImage(
+  file: File,
+  { maxDimension = MAX_DIMENSION }: { maxDimension?: number } = {}
+): Promise<File> {
   if (typeof window === "undefined") {
     return file;
   }
@@ -66,7 +72,7 @@ export async function compressImage(file: File): Promise<File> {
   try {
     bitmap = await decode(file);
 
-    const { width, height } = fit(bitmap.width, bitmap.height);
+    const { width, height } = fit(bitmap.width, bitmap.height, maxDimension);
 
     const canvas = document.createElement("canvas");
     canvas.width = width;
@@ -111,14 +117,14 @@ async function decode(file: File): Promise<ImageBitmap> {
   }
 }
 
-function fit(width: number, height: number) {
+function fit(width: number, height: number, maxDimension: number) {
   const largest = Math.max(width, height);
 
-  if (largest <= MAX_DIMENSION) {
+  if (largest <= maxDimension) {
     return { width, height };
   }
 
-  const scale = MAX_DIMENSION / largest;
+  const scale = maxDimension / largest;
 
   return {
     width: Math.round(width * scale),

@@ -24,6 +24,9 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
+import { profileStrength } from "@/lib/profile-strength";
+import { tutorFileHref } from "@/lib/tutor-files";
+import { ProfileStrengthNudge } from "@/app/tutor/profile/components/ProfileStrengthCard";
 import {
   formatDate,
   formatEnum,
@@ -117,6 +120,9 @@ export default async function TutorDashboard() {
         .join(" · ");
 
   const firstName = tutor.fullName.split(" ")[0];
+
+  const strength = profileStrength(tutor);
+  const photoHref = tutorFileHref("photo", tutor.profilePhotoUrl);
 
   const initials = tutor.fullName
     .split(" ")
@@ -392,9 +398,18 @@ export default async function TutorDashboard() {
 
           <div className="-mt-10 px-6 pb-6">
             <div className="relative w-fit">
-              <span className="flex size-20 items-center justify-center rounded-3xl border-4 border-card bg-linear-to-br from-primary to-[color-mix(in_oklch,var(--primary),var(--highlight)_40%)] font-heading text-2xl font-semibold text-primary-foreground shadow-lg shadow-primary/20">
-                {initials}
-              </span>
+              {photoHref ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a 302 to a presigned R2 URL
+                <img
+                  src={photoHref}
+                  alt=""
+                  className="size-20 rounded-3xl border-4 border-card object-cover shadow-lg shadow-primary/20"
+                />
+              ) : (
+                <span className="flex size-20 items-center justify-center rounded-3xl border-4 border-card bg-linear-to-br from-primary to-[color-mix(in_oklch,var(--primary),var(--highlight)_40%)] font-heading text-2xl font-semibold text-primary-foreground shadow-lg shadow-primary/20">
+                  {initials}
+                </span>
+              )}
             </div>
 
             <h2 className="mt-4 truncate font-heading text-lg font-semibold tracking-tight">
@@ -420,11 +435,13 @@ export default async function TutorDashboard() {
               </ProfileLine>
             </dl>
 
+            <ProfileStrengthNudge strength={strength} className="mt-6" />
+
             <Button
               render={<Link href="/tutor/profile" />}
               variant="outline"
               size="xl"
-              className="mt-6 w-full rounded-full"
+              className="mt-5 w-full rounded-full"
             >
               <Eye data-icon="inline-start" aria-hidden="true" />
               View full profile

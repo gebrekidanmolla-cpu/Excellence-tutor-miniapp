@@ -84,6 +84,7 @@ export default async function TutorProfilePage({ params }: PageProps) {
     graduationDocumentUrl: true,
     governmentIdUrl: true,
     cvUrl: true,
+    profilePhotoUrl: true,
 
     createdAt: true,
     profileShareExpiresAt: true,
@@ -223,9 +224,18 @@ export default async function TutorProfilePage({ params }: PageProps) {
           <div className="mt-8 rounded-3xl bg-card p-6 shadow-xl ring-1 shadow-primary/10 ring-foreground/5 animate-in fade-in slide-in-from-bottom-4 delay-100 duration-700 fill-mode-both motion-reduce:animate-none sm:p-8">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
               <div className="relative w-fit shrink-0">
-                <div className="flex size-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-chart-5 text-white shadow-lg shadow-primary/25 sm:size-28">
-                  <UserRound className="size-11 sm:size-12" aria-hidden="true" />
-                </div>
+                {tutor.profilePhotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- a 302 to a presigned R2 URL, which next/image can't optimise
+                  <img
+                    src={profileDocumentPath(token, "profilePhoto")}
+                    alt={`Photo of ${tutor.fullName}`}
+                    className="size-24 rounded-2xl object-cover shadow-lg shadow-primary/25 sm:size-28"
+                  />
+                ) : (
+                  <div className="flex size-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-chart-5 text-white shadow-lg shadow-primary/25 sm:size-28">
+                    <UserRound className="size-11 sm:size-12" aria-hidden="true" />
+                  </div>
+                )}
                 <span
                   aria-hidden="true"
                   className="absolute -right-2 -bottom-2 flex size-9 items-center justify-center rounded-xl bg-highlight text-highlight-foreground shadow-md ring-4 ring-card"

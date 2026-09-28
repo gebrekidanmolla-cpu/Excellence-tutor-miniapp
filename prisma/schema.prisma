@@ -256,6 +256,11 @@ model Tutor {
 
   governmentIdUrl String
 
+  // R2 object key of the tutor's own portrait, set from `/tutor/profile`
+  // after registration. Null until they add one. Shown to admins and on
+  // the parent-facing profile, never as a document.
+  profilePhotoUrl String?
+
   // ==========================================
   // TELEGRAM
   // ==========================================

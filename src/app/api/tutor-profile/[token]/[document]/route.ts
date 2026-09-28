@@ -40,6 +40,7 @@ export async function GET(
       graduationDocumentUrl: true,
       governmentIdUrl: true,
       cvUrl: true,
+      profilePhotoUrl: true,
     });
 
     const key =

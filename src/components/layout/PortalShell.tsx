@@ -111,20 +111,49 @@ function MobileTabBar() {
   );
 }
 
-function TutorCard({
+type PortalTutor = {
+  fullName: string;
+  email: string;
+  /** `/api/tutor/files/photo?v=…`, or null when the tutor has no photo. */
+  photoUrl?: string | null;
+};
+
+function TutorAvatar({
   tutor,
+  className,
 }: {
-  tutor: { fullName: string; email: string };
+  tutor: PortalTutor;
+  className?: string;
 }) {
+  if (tutor.photoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- a 302 to a presigned R2 URL
+      <img
+        src={tutor.photoUrl}
+        alt=""
+        className={cn("shrink-0 rounded-xl object-cover", className)}
+      />
+    );
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-primary to-primary/70 text-xs font-semibold text-primary-foreground",
+        className
+      )}
+    >
+      {initialsOf(tutor.fullName)}
+    </span>
+  );
+}
+
+function TutorCard({ tutor }: { tutor: PortalTutor }) {
   return (
     <div className="rounded-2xl border bg-background p-3 shadow-sm">
       <div className="flex items-center gap-3">
-        <span
-          aria-hidden="true"
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-primary to-primary/70 text-xs font-semibold text-primary-foreground"
-        >
-          {initialsOf(tutor.fullName)}
-        </span>
+        <TutorAvatar tutor={tutor} className="size-9" />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{tutor.fullName}</p>
           <p className="truncate text-xs text-muted-foreground">
@@ -144,7 +173,7 @@ export function PortalShell({
   tutor,
   children,
 }: {
-  tutor: { fullName: string; email: string };
+  tutor: PortalTutor;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(false);
@@ -227,6 +256,14 @@ export function PortalShell({
           </Sheet>
 
           <Wordmark href="/tutor" />
+
+          <Link
+            href="/tutor/profile"
+            aria-label="My profile"
+            className="ml-auto rounded-xl focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            <TutorAvatar tutor={tutor} className="size-8" />
+          </Link>
         </header>
 
         <main className="flex-1">

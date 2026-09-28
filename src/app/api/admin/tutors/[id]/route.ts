@@ -440,6 +440,7 @@ export async function DELETE(
           graduationDocumentUrl: true,
           cvUrl: true,
           governmentIdUrl: true,
+          profilePhotoUrl: true,
 
           assignedJobs: {
             select: { id: true },
@@ -482,6 +483,7 @@ export async function DELETE(
         tutor.graduationDocumentUrl,
         tutor.cvUrl,
         tutor.governmentIdUrl,
+        tutor.profilePhotoUrl,
       ].filter((key): key is string => Boolean(key))
     );
 
