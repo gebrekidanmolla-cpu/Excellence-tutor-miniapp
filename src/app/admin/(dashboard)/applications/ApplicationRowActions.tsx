@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
   Copy,
+  Loader2,
   Eye,
   MoreHorizontal,
   RotateCcw,
@@ -72,8 +73,15 @@ export default function ApplicationRowActions({
 
   const [pending, setPending] = useState(false);
 
+  /* The API has answered but the server-rendered page hasn't caught up —
+     for an assignment that can take seconds, during which the row would
+     otherwise still offer "Assign" on a job that is already closed. */
+  const [refreshing, startRefresh] = useTransition();
+
+  const busy = pending || refreshing;
+
   async function changeStatus(nextStatus: "PENDING" | "REVIEWED" | "REJECTED") {
-    if (nextStatus === status || pending) {
+    if (nextStatus === status || busy) {
       return;
     }
 
@@ -103,7 +111,7 @@ export default function ApplicationRowActions({
 
       toast.success("Application status updated.");
 
-      router.refresh();
+      startRefresh(() => router.refresh());
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -135,7 +143,7 @@ export default function ApplicationRowActions({
 
     toast.success(`${tutorName} assigned to ${jobCode}.`);
 
-    router.refresh();
+    startRefresh(() => router.refresh());
   }
 
   async function copyPhone() {
@@ -157,9 +165,21 @@ export default function ApplicationRowActions({
       {canAssign ? (
         <ConfirmDialog
           trigger={
-            <Button size="sm" aria-label={`Assign ${tutorName} to ${jobCode}`}>
-              <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
-              Assign
+            <Button
+              size="sm"
+              disabled={busy}
+              aria-label={`Assign ${tutorName} to ${jobCode}`}
+            >
+              {refreshing ? (
+                <Loader2
+                  className="animate-spin"
+                  data-icon="inline-start"
+                  aria-hidden="true"
+                />
+              ) : (
+                <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
+              )}
+              {refreshing ? "Updating…" : "Assign"}
             </Button>
           }
           title={`Assign ${tutorName} to ${jobCode}?`}
@@ -210,7 +230,7 @@ export default function ApplicationRowActions({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
-                disabled={pending || status === "REVIEWED"}
+                disabled={busy || status === "REVIEWED"}
                 onClick={() => changeStatus("REVIEWED")}
               >
                 <UserCheck aria-hidden="true" />
@@ -218,7 +238,7 @@ export default function ApplicationRowActions({
               </DropdownMenuItem>
 
               <DropdownMenuItem
-                disabled={pending || status === "PENDING"}
+                disabled={busy || status === "PENDING"}
                 onClick={() => changeStatus("PENDING")}
               >
                 <RotateCcw aria-hidden="true" />
@@ -227,7 +247,7 @@ export default function ApplicationRowActions({
 
               <DropdownMenuItem
                 variant="destructive"
-                disabled={pending || status === "REJECTED"}
+                disabled={busy || status === "REJECTED"}
                 onClick={() => changeStatus("REJECTED")}
               >
                 <XCircle aria-hidden="true" />

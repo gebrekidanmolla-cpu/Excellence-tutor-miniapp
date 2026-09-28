@@ -74,7 +74,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json();
+    // A malformed or empty body falls through to the field checks below as a 400.
+    const body = (await request.json().catch(() => null)) ?? {};
 
     const {
       gender,

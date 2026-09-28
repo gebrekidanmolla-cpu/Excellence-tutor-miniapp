@@ -8,6 +8,7 @@ import {
 import { EmploymentStatus } from "@prisma/client";
 import { deleteObjects } from "@/lib/r2";
 import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
+import { canonicalEthiopianPhone } from "@/lib/phone";
 
 type RouteContext = {
   params: Promise<{
@@ -74,7 +75,8 @@ export async function PATCH(
       );
     }
 
-    const body = await request.json();
+    // A malformed or empty body falls through to the field checks below as a 400.
+    const body = (await request.json().catch(() => null)) ?? {};
 
     const {
       fullName,
@@ -148,10 +150,28 @@ export async function PATCH(
     const address =
       addressResult.address;
 
+    // Stored in the one canonical form (+2519XXXXXXXX) that registration,
+    // `check-phone` and the tutor's own edit form all assume — a number
+    // saved as typed would slip past the uniqueness check and fail the
+    // tutor's profile form validation.
+    const canonicalPhone =
+      canonicalEthiopianPhone(String(phone));
+
+    if (!canonicalPhone) {
+      return NextResponse.json(
+        {
+          error:
+            "Please enter a valid Ethiopian mobile number.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // `ANY` is a job requirement, not a tutor's gender: a tutor stored
+    // with it would fail the gender check on every gendered job.
     if (
       gender !== "MALE" &&
-      gender !== "FEMALE" &&
-      gender !== "ANY"
+      gender !== "FEMALE"
     ) {
       return NextResponse.json(
         { error: "Invalid gender." },
@@ -268,6 +288,29 @@ export async function PATCH(
       );
     }
 
+    const phoneOwner =
+      await prisma.tutor.findFirst({
+        where: {
+          phone: canonicalPhone,
+          NOT: {
+            id,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+    if (phoneOwner) {
+      return NextResponse.json(
+        {
+          error:
+            "Another tutor is already using this phone number.",
+        },
+        { status: 409 }
+      );
+    }
+
     const tutor =
       await prisma.tutor.update({
         where: {
@@ -283,7 +326,7 @@ export async function PATCH(
             .trim()
             .toLowerCase(),
 
-          phone: String(phone).trim(),
+          phone: canonicalPhone,
 
           country: address.country,
 
@@ -376,11 +419,38 @@ export async function PATCH(
         },
       });
 
+    // The job sheet names the assigned tutor's phone; keep it current.
+    // Best-effort and never throws — the edit has already been saved.
+    if (canonicalPhone !== existingTutor.phone) {
+      const assignedJobs =
+        await prisma.job.findMany({
+          where: { assignedTutorId: id },
+          select: { id: true },
+        });
+
+      for (const job of assignedJobs) {
+        await safeSyncJobSheetRow(job.id);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       tutor,
     });
   } catch (error) {
+    // Lost a race with another write taking the same email or phone.
+    if (
+      (error as { code?: string }).code === "P2002"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Another tutor is already using this email address or phone number.",
+        },
+        { status: 409 }
+      );
+    }
+
     console.error(
       "ADMIN_TUTOR_UPDATE_ERROR:",
       error

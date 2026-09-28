@@ -24,17 +24,6 @@ import {
  * route overwrites it with the stored value and never writes it.
  */
 
-export const LOCKED_PROFILE_FIELDS = [
-  "Full name",
-  "Email",
-  "Gender",
-  "Tutor type",
-  "University and department / field",
-  "GPA / CGPA",
-  "Entrance result",
-  "Required documents",
-];
-
 function text(label: string) {
   return z
     .string()
