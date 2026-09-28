@@ -305,10 +305,14 @@ model EmailVerification {
 
   verifiedAt DateTime?
 
+  // Who asked for the code — for the per-IP send limit. Null when unknown.
+  requestIp String?
+
   createdAt DateTime @default(now())
 
   @@index([email])
   @@index([expiresAt])
+  @@index([requestIp, createdAt])
 }
 
 model Application {

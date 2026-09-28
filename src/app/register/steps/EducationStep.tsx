@@ -2,16 +2,22 @@
 
 import { Controller, useWatch, type UseFormReturn } from "react-hook-form";
 
+import { TextField } from "@/components/shared/FormFields";
+import { ChoiceGroup } from "@/app/register/components/ChoiceGroup";
+import { FormSection } from "@/app/register/components/FormSection";
 import {
-  SectionHeading,
-  SelectField,
-  TextField,
-} from "@/components/shared/FormFields";
-import {
-  CURRENT_YEAR_OPTIONS,
   EMPLOYMENT_STATUS_OPTIONS,
   type RegisterValues,
 } from "@/app/register/schema";
+
+/* Short labels for the chip row; the stored values are "1"–"5". */
+const YEAR_CHOICES = [
+  { value: "1", label: "1st" },
+  { value: "2", label: "2nd" },
+  { value: "3", label: "3rd" },
+  { value: "4", label: "4th" },
+  { value: "5", label: "5th+" },
+];
 
 /**
  * Branches on `tutorStatus`. The wizard clears the other branch's values when
@@ -36,25 +42,17 @@ export function EducationStep({
   const needsCurrentJob =
     employmentStatus === "EMPLOYED" || employmentStatus === "SELF_EMPLOYED";
 
-  return (
-    <div className="space-y-6">
-      <SectionHeading
-        title={isStudent ? "Education information" : "Graduation & employment"}
-        description={
-          isStudent
-            ? "Provide your current academic information."
-            : "Provide your academic background and current employment information."
-        }
-      />
-
-      {isStudent ? (
-        <>
+  if (isStudent) {
+    return (
+      <div className="space-y-10">
+        <FormSection title="Where you study">
           <div className="grid gap-5 sm:grid-cols-2">
             <TextField
               id="university"
               label="University / College"
               required
-              placeholder="University name"
+              placeholder="e.g. Addis Ababa University"
+              autoComplete="organization"
               error={errors.university?.message}
               {...register("university")}
             />
@@ -68,106 +66,114 @@ export function EducationStep({
               {...register("department")}
             />
           </div>
+        </FormSection>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Controller
-              control={control}
-              name="currentYear"
-              render={({ field }) => (
-                <SelectField
-                  id="currentYear"
-                  label="Current year"
-                  required
-                  options={CURRENT_YEAR_OPTIONS}
-                  value={field.value ?? ""}
-                  onValueChange={field.onChange}
-                  error={errors.currentYear?.message}
-                />
-              )}
-            />
+        <FormSection title="Your progress">
+          <Controller
+            control={control}
+            name="currentYear"
+            render={({ field }) => (
+              <ChoiceGroup
+                name="currentYear"
+                legend="Current year"
+                required
+                options={YEAR_CHOICES}
+                value={field.value ?? ""}
+                inputRef={field.ref}
+                onChange={field.onChange}
+                error={errors.currentYear?.message}
+              />
+            )}
+          />
 
-            <TextField
-              id="currentGPA"
-              label="Current GPA"
-              required
-              type="number"
-              step="0.01"
-              min="0"
-              max="4"
-              placeholder="0.00 - 4.00"
-              error={errors.currentGPA?.message}
-              {...register("currentGPA")}
-            />
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <TextField
-              id="fieldOfGraduation"
-              label="Field of graduation"
-              required
-              placeholder="e.g. Accounting, Computer Science"
-              error={errors.fieldOfGraduation?.message}
-              {...register("fieldOfGraduation")}
-            />
+          <TextField
+            id="currentGPA"
+            label="Current GPA"
+            required
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="e.g. 3.45"
+            hint="On a 4.00 scale."
+            className="sm:max-w-56"
+            error={errors.currentGPA?.message}
+            {...register("currentGPA")}
+          />
+        </FormSection>
+      </div>
+    );
+  }
 
-            <TextField
-              id="universityGraduatedFrom"
-              label="University graduated from"
-              required
-              placeholder="University name"
-              error={errors.universityGraduatedFrom?.message}
-              {...register("universityGraduatedFrom")}
-            />
-          </div>
+  return (
+    <div className="space-y-10">
+      <FormSection title="Your degree">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <TextField
+            id="fieldOfGraduation"
+            label="Field of study"
+            required
+            placeholder="e.g. Accounting, Computer Science"
+            error={errors.fieldOfGraduation?.message}
+            {...register("fieldOfGraduation")}
+          />
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <TextField
-              id="CGPA"
-              label="CGPA"
-              required
-              type="number"
-              step="0.01"
-              min="0"
-              max="4"
-              placeholder="0.00 - 4.00"
-              error={errors.CGPA?.message}
-              {...register("CGPA")}
-            />
+          <TextField
+            id="universityGraduatedFrom"
+            label="University graduated from"
+            required
+            placeholder="e.g. Addis Ababa University"
+            autoComplete="organization"
+            error={errors.universityGraduatedFrom?.message}
+            {...register("universityGraduatedFrom")}
+          />
+        </div>
 
-            <Controller
-              control={control}
+        <TextField
+          id="CGPA"
+          label="Final CGPA"
+          required
+          inputMode="decimal"
+          autoComplete="off"
+          placeholder="e.g. 3.45"
+          hint="On a 4.00 scale."
+          className="sm:max-w-56"
+          error={errors.CGPA?.message}
+          {...register("CGPA")}
+        />
+      </FormSection>
+
+      <FormSection title="Work">
+        <Controller
+          control={control}
+          name="employmentStatus"
+          render={({ field }) => (
+            <ChoiceGroup
               name="employmentStatus"
-              render={({ field }) => (
-                <SelectField
-                  id="employmentStatus"
-                  label="Employment status"
-                  required
-                  options={EMPLOYMENT_STATUS_OPTIONS}
-                  value={field.value ?? ""}
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    onEmploymentStatusChange(value);
-                  }}
-                  error={errors.employmentStatus?.message}
-                />
-              )}
-            />
-          </div>
-
-          {needsCurrentJob ? (
-            <TextField
-              id="currentJob"
-              label="Current job"
+              legend="Employment status"
               required
-              placeholder="Your current job / occupation"
-              error={errors.currentJob?.message}
-              {...register("currentJob")}
+              options={EMPLOYMENT_STATUS_OPTIONS}
+              value={field.value ?? ""}
+              inputRef={field.ref}
+              onChange={(value) => {
+                field.onChange(value);
+                onEmploymentStatusChange(value);
+              }}
+              error={errors.employmentStatus?.message}
             />
-          ) : null}
-        </>
-      )}
+          )}
+        />
+
+        {needsCurrentJob ? (
+          <TextField
+            id="currentJob"
+            label="Current job"
+            required
+            placeholder="e.g. Junior accountant"
+            autoComplete="organization-title"
+            error={errors.currentJob?.message}
+            {...register("currentJob")}
+          />
+        ) : null}
+      </FormSection>
     </div>
   );
 }
