@@ -19,6 +19,8 @@ export type EmailVerification = {
   code: string;
   sending: boolean;
   verifying: boolean;
+  /** Why the last verify failed; empty when it didn't. */
+  error: string;
   /** Seconds until "Resend code" is allowed again; 0 when it is. */
   resendIn: number;
   setCode: (code: string) => void;
@@ -198,6 +200,10 @@ export function AccountStep({
                       id="emailCode"
                       value={verification.code}
                       disabled={verification.verifying}
+                      invalid={Boolean(verification.error)}
+                      describedBy={
+                        verification.error ? "emailCode-error" : undefined
+                      }
                       onChange={(code) => {
                         verification.setCode(code);
 
@@ -234,6 +240,16 @@ export function AccountStep({
                       {verification.verifying ? "Verifying…" : "Verify"}
                     </Button>
                   </div>
+
+                  {verification.error ? (
+                    <p
+                      id="emailCode-error"
+                      role="alert"
+                      className="text-sm text-destructive"
+                    >
+                      {verification.error}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
             </>

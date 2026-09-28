@@ -54,11 +54,27 @@ export function OtpInput({
           onChange(event.target.value.replace(/\D/g, "").slice(0, length))
         }
         onKeyDown={onKeyDown}
+        onPaste={(event) => {
+          // A pasted code replaces whatever is there. Left to the browser,
+          // it would insert at the caret, and `maxLength` drops it silently
+          // once the boxes are full — e.g. after a mistyped code.
+          const pasted = event.clipboardData
+            .getData("text")
+            .replace(/\D/g, "")
+            .slice(0, length);
+
+          if (pasted) {
+            event.preventDefault();
+            onChange(pasted);
+          }
+        }}
         onFocus={(event) => {
           setFocused(true);
-          // Keep the caret at the end so typing always fills the next box.
+          // Keep the caret at the end so typing always fills the next box —
+          // or, when every box is filled, select the lot so the next digit
+          // starts the code over instead of being dropped by `maxLength`.
           const end = event.target.value.length;
-          event.target.setSelectionRange(end, end);
+          event.target.setSelectionRange(end >= length ? 0 : end, end);
         }}
         onBlur={() => setFocused(false)}
         className="absolute inset-0 z-10 size-full cursor-text opacity-0 disabled:cursor-not-allowed"

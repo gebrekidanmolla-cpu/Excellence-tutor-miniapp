@@ -161,6 +161,36 @@ export async function PATCH(
       );
     }
 
+    // Trimmed before checking, like `POST /api/admin/jobs`: a
+    // whitespace-only value passes the truthiness check above and
+    // would otherwise reach the row and the channel post as "".
+
+    const normalizedGrade =
+      String(grade).trim();
+
+    if (!normalizedGrade) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Grade is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedSubject =
+      String(subject).trim();
+
+    if (!normalizedSubject) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Subject is required.",
+        },
+        { status: 400 }
+      );
+    }
+
     const normalizedPlace =
       String(place).trim();
 
@@ -331,10 +361,8 @@ export async function PATCH(
         },
         data: {
           gender,
-          grade:
-            String(grade).trim(),
-          subject:
-            String(subject).trim(),
+          grade: normalizedGrade,
+          subject: normalizedSubject,
           place: normalizedPlace,
           parentName: normalizedParentName,
           parentPhone: normalizedParentPhone,

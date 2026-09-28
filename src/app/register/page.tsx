@@ -251,6 +251,8 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
     draft?.verifiedEmail ?? null
   );
   const [codeSent, setCodeSent] = React.useState(false);
+  /* A failed verify, shown under the code boxes. */
+  const [codeError, setCodeError] = React.useState("");
   const [emailCode, setEmailCode] = React.useState("");
   const [sendingCode, setSendingCode] = React.useState(false);
   const [verifyingCode, setVerifyingCode] = React.useState(false);
@@ -400,6 +402,7 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
     setVerifiedEmail(null);
     setCodeSent(false);
     setEmailCode("");
+    setCodeError("");
     // The server's cooldown is per address; a new one can be sent at once.
     setResendIn(0);
   }, []);
@@ -434,6 +437,7 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
       setCodeSent(true);
       setVerifiedEmail(null);
       setEmailCode("");
+      setCodeError("");
       setResendIn(RESEND_COOLDOWN_SECONDS);
       toast.success(`Verification code sent to ${email}.`);
     } catch (error) {
@@ -451,7 +455,7 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
     const code = (codeOverride ?? emailCode).trim();
 
     if (!/^\d{6}$/.test(code)) {
-      setFormError("Verification code must contain exactly 6 digits.");
+      setCodeError("Verification code must contain exactly 6 digits.");
       return;
     }
 
@@ -459,6 +463,7 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
 
     setVerifyingCode(true);
     setFormError("");
+    setCodeError("");
 
     try {
       const response = await fetch("/api/auth/verify-email-code", {
@@ -481,9 +486,13 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
       setResendIn(0);
       toast.success("Email verified.");
     } catch (error) {
-      setFormError(
+      /* Shown under the code boxes rather than in the form-level banner,
+         which sits below the password fields — off-screen on a phone.
+         Clearing the boxes lets the tutor type or paste the code afresh. */
+      setCodeError(
         error instanceof Error ? error.message : "Invalid verification code."
       );
+      setEmailCode("");
     } finally {
       setVerifyingCode(false);
     }
@@ -998,8 +1007,12 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
                       code: emailCode,
                       sending: sendingCode,
                       verifying: verifyingCode,
+                      error: codeError,
                       resendIn,
-                      setCode: setEmailCode,
+                      setCode: (code: string) => {
+                        setEmailCode(code);
+                        setCodeError("");
+                      },
                       send: sendEmailCode,
                       verify: verifyEmailCode,
                       change: resetVerification,
