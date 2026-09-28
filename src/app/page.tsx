@@ -360,84 +360,76 @@ function SubjectBand() {
    UNIVERSITIES
 ========================================================= */
 
-const UNIVERSITIES = {
-  Public: [
-    "Addis Ababa University",
-    "Addis Ababa Science and Technology University",
-    "Adama Science and Technology University",
-    "Kotebe University of Education",
-    "Haramaya University",
-    "Jimma University",
-    "Bahir Dar University",
-    "University of Gondar",
-    "Mekelle University",
-    "Hawassa University",
-    "Arba Minch University",
-    "Dire Dawa University",
-    "Debre Berhan University",
-    "Debre Markos University",
-    "Wollo University",
-    "Ambo University",
-    "Wolaita Sodo University",
-    "Dilla University",
-  ],
-  Private: [
-    "St. Mary's University",
-    "Unity University",
-    "Admas University",
-    "Rift Valley University",
-    "HiLCoE School of Computer Science and Technology",
-    "Infolink University College",
-    "New Generation University College",
-    "Yardstick International College",
-  ],
-};
+/* Floors, not totals: tutors also come from institutions beyond these,
+   which is why every figure carries a "+". */
+const UNIVERSITY_GROUPS = [
+  { key: "public", label: "Public universities", count: 18, swatch: "bg-primary" },
+  { key: "private", label: "Private universities & colleges", count: 8, swatch: "bg-highlight" },
+] as const;
+
+const UNIVERSITY_TOTAL = UNIVERSITY_GROUPS.reduce((sum, group) => sum + group.count, 0);
+
+function Plus() {
+  return <span className="text-highlight">+</span>;
+}
 
 function Universities() {
   return (
     <section aria-labelledby="universities-heading" className="border-b">
-      <div className={cn(container, "grid gap-8 py-14 lg:grid-cols-12 lg:gap-12 lg:py-20")}>
-        <div className={cn(styles.inView, "lg:col-span-3")}>
+      <div className={cn(container, "grid gap-12 py-16 lg:grid-cols-12 lg:items-end lg:gap-12 lg:py-24")}>
+        <div className={cn(styles.inView, "lg:col-span-7")}>
+          <p className="flex items-center gap-3 text-[0.8125rem] font-medium text-muted-foreground">
+            <span aria-hidden="true" className="h-px w-8 bg-highlight" />
+            Where our tutors learn
+          </p>
+
           <h2
             id="universities-heading"
-            className="font-display text-2xl leading-snug font-light"
+            className="mt-6 max-w-[16ch] font-display text-[clamp(2.25rem,4.6vw,4rem)] leading-[1.02] font-light"
           >
-            Our tutors study and graduated at public and private universities
+            Students and graduates of{" "}
+            <em className="font-normal whitespace-nowrap text-primary">
+              <span className="tabular-nums">{UNIVERSITY_TOTAL}</span>
+              <Plus /> universities
+            </em>{" "}
             across Ethiopia.
           </h2>
+
+          <p className="mt-7 max-w-md text-[0.9375rem] leading-7 text-foreground/70">
+            Our tutors study at, or graduated from, public universities and
+            private colleges across the country.
+          </p>
         </div>
 
-        <div className="space-y-7 lg:col-span-9">
-          {Object.entries(UNIVERSITIES).map(([group, names]) => (
-            <div
-              key={group}
-              className={cn(
-                styles.inView,
-                "grid gap-3 border-t border-foreground/15 pt-5 sm:grid-cols-[6rem_minmax(0,1fr)] sm:gap-6"
-              )}
-            >
-              <p className="text-xs font-semibold">
-                {group}
-                <span className="ml-1.5 font-normal text-muted-foreground tabular-nums">
-                  {names.length}
-                </span>
-              </p>
-              <ul className="flex flex-wrap gap-x-2 gap-y-1.5 text-sm text-foreground/75">
-                {names.map((name, index) => (
-                  <li key={name} className="sm:whitespace-nowrap">
-                    <span className="transition-colors duration-200 hover:text-foreground">
-                      {name}
-                    </span>
-                    {index < names.length - 1 ? (
-                      <span aria-hidden="true" className="ml-2 text-foreground/25">
-                        /
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        <div className={cn(styles.inView, "lg:col-span-5")}>
+          {/* Share of each group, drawn to scale. */}
+          <div aria-hidden="true" className="flex h-1.5 gap-1 overflow-hidden rounded-full">
+            {UNIVERSITY_GROUPS.map((group) => (
+              <span
+                key={group.key}
+                className={cn(group.swatch, "rounded-full")}
+                style={{ flexGrow: group.count }}
+              />
+            ))}
+          </div>
+
+          <dl className="mt-6">
+            {UNIVERSITY_GROUPS.map((group) => (
+              <div
+                key={group.key}
+                className="flex items-end justify-between gap-6 border-b border-foreground/10 py-5 first:border-t first:border-t-foreground/80"
+              >
+                <dt className="flex items-center gap-2.5 pb-1.5 text-sm text-foreground/75">
+                  <span aria-hidden="true" className={cn(group.swatch, "size-2 shrink-0 rotate-45")} />
+                  {group.label}
+                </dt>
+                <dd className="font-display text-[clamp(3rem,5vw,4.25rem)] leading-none font-light tabular-nums">
+                  {group.count}
+                  <Plus />
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </div>
     </section>
