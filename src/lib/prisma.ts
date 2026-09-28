@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { attachDatabasePool } from "@vercel/functions";
+import { Pool } from "pg";
 
 const connectionString = process.env.DIRECT_URL;
 
@@ -9,28 +11,37 @@ if (!connectionString) {
 }
 
 /*
- * `DIRECT_URL` is Supabase's session-mode pooler, which caps the whole
- * project at 15 client connections and holds each one for as long as it is
- * open. node-postgres defaults to 10 per pool, so two or three warm Vercel
- * instances were enough to exhaust it and every query then failed with
- * EMAXCONNSESSION. A small pool that lets idle connections go keeps several
- * instances inside the limit; the heaviest page runs three queries at once.
+ * The database sits behind Supabase's pooler, which caps the whole project at
+ * a fixed number of client connections (15 in session mode). Every Vercel
+ * function instance gets its own pool, so pg's default of 10 connections each
+ * — held open while an instance sits frozen between requests — exhausted that
+ * cap with only two or three warm instances, and every query then failed with
+ * EMAXCONNSESSION.
+ *
+ * Keep each instance's pool small, drop idle connections quickly, and let
+ * attachDatabasePool keep the instance alive just long enough to actually
+ * close them before Vercel suspends it.
  */
-const adapter = new PrismaPg({
-  connectionString,
-  max: 3,
-  idleTimeoutMillis: 10_000,
-});
+function createPrismaClient(url: string) {
+  const pool = new Pool({
+    connectionString: url,
+    max: 3,
+    idleTimeoutMillis: 5_000,
+  });
+
+  attachDatabasePool(pool);
+
+  return new PrismaClient({
+    adapter: new PrismaPg(pool),
+  });
+}
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
-  });
+  globalForPrisma.prisma ?? createPrismaClient(connectionString);
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
