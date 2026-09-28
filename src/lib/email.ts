@@ -343,6 +343,85 @@ export async function sendVerificationEmail(email: string, code: string) {
 }
 
 // ==========================================
+// PASSWORD RESET
+// ==========================================
+
+export function buildPasswordResetEmail({
+  tutorName,
+  url,
+  expiresInMinutes,
+}: {
+  tutorName: string;
+  url: string;
+  expiresInMinutes: number;
+}): EmailContent {
+  return {
+    subject: "Reset your Excellence Tutor password",
+    html: renderEmail({
+      preheader: `Use this link within ${expiresInMinutes} minutes to choose a new password.`,
+      eyebrow: "Account security",
+      heading: "Reset your password",
+      bodyHtml: `
+        ${paragraph(`Hi ${escapeHtml(tutorName)},`)}
+        ${paragraph("We received a request to reset the password for your tutor account. Choose a new one with the button below:")}
+        ${button("Choose a new password", url)}
+        ${paragraph(
+          `This link expires in ${expiresInMinutes} minutes and can only be used once. If the button doesn't work, copy this address into your browser:`,
+          `font-size:14px;line-height:22px;color:${BRAND.muted};`
+        )}
+        ${paragraph(
+          `<a href="${escapeHtml(url)}" style="color:${BRAND.primary};word-break:break-all;">${escapeHtml(url)}</a>`,
+          "font-size:13px;line-height:20px;"
+        )}
+      `,
+      footerNote:
+        "If you didn't ask to reset your password, you can ignore this email — your password won't change.",
+    }),
+    text: renderText([
+      `Hi ${tutorName},`,
+      "",
+      "We received a request to reset the password for your tutor account. Choose a new one here:",
+      "",
+      url,
+      "",
+      `This link expires in ${expiresInMinutes} minutes and can only be used once.`,
+      "",
+      "If you didn't ask to reset your password, you can ignore this email — your password won't change.",
+    ]),
+  };
+}
+
+/**
+ * Throws when `NEXT_PUBLIC_APP_URL` is unset: a reset email without a working
+ * link is worse than none. The link is never built from the request's own
+ * Host header, which a caller controls.
+ */
+export async function sendPasswordResetEmail({
+  to,
+  tutorName,
+  token,
+  expiresInMinutes,
+}: {
+  to: string;
+  tutorName: string;
+  token: string;
+  expiresInMinutes: number;
+}) {
+  const url = buildAppUrl(`/reset-password?token=${encodeURIComponent(token)}`);
+
+  if (!url) {
+    throw new Error(
+      "NEXT_PUBLIC_APP_URL is required to build password reset links."
+    );
+  }
+
+  return sendMail({
+    to,
+    ...buildPasswordResetEmail({ tutorName, url, expiresInMinutes }),
+  });
+}
+
+// ==========================================
 // APPLICATION STATUS EMAILS
 // ==========================================
 //

@@ -20,6 +20,7 @@ import { ReviewStep } from "@/app/register/steps/ReviewStep";
 import {
   MobileChecklist,
   MobileProgress,
+  STEP_ICONS,
   WizardAside,
 } from "@/app/register/components/WizardProgress";
 import {
@@ -844,15 +845,25 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
   const uploadPercent = Math.round((uploadProgress ?? 0) * 100);
   const uploading = uploadProgress !== null && uploadProgress < 1;
 
+  const StepIcon = STEP_ICONS[step];
+  const nextStep = STEPS.find((item) => item.id === step + 1);
+  const progressPercent = Math.round((step / STEPS.length) * 100);
+
   return (
     <main className="min-h-svh bg-background lg:grid lg:grid-cols-[minmax(22rem,26rem)_1fr] xl:grid-cols-[28rem_1fr]">
       <WizardAside step={step} onStepClick={goToStep} disabled={submitting} />
 
-      <div className="flex min-w-0 flex-col">
+      <div className="relative flex min-h-svh min-w-0 flex-col sm:bg-muted/50">
+        {/* A soft brand wash behind the top of the card. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 hidden h-96 bg-[radial-gradient(55%_100%_at_50%_0%,color-mix(in_oklch,var(--color-primary)_9%,transparent),transparent)] sm:block"
+        />
+
         {/* ---------------------------------------------------
             MOBILE TOP BAR
         --------------------------------------------------- */}
-        <header className="flex items-center justify-between gap-4 px-4 pt-5 sm:px-8 lg:hidden">
+        <header className="relative flex items-center justify-between gap-4 px-4 pt-5 sm:px-8 lg:hidden">
           <Wordmark />
           <Link
             href="/login"
@@ -862,14 +873,23 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
           </Link>
         </header>
 
-        <div className="mx-auto w-full max-w-2xl flex-1 px-4 pt-6 pb-8 sm:px-8 lg:px-12 lg:pt-14 xl:pt-16">
-          <MobileProgress
-            step={step}
-            onStepClick={goToStep}
-            disabled={submitting}
-          />
+        <div className="relative mx-auto w-full max-w-3xl flex-1 pt-6 pb-8 sm:px-8 sm:pb-12 lg:px-12 lg:pt-10 xl:pt-12">
+          <div className="px-4 sm:px-0">
+            <MobileProgress
+              step={step}
+              onStepClick={goToStep}
+              disabled={submitting}
+            />
+          </div>
 
-          <div className="hidden justify-end lg:flex">
+          <div className="hidden items-center justify-between gap-4 lg:flex">
+            <p className="text-sm font-medium text-muted-foreground">
+              Step {step} of {STEPS.length}
+              <span aria-hidden="true" className="mx-2 text-border">
+                /
+              </span>
+              <span className="text-foreground">{STEPS[step - 1].label}</span>
+            </p>
             <p className="text-sm text-muted-foreground">
               Already registered?{" "}
               <Link
@@ -881,156 +901,179 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
             </p>
           </div>
 
-          {/* ---------------------------------------------------
-              STEP HEADER — focused on every step change so
-              screen-reader users hear where they landed.
-          --------------------------------------------------- */}
-          <div className="mt-8 lg:mt-10">
-            <p className="hidden text-sm font-semibold text-primary lg:block">
-              Step {step} of {STEPS.length}
-            </p>
-            <h1
-              ref={headingRef}
-              tabIndex={-1}
-              className="font-heading text-2xl font-semibold tracking-tight text-balance outline-none sm:text-3xl lg:mt-2"
-            >
-              {heading.title}
-            </h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-pretty sm:text-base">
-              {heading.description}
-            </p>
-          </div>
-
           <form
             onSubmit={form.handleSubmit(onSubmit, onInvalid)}
             noValidate
-            className="mt-8"
+            className="relative mt-6 sm:rounded-3xl sm:border sm:bg-card sm:shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_40px_-12px_rgb(30_41_110/0.18)] lg:mt-5"
           >
-            {step === 1 ? (
-              <div className="mb-8 space-y-3">
-                {showRestored ? (
-                  <Alert>
-                    <History aria-hidden="true" />
-                    <AlertDescription>
-                      <p>
-                        Welcome back — we restored the details you entered
-                        earlier. Re-enter your password, and you&apos;ll need
-                        to attach your documents again.
-                      </p>
-
-                      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                        <button
-                          type="button"
-                          onClick={() => setShowRestored(false)}
-                          className="rounded-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-                        >
-                          Got it
-                        </button>
-                        <button
-                          type="button"
-                          onClick={startOver}
-                          className="rounded-sm font-medium text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-                        >
-                          Start over
-                        </button>
-                      </p>
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
-
-                <MobileChecklist />
-              </div>
-            ) : null}
-
-            {/* Keyed so each step fades in; skipped for reduced motion. */}
+            {/* Progress along the card's top edge; `MobileProgress` does this job below `lg`. */}
             <div
-              key={step}
-              className="animate-in fade-in slide-in-from-bottom-2 duration-300 motion-reduce:animate-none"
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 hidden h-1 overflow-hidden rounded-t-3xl bg-muted lg:block"
             >
-              {step === 1 ? (
-                <AccountStep
-                  form={form}
-                  email={{
-                    verified: emailVerified,
-                    codeSent,
-                    code: emailCode,
-                    sending: sendingCode,
-                    verifying: verifyingCode,
-                    resendIn,
-                    setCode: setEmailCode,
-                    send: sendEmailCode,
-                    verify: verifyEmailCode,
-                    change: resetVerification,
-                  }}
-                />
-              ) : null}
-
-              {step === 2 ? (
-                <PersonalStep
-                  form={form}
-                  onTutorStatusChange={handleTutorStatusChange}
-                />
-              ) : null}
-
-              {step === 3 ? (
-                <EducationStep
-                  form={form}
-                  onEmploymentStatusChange={handleEmploymentStatusChange}
-                />
-              ) : null}
-
-              {step === 4 ? (
-                <DocumentsStep
-                  form={form}
-                  files={files}
-                  fileErrors={fileErrors}
-                  filesBusy={filesBusy}
-                  onFileChange={handleFileChange}
-                />
-              ) : null}
-
-              {step === 5 ? (
-                <ReviewStep form={form} files={files} onEdit={goToStep} />
-              ) : null}
+              <div
+                className="h-full bg-[linear-gradient(90deg,var(--color-primary),oklch(0.64_0.15_250))] transition-[width] duration-500 ease-out motion-reduce:transition-none"
+                style={{ width: `${progressPercent}%` }}
+              />
             </div>
 
-            <FormError message={formError} className="mt-8" />
+            {/* ---------------------------------------------------
+                STEP HEADER — focused on every step change so
+                screen-reader users hear where they landed.
+            --------------------------------------------------- */}
+            <div className="flex items-start gap-4 px-4 pt-2 sm:px-8 sm:pt-9 lg:px-10">
+              <span
+                aria-hidden="true"
+                className="hidden size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15 sm:flex"
+              >
+                <StepIcon className="size-6" />
+              </span>
 
-            {uploadProgress !== null ? (
-              <div className="mt-8 space-y-1.5" aria-live="polite">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">
-                    {uploading
-                      ? "Uploading your documents…"
-                      : "Creating your account…"}
-                  </span>
-                  <span className="font-medium tabular-nums">
-                    {uploadPercent}%
-                  </span>
-                </div>
-
-                <div
-                  className="h-1.5 overflow-hidden rounded-full bg-muted"
-                  role="progressbar"
-                  aria-label="Upload progress"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={uploadPercent}
+              <div className="min-w-0">
+                <h1
+                  ref={headingRef}
+                  tabIndex={-1}
+                  className="font-heading text-2xl font-semibold tracking-tight text-balance outline-none sm:text-[1.75rem] sm:leading-tight"
                 >
-                  <div
-                    className="h-full rounded-full bg-primary transition-[width] motion-reduce:transition-none"
-                    style={{ width: `${uploadPercent}%` }}
-                  />
-                </div>
+                  {heading.title}
+                </h1>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground text-pretty sm:text-base">
+                  {heading.description}
+                </p>
               </div>
-            ) : null}
+            </div>
+
+            <div className="mx-4 mt-7 h-px bg-border sm:mx-8 lg:mx-10" />
+
+            <div className="px-4 pt-8 sm:px-8 sm:pb-8 lg:px-10">
+              {step === 1 ? (
+                <div
+                  className={`mb-8 space-y-3 ${showRestored ? "" : "lg:hidden"}`}
+                >
+                  {showRestored ? (
+                    <Alert>
+                      <History aria-hidden="true" />
+                      <AlertDescription>
+                        <p>
+                          Welcome back — we restored the details you entered
+                          earlier. Re-enter your password, and you&apos;ll need
+                          to attach your documents again.
+                        </p>
+
+                        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                          <button
+                            type="button"
+                            onClick={() => setShowRestored(false)}
+                            className="rounded-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                          >
+                            Got it
+                          </button>
+                          <button
+                            type="button"
+                            onClick={startOver}
+                            className="rounded-sm font-medium text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                          >
+                            Start over
+                          </button>
+                        </p>
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+
+                  <MobileChecklist />
+                </div>
+              ) : null}
+
+              {/* Keyed so each step fades in; skipped for reduced motion. */}
+              <div
+                key={step}
+                className="animate-in fade-in slide-in-from-bottom-2 duration-300 motion-reduce:animate-none"
+              >
+                {step === 1 ? (
+                  <AccountStep
+                    form={form}
+                    email={{
+                      verified: emailVerified,
+                      codeSent,
+                      code: emailCode,
+                      sending: sendingCode,
+                      verifying: verifyingCode,
+                      resendIn,
+                      setCode: setEmailCode,
+                      send: sendEmailCode,
+                      verify: verifyEmailCode,
+                      change: resetVerification,
+                    }}
+                  />
+                ) : null}
+
+                {step === 2 ? (
+                  <PersonalStep
+                    form={form}
+                    onTutorStatusChange={handleTutorStatusChange}
+                  />
+                ) : null}
+
+                {step === 3 ? (
+                  <EducationStep
+                    form={form}
+                    onEmploymentStatusChange={handleEmploymentStatusChange}
+                  />
+                ) : null}
+
+                {step === 4 ? (
+                  <DocumentsStep
+                    form={form}
+                    files={files}
+                    fileErrors={fileErrors}
+                    filesBusy={filesBusy}
+                    onFileChange={handleFileChange}
+                  />
+                ) : null}
+
+                {step === 5 ? (
+                  <ReviewStep form={form} files={files} onEdit={goToStep} />
+                ) : null}
+              </div>
+
+              <FormError message={formError} className="mt-8" />
+
+              {uploadProgress !== null ? (
+                <div className="mt-8 space-y-1.5" aria-live="polite">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      {uploading
+                        ? "Uploading your documents…"
+                        : "Creating your account…"}
+                    </span>
+                    <span className="font-medium tabular-nums">
+                      {uploadPercent}%
+                    </span>
+                  </div>
+
+                  <div
+                    className="h-1.5 overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-label="Upload progress"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={uploadPercent}
+                  >
+                    <div
+                      className="h-full rounded-full bg-primary transition-[width] motion-reduce:transition-none"
+                      style={{ width: `${uploadPercent}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
 
             {/* ---------------------------------------------------
                 ACTIONS — pinned to the bottom of the viewport on
                 small screens so the next step is always one tap
-                away, inline on larger ones.
+                away; the card's footer bar on larger ones.
             --------------------------------------------------- */}
-            <div className="sticky bottom-0 z-20 -mx-4 mt-10 flex items-center gap-3 border-t bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-8 sm:px-8 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:pt-6 lg:pb-0 lg:backdrop-blur-none">
+            <div className="sticky bottom-0 z-20 mt-8 flex items-center gap-3 border-t bg-background/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur supports-backdrop-filter:bg-background/80 sm:mt-0 sm:rounded-b-3xl sm:px-8 sm:py-5 lg:static lg:bg-muted/40 lg:px-10 lg:backdrop-blur-none">
               {step > 1 ? (
                 <Button
                   type="button"
@@ -1039,12 +1082,16 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
                   onClick={goBack}
                   disabled={submitting}
                   aria-label="Back to the previous step"
-                  className="px-4"
+                  className="bg-background px-4"
                 >
                   <ArrowLeft aria-hidden="true" />
                   <span className="hidden sm:inline">Back</span>
                 </Button>
               ) : null}
+
+              <p className="hidden text-sm text-muted-foreground lg:block">
+                {nextStep ? `Next: ${nextStep.label}` : "Last step"}
+              </p>
 
               {step < 5 ? (
                 <Button

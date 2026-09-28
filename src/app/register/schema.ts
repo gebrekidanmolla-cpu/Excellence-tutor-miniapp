@@ -215,6 +215,15 @@ function gpaIssue(value: string): boolean {
   return value.trim() === "" || !Number.isFinite(parsed) || parsed < 0 || parsed > 4;
 }
 
+/** Shared with the password-reset form and route, so the rule lives once. */
+export const passwordSchema = z
+  .string()
+  .min(8, "Password must contain at least 8 characters.")
+  .refine(
+    (value) => new TextEncoder().encode(value).length <= PASSWORD_MAX_BYTES,
+    "Password must be 72 characters or fewer."
+  );
+
 export const registerSchema = z
   .object({
     /* Account */
@@ -238,13 +247,7 @@ export const registerSchema = z
         ETHIOPIAN_LOCAL_PHONE_PATTERN,
         "Please enter a valid Ethiopian mobile number."
       ),
-    password: z
-      .string()
-      .min(8, "Password must contain at least 8 characters.")
-      .refine(
-        (value) => new TextEncoder().encode(value).length <= PASSWORD_MAX_BYTES,
-        "Password must be 72 characters or fewer."
-      ),
+    password: passwordSchema,
     confirmPassword: z.string(),
 
     /* Personal */
