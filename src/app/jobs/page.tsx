@@ -3,28 +3,29 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowRight,
-  BookOpen,
+  ArrowUpRight,
   BriefcaseBusiness,
   CalendarDays,
   GraduationCap,
   LayoutDashboard,
+  Lock,
   MapPin,
   Megaphone,
   RotateCw,
   Search,
   Users,
-  Wallet,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDate, formatSalary } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type Job = {
   id: string;
@@ -39,15 +40,23 @@ type Job = {
   createdAt: string;
 };
 
+type Filter = "ALL" | "OPEN" | "CLOSED";
+
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "ALL", label: "All" },
+  { value: "OPEN", label: "Open" },
+  { value: "CLOSED", label: "Closed" },
+];
+
 /** `ANY` reads as "Male/Female" here rather than the raw enum. */
 function formatTutorRequirement(gender: Job["gender"]): string {
   switch (gender) {
     case "MALE":
-      return "Male Tutor";
+      return "Male";
     case "FEMALE":
-      return "Female Tutor";
+      return "Female";
     default:
-      return "Male/Female Tutor";
+      return "Male/Female";
   }
 }
 
@@ -56,6 +65,7 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("ALL");
 
   /* Bumping this re-runs the effect; the retry button drives it. */
   const [reloadKey, setReloadKey] = useState(0);
@@ -67,7 +77,9 @@ export default function JobsPage() {
        inside an effect causes a cascading re-render. */
     async function run() {
       try {
-        const response = await fetch("/api/jobs?status=OPEN", {
+        /* No `status` param: the endpoint then returns open and closed jobs,
+           newest first, and the tabs below split them client-side. */
+        const response = await fetch("/api/jobs", {
           cache: "no-store",
         });
 
@@ -110,9 +122,8 @@ export default function JobsPage() {
     setReloadKey((key) => key + 1);
   }
 
-  /* Client-side only: the endpoint returns every open job, and filtering here
-     avoids a round trip per keystroke. */
-  const visibleJobs = useMemo(() => {
+  /* Search narrows first, so each tab's count reflects the current search. */
+  const searchedJobs = useMemo(() => {
     const term = query.trim().toLowerCase();
 
     if (!term) {
@@ -127,43 +138,122 @@ export default function JobsPage() {
     );
   }, [jobs, query]);
 
+  const counts = useMemo(
+    () => ({
+      ALL: searchedJobs.length,
+      OPEN: searchedJobs.filter((job) => job.status === "OPEN").length,
+      CLOSED: searchedJobs.filter((job) => job.status === "CLOSED").length,
+    }),
+    [searchedJobs]
+  );
+
+  /* Under "All", open jobs lead: they are the ones a tutor can act on. The
+     sort is stable, so each group keeps the API's newest-first order. */
+  const visibleJobs = useMemo(() => {
+    if (filter !== "ALL") {
+      return searchedJobs.filter((job) => job.status === filter);
+    }
+
+    return [...searchedJobs].sort(
+      (a, b) => Number(b.status === "OPEN") - Number(a.status === "OPEN")
+    );
+  }, [searchedJobs, filter]);
+
+  const openTotal = jobs.filter((job) => job.status === "OPEN").length;
+  const hasJobs = !loading && !error && jobs.length > 0;
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Available jobs"
+        title="Jobs"
         description={
-          loading
-            ? "Loading opportunities…"
-            : `${jobs.length} ${
-                jobs.length === 1 ? "opportunity" : "opportunities"
-              } currently accepting applications`
+          loading ? (
+            "Loading opportunities…"
+          ) : error ? (
+            "Browse tutoring opportunities from Excellence Tutor."
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="relative flex size-2 shrink-0"
+              >
+                {openTotal > 0 ? (
+                  <span className="absolute inset-0 animate-ping rounded-full bg-success/60 motion-reduce:hidden" />
+                ) : null}
+                <span
+                  className={cn(
+                    "relative size-2 rounded-full",
+                    openTotal > 0 ? "bg-success" : "bg-muted-foreground/50"
+                  )}
+                />
+              </span>
+              {openTotal} {openTotal === 1 ? "job is" : "jobs are"} accepting
+              applications · {jobs.length} total
+            </span>
+          )
         }
       />
 
-      {!loading && !error && jobs.length > 0 ? (
-        <div className="relative max-w-sm">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
+      {hasJobs ? (
+        <div className="flex flex-col gap-3 rounded-2xl bg-card p-2 ring-1 ring-foreground/10 sm:flex-row sm:items-center sm:justify-between">
+          <Tabs
+            value={filter}
+            onValueChange={(value) => setFilter((value as Filter) ?? "ALL")}
+          >
+            <TabsList className="h-10! w-full sm:w-fit">
+              {FILTERS.map((option) => (
+                <TabsTrigger
+                  key={option.value}
+                  value={option.value}
+                  className="px-3 sm:px-4"
+                >
+                  {option.label}
+                  <span className="rounded-full bg-foreground/5 px-1.5 text-xs text-muted-foreground tabular-nums">
+                    {counts[option.value]}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
-          <Input
-            type="search"
-            size="xl"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search subject, grade, place or code"
-            aria-label="Search jobs"
-            className="pl-9"
-          />
+          <div className="relative w-full sm:max-w-xs">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+
+            <Input
+              type="search"
+              size="xl"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search subject, grade, place or code"
+              aria-label="Search jobs"
+              className="border-transparent bg-muted/60 pr-9 pl-9 focus-visible:bg-background [&::-webkit-search-cancel-button]:hidden"
+            />
+
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute top-1/2 right-2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                <X className="size-3.5" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="h-80 rounded-xl" />
-          ))}
+        <div className="space-y-6">
+          <Skeleton className="h-14 rounded-2xl" />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-64 rounded-2xl" />
+            ))}
+          </div>
         </div>
       ) : null}
 
@@ -183,8 +273,8 @@ export default function JobsPage() {
       {!loading && !error && jobs.length === 0 ? (
         <EmptyState
           icon={<BriefcaseBusiness />}
-          title="No open positions"
-          description="There are currently no tutoring opportunities accepting applications. Please check again later."
+          title="No jobs yet"
+          description="There are no tutoring opportunities posted yet. Please check again later."
           action={
             <Button render={<Link href="/tutor" />} size="lg">
               <LayoutDashboard data-icon="inline-start" aria-hidden="true" />
@@ -194,136 +284,226 @@ export default function JobsPage() {
         />
       ) : null}
 
-      {!loading && !error && jobs.length > 0 && visibleJobs.length === 0 ? (
-        <EmptyState
-          icon={<Search />}
-          title="No matching jobs"
-          description={`Nothing matches “${query}”. Try a different subject, grade or place.`}
-          action={
-            <Button variant="outline" size="lg" onClick={() => setQuery("")}>
-              Clear search
-            </Button>
-          }
-        />
+      {hasJobs && visibleJobs.length === 0 ? (
+        query.trim() ? (
+          <EmptyState
+            icon={<Search />}
+            title="No matching jobs"
+            description={`Nothing ${
+              filter === "ALL" ? "" : `${filter.toLowerCase()} `
+            }matches “${query}”. Try a different subject, grade or place.`}
+            action={
+              <Button variant="outline" size="lg" onClick={() => setQuery("")}>
+                Clear search
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={<BriefcaseBusiness />}
+            title={filter === "OPEN" ? "No open positions" : "No closed jobs"}
+            description={
+              filter === "OPEN"
+                ? "Nothing is accepting applications right now. New jobs are posted regularly — check back soon."
+                : "Every job listed is still accepting applications."
+            }
+            action={
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setFilter("ALL")}
+              >
+                Show all jobs
+              </Button>
+            }
+          />
+        )
       ) : null}
 
-      {!loading && !error && visibleJobs.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {hasJobs && visibleJobs.length > 0 ? (
+        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visibleJobs.map((job) => (
-            <JobCard key={job.id} job={job} />
+            <li key={job.id} className="flex">
+              <JobCard job={job} />
+            </li>
           ))}
-        </div>
+        </ul>
       ) : null}
     </div>
   );
 }
 
 function JobCard({ job }: { job: Job }) {
+  const isOpen = job.status === "OPEN";
+
   return (
-    <article className="flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-lg hover:shadow-primary/5 has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50">
-      <div className="flex items-start justify-between gap-3 border-b p-5">
+    <article
+      className={cn(
+        "group relative flex w-full flex-col rounded-2xl bg-card p-5 ring-1 ring-foreground/10 transition-all has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50",
+        isOpen
+          ? "hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/5 hover:ring-primary/25 motion-reduce:hover:translate-y-0"
+          : "bg-muted/30"
+      )}
+    >
+      {/* Status accent along the top edge, readable at a glance from across
+          the grid; the pill below carries the same state in words. */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute inset-x-5 top-0 h-1 rounded-b-full",
+          isOpen ? "bg-success" : "bg-muted-foreground/40"
+        )}
+      />
+
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Job code
+          <p className="font-mono text-xs tracking-wide text-muted-foreground">
+            {job.jobCode}
           </p>
 
-          <h2 className="mt-0.5 truncate font-heading text-lg font-semibold">
-            {job.jobCode}
+          <h2
+            className={cn(
+              "mt-1 line-clamp-2 font-heading text-lg leading-snug font-semibold text-balance",
+              !isOpen && "text-foreground/70"
+            )}
+          >
+            {/* Stretched link: the whole card is the click target, while the
+                accessible name stays the subject rather than the card text. */}
+            <Link
+              href={`/apply/${job.jobCode}`}
+              className="outline-none after:absolute after:inset-0 after:rounded-2xl"
+            >
+              {job.subject}
+            </Link>
           </h2>
         </div>
 
-        <StatusBadge status={job.status} />
+        <JobStatusPill isOpen={isOpen} />
       </div>
 
-      <div className="flex-1 space-y-4 p-5">
-        {job.additionalDetails ? (
-          <div className="flex items-start gap-2 rounded-lg bg-highlight/10 p-3 ring-1 ring-highlight/25">
-            <Megaphone
-              className="mt-0.5 size-4 shrink-0 text-highlight-foreground"
-              aria-hidden="true"
-            />
+      <ul className="mt-4 flex flex-wrap gap-1.5 text-xs">
+        <Chip icon={<GraduationCap />} label="Grade">
+          {job.grade}
+        </Chip>
+        <Chip icon={<MapPin />} label="Place">
+          {job.place}
+        </Chip>
+        <Chip icon={<Users />} label="Gender">
+          {formatTutorRequirement(job.gender)}
+        </Chip>
+      </ul>
 
-            <p className="line-clamp-3 flex-1 text-sm font-semibold text-pretty text-highlight-foreground">
-              {job.additionalDetails}
-            </p>
-          </div>
-        ) : null}
-
-        <JobDetail
-          icon={<BookOpen />}
-          label="Subject"
-          value={job.subject}
-        />
-        <JobDetail
-          icon={<GraduationCap />}
-          label="Grade"
-          value={job.grade}
-        />
-        <JobDetail icon={<MapPin />} label="Place" value={job.place} />
-        <JobDetail
-          icon={<Users />}
-          label="Tutor requirement"
-          value={formatTutorRequirement(job.gender)}
-        />
-        <JobDetail
-          icon={<CalendarDays />}
-          label="Posted"
-          value={formatDate(job.createdAt)}
-        />
-
-        <div className="flex items-center gap-3 rounded-lg bg-muted/60 p-3">
-          <span
-            aria-hidden="true"
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
-          >
-            <Wallet className="size-4.5" />
-          </span>
-
-          <div>
-            <p className="text-xs text-muted-foreground">Monthly salary</p>
-            <p className="font-heading text-base font-semibold">
-              {formatSalary(job.salary)}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-t p-4">
-        <Button
-          render={<Link href={`/apply/${job.jobCode}`} />}
-          size="xl"
-          className="w-full"
+      {job.additionalDetails ? (
+        <div
+          className={cn(
+            "mt-4 flex items-start gap-2 rounded-xl p-3 ring-1",
+            isOpen
+              ? "bg-highlight/10 ring-highlight/25"
+              : "bg-muted ring-transparent"
+          )}
         >
-          View details
-          <ArrowRight data-icon="inline-end" aria-hidden="true" />
-        </Button>
+          <Megaphone
+            className={cn(
+              "mt-0.5 size-4 shrink-0",
+              isOpen ? "text-highlight-foreground" : "text-muted-foreground"
+            )}
+            aria-hidden="true"
+          />
+
+          <p
+            className={cn(
+              "line-clamp-3 flex-1 text-sm font-medium text-pretty",
+              isOpen ? "text-highlight-foreground" : "text-muted-foreground"
+            )}
+          >
+            {job.additionalDetails}
+          </p>
+        </div>
+      ) : null}
+
+      {/* Pushes the footer down so salaries line up across a row of cards. */}
+      <div aria-hidden="true" className="min-h-4 flex-1" />
+
+      <div className="flex items-end justify-between gap-3 border-t border-dashed pt-4">
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">Monthly salary</p>
+          <p
+            className={cn(
+              "font-heading text-xl font-semibold tabular-nums",
+              isOpen ? "text-primary" : "text-foreground/60"
+            )}
+          >
+            {formatSalary(job.salary)}
+          </p>
+          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+            <CalendarDays className="size-3.5" aria-hidden="true" />
+            Posted {formatDate(job.createdAt)}
+          </p>
+        </div>
+
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex h-9 shrink-0 items-center gap-1 rounded-lg px-3 text-sm font-medium transition-colors",
+            isOpen
+              ? "bg-primary text-primary-foreground group-hover:bg-primary/90"
+              : "bg-background text-muted-foreground ring-1 ring-foreground/10 group-hover:text-foreground"
+          )}
+        >
+          {isOpen ? "Apply" : "View"}
+          <ArrowUpRight
+            className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none"
+          />
+        </span>
       </div>
     </article>
   );
 }
 
-function JobDetail({
+/**
+ * Solid rather than tinted, unlike the shared `StatusBadge`: on this page the
+ * state decides whether a tutor can act, so it has to win against the card.
+ * The green is darkened so white text clears AA on it.
+ */
+function JobStatusPill({ isOpen }: { isOpen: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold tracking-wide uppercase",
+        isOpen
+          ? "bg-[color-mix(in_oklch,var(--success),var(--foreground)_30%)] text-white shadow-sm shadow-success/30"
+          : "bg-foreground/10 text-foreground/70"
+      )}
+    >
+      {isOpen ? (
+        <span aria-hidden="true" className="relative flex size-2">
+          <span className="absolute inset-0 animate-ping rounded-full bg-white/70 motion-reduce:hidden" />
+          <span className="relative size-2 rounded-full bg-white" />
+        </span>
+      ) : (
+        <Lock className="size-3" aria-hidden="true" />
+      )}
+      {isOpen ? "Open" : "Closed"}
+    </span>
+  );
+}
+
+function Chip({
   icon,
   label,
-  value,
+  children,
 }: {
   icon: React.ReactNode;
   label: string;
-  value: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <span
-        aria-hidden="true"
-        className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground [&>svg]:size-4"
-      >
-        {icon}
+    <li className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground">
+      {icon}
+      <span className="truncate">
+        <span className="text-muted-foreground">{label}:</span>{" "}
+        <span className="font-semibold text-foreground/90">{children}</span>
       </span>
-
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="truncate text-sm font-medium">{value}</p>
-      </div>
-    </div>
+    </li>
   );
 }
