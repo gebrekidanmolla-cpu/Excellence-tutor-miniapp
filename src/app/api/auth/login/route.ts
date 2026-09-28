@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword } from "@/lib/auth";
 import { createTutorSession } from "@/lib/session";
+import {
+  LOGIN_RATE_LIMITED_MESSAGE,
+  LOGIN_RETRY_AFTER_SECONDS,
+  clearLoginFailures,
+  compareAgainstDummyHash,
+  isLoginRateLimited,
+  recordLoginFailure,
+} from "@/lib/login-rate-limit";
 
 export async function POST(
   request: Request
@@ -32,6 +40,16 @@ export async function POST(
       );
     }
 
+    if (await isLoginRateLimited("TUTOR", email, request)) {
+      return NextResponse.json(
+        { success: false, message: LOGIN_RATE_LIMITED_MESSAGE },
+        {
+          status: 429,
+          headers: { "Retry-After": String(LOGIN_RETRY_AFTER_SECONDS) },
+        }
+      );
+    }
+
     const tutor =
       await prisma.tutor.findUnique({
         where: {
@@ -45,38 +63,28 @@ export async function POST(
         },
       });
 
+    let passwordValid = false;
+
+    if (tutor) {
+      passwordValid = await comparePassword(password, tutor.passwordHash);
+    } else {
+      await compareAgainstDummyHash(password);
+    }
+
     /*
-     * Use the same generic message for both
-     * cases so we don't reveal whether
-     * an email exists.
+     * Same generic message for both cases so we don't reveal whether an
+     * email exists — and the same bcrypt time, via the dummy hash.
      */
-    if (!tutor) {
+    if (!tutor || !passwordValid) {
+      await recordLoginFailure("TUTOR", email, request);
+
       return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Invalid email or password.",
-        },
+        { success: false, message: "Invalid email or password." },
         { status: 401 }
       );
     }
 
-    const passwordValid =
-      await comparePassword(
-        password,
-        tutor.passwordHash
-      );
-
-    if (!passwordValid) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Invalid email or password.",
-        },
-        { status: 401 }
-      );
-    }
+    await clearLoginFailures("TUTOR", email);
 
     await createTutorSession(
       tutor.id
