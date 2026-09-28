@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller, useForm, useWatch, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,6 @@ import { ADDRESS_FIELD_LABELS } from "@/lib/address";
 import { normalizeEthiopianPhone } from "@/lib/phone";
 import { ABOUT_ME_MIN_LENGTH } from "@/lib/profile-strength";
 import {
-  LOCKED_PROFILE_FIELDS,
   needsCurrentJob,
   profileEditSchema,
   type ProfileEditValues,
@@ -375,24 +374,6 @@ export function ProfileEditForm({
           ) : null}
         </Card>
       )}
-
-      {/* -----------------------------------------------------
-          LOCKED FIELDS
-      ----------------------------------------------------- */}
-      <div className="flex gap-3 rounded-xl border border-dashed p-4 text-sm">
-        <Lock
-          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <div className="space-y-1">
-          <p className="font-medium">Some details can&apos;t be changed here</p>
-          <p className="text-muted-foreground text-pretty">
-            {LOCKED_PROFILE_FIELDS.join(", ")} were checked against your
-            documents. Contact the Excellence Tutor team if one of them needs
-            to change.
-          </p>
-        </div>
-      </div>
 
       <FormError message={formError} />
 
