@@ -167,6 +167,11 @@ model Tutor {
 
   passwordHash String
 
+  // Stamped into the session cookie; a cookie carrying an older value is
+  // refused. Bumped on password reset, which signs every other device out.
+  // See `src/lib/session.ts`.
+  sessionVersion Int @default(0)
+
   // ==========================================
   // PERSONAL INFORMATION
   // ==========================================
@@ -320,12 +325,14 @@ model EmailVerification {
   @@index([requestIp, createdAt])
 }
 
-// Failed sign-in attempts, for the login rate limit (src/lib/login-rate-limit.ts).
+// Failed sign-in attempts, for the login rate limit (src/lib/login-rate-limit.ts),
+// and password-reset requests (src/app/api/auth/forgot-password/route.ts).
 // Only failures are stored; a successful login clears that email's rows.
 model LoginAttempt {
   id String @id @default(cuid())
 
-  // "TUTOR" or "ADMIN" — the two logins are limited independently.
+  // "TUTOR" or "ADMIN" — the two logins are limited independently — or
+  // "RESET" for password-reset emails (every request, not just failures).
   scope String
 
   // As submitted (normalized), whether or not an account exists.

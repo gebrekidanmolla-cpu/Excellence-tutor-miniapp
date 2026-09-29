@@ -57,7 +57,12 @@ export async function POST(request: Request) {
      */
     const { count } = await prisma.tutor.updateMany({
       where: { id: tutor.id, passwordHash: tutor.passwordHash },
-      data: { passwordHash: await hashPassword(password) },
+      data: {
+        passwordHash: await hashPassword(password),
+        // Signs the tutor out everywhere else: every existing cookie carries
+        // the old version. This device gets a fresh session just below.
+        sessionVersion: { increment: 1 },
+      },
     });
 
     if (count === 0) {
@@ -67,7 +72,12 @@ export async function POST(request: Request) {
       );
     }
 
-    await createTutorSession(tutor.id);
+    // The row above only matched the hash this token was checked against,
+    // so nothing else bumped the version in between.
+    await createTutorSession({
+      id: tutor.id,
+      sessionVersion: tutor.sessionVersion + 1,
+    });
 
     return NextResponse.json({
       success: true,

@@ -61,6 +61,7 @@ export async function POST(
           fullName: true,
           email: true,
           passwordHash: true,
+          sessionVersion: true,
         },
       });
 
@@ -87,9 +88,7 @@ export async function POST(
 
     await clearLoginFailures("TUTOR", email);
 
-    await createTutorSession(
-      tutor.id
-    );
+    await createTutorSession(tutor);
 
     return NextResponse.json({
       success: true,

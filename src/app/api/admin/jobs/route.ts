@@ -8,6 +8,9 @@ import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
 /* The create path now waits on a Telegram round-trip. */
 export const maxDuration = 30;
 
+// `Job.salary` is a Postgres Int; a typo past this would 500 on insert.
+const MAX_SALARY = 1_000_000;
+
 const allowedGenders = [
   "MALE",
   "FEMALE",
@@ -213,13 +216,14 @@ export async function POST(request: Request) {
     if (
       !Number.isFinite(parsedSalary) ||
       parsedSalary <= 0 ||
-      !Number.isInteger(parsedSalary)
+      !Number.isInteger(parsedSalary) ||
+      parsedSalary > MAX_SALARY
     ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Salary must be a positive whole number.",
+            "Salary must be a whole number between 1 and 1,000,000.",
         },
         { status: 400 }
       );

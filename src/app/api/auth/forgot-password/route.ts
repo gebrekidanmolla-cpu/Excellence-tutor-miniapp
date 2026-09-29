@@ -1,11 +1,21 @@
 import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendPasswordResetEmail } from "@/lib/email";
-import { EMAIL_PATTERN, normalizeEmail } from "@/lib/email-verification";
+import {
+  EMAIL_PATTERN,
+  normalizeEmail,
+  requestIp,
+} from "@/lib/email-verification";
 import {
   RESET_TOKEN_TTL_MINUTES,
   createPasswordResetToken,
 } from "@/lib/password-reset";
+
+const RESET_SCOPE = "RESET";
+const RESET_WINDOW_MS = 60 * 60 * 1000;
+const RESET_LIMIT_PER_EMAIL = 3;
+/* Loose, like the other per-IP limits: carriers share addresses widely. */
+const RESET_LIMIT_PER_IP = 20;
 
 /**
  * Emails a reset link to a registered tutor.
@@ -29,8 +39,41 @@ export async function POST(request: Request) {
     );
   }
 
+  const ip = requestIp(request);
+
   after(async () => {
     try {
+      /*
+       * Rate limit, so nobody can flood a tutor's inbox or burn the mail
+       * host's reputation. Rows live in `LoginAttempt` under their own
+       * scope, and are cleared by its 24-hour cleanup. Checked in here, not
+       * before responding: a limited request still gets the same answer.
+       */
+      const since = new Date(Date.now() - RESET_WINDOW_MS);
+
+      const [emailRequests, ipRequests] = await Promise.all([
+        prisma.loginAttempt.count({
+          where: { scope: RESET_SCOPE, email, createdAt: { gt: since } },
+        }),
+        ip
+          ? prisma.loginAttempt.count({
+              where: { scope: RESET_SCOPE, ip, createdAt: { gt: since } },
+            })
+          : 0,
+      ]);
+
+      await prisma.loginAttempt.create({
+        data: { scope: RESET_SCOPE, email, ip },
+      });
+
+      if (
+        emailRequests >= RESET_LIMIT_PER_EMAIL ||
+        ipRequests >= RESET_LIMIT_PER_IP
+      ) {
+        console.warn("Password reset rate limit reached; no email sent.");
+        return;
+      }
+
       const tutor = await prisma.tutor.findUnique({
         where: { email },
         select: { id: true, fullName: true, email: true, passwordHash: true },

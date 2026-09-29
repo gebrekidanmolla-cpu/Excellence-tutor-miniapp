@@ -93,7 +93,13 @@ export async function findTutorByResetToken(token: string) {
 
   const tutor = await prisma.tutor.findUnique({
     where: { id: payload.sub },
-    select: { id: true, fullName: true, email: true, passwordHash: true },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      passwordHash: true,
+      sessionVersion: true,
+    },
   });
 
   if (!tutor) {
