@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FormError } from "@/components/shared/ErrorState";
 import { AuthHeading, AuthLayout } from "@/components/layout/AuthLayout";
+import { nextPathFromLocation, safeNextPath } from "@/lib/safe-redirect";
 
 const HIGHLIGHTS = [
   { icon: BriefcaseBusiness, text: "Browse tutoring jobs near you" },
@@ -49,14 +50,34 @@ export default function LoginPage() {
 
       <p className="mt-8 text-center text-sm text-muted-foreground">
         Don&apos;t have a tutor account?{" "}
-        <Link
-          href="/register"
-          className="font-medium text-primary underline-offset-4 hover:underline"
-        >
-          Create one
-        </Link>
+        <Suspense fallback={<RegisterLink href="/register" />}>
+          <RegisterLinkWithNext />
+        </Suspense>
       </p>
     </AuthLayout>
+  );
+}
+
+function RegisterLink({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      className="font-medium text-primary underline-offset-4 hover:underline"
+    >
+      Create one
+    </Link>
+  );
+}
+
+/** Keeps a `?next=` job link alive when the tutor needs an account first. */
+function RegisterLinkWithNext() {
+  const next = useSearchParams().get("next");
+  const target = safeNextPath(next, "");
+
+  return (
+    <RegisterLink
+      href={target ? `/register?next=${encodeURIComponent(target)}` : "/register"}
+    />
   );
 }
 
@@ -117,7 +138,8 @@ function LoginForm() {
         return;
       }
 
-      router.push("/tutor");
+      // Back to the job they came from (`/apply/<code>?next=`), else home.
+      router.push(nextPathFromLocation());
       router.refresh();
     } catch {
       setError("Unable to connect to the server. Please try again.");

@@ -97,6 +97,9 @@ export default async function ApplyPage({ params }: PageProps) {
   const meetsGenderRequirement =
     !tutor || job.gender === "ANY" || job.gender === tutor.gender;
 
+  /* Signing in or registering from here comes back to this job. */
+  const returnTo = encodeURIComponent(`/apply/${job.jobCode}`);
+
   return (
     <>
       <PublicHeader tutor={tutor ? { fullName: tutor.fullName } : null} />
@@ -197,7 +200,10 @@ export default async function ApplyPage({ params }: PageProps) {
             <Separator />
 
             <div className="bg-muted/40 p-5 sm:p-6">
-              {!isOpen ? (
+              {/* A tutor who applied sees their status even once the job
+                  closes — the assigned tutor following the Telegram link
+                  would otherwise hit a dead end. */}
+              {!isOpen && !existingApplication ? (
                 <div className="text-center">
                   <h2 className="font-heading font-medium">
                     Applications closed
@@ -226,12 +232,15 @@ export default async function ApplyPage({ params }: PageProps) {
                   </div>
 
                   <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-                    <Button render={<Link href="/login" />} size="xl">
+                    <Button
+                      render={<Link href={`/login?next=${returnTo}`} />}
+                      size="xl"
+                    >
                       Log in
                     </Button>
 
                     <Button
-                      render={<Link href="/register" />}
+                      render={<Link href={`/register?next=${returnTo}`} />}
                       variant="outline"
                       size="xl"
                     >

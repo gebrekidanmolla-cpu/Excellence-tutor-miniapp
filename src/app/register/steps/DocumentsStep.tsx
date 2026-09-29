@@ -46,7 +46,7 @@ export function DocumentsStep({
   const score = Number(entranceScore);
   const total = Number(entranceTotal);
   const percentage =
-    entranceScore?.trim() && Number.isFinite(score) && score >= 0 && score <= total
+    entranceScore?.trim() && Number.isInteger(score) && score >= 0 && score <= total
       ? ((score / total) * 100).toFixed(1)
       : null;
 
@@ -86,7 +86,7 @@ export function DocumentsStep({
             id="entranceScore"
             label="Your score"
             required
-            inputMode="decimal"
+            inputMode="numeric"
             autoComplete="off"
             placeholder="e.g. 520"
             hint={percentage ? `That's ${percentage}%.` : undefined}

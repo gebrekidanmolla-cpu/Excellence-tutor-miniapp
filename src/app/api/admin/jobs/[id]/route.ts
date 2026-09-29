@@ -20,6 +20,9 @@ interface RouteContext {
   }>;
 }
 
+// `Job.salary` is a Postgres Int; a typo past this would 500 on insert.
+const MAX_SALARY = 1_000_000;
+
 const allowedGenders = [
   "MALE",
   "FEMALE",
@@ -284,13 +287,14 @@ export async function PATCH(
       !Number.isInteger(
         parsedSalary
       ) ||
-      parsedSalary <= 0
+      parsedSalary <= 0 ||
+      parsedSalary > MAX_SALARY
     ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Salary must be a positive whole number.",
+            "Salary must be a whole number between 1 and 1,000,000.",
         },
         { status: 400 }
       );

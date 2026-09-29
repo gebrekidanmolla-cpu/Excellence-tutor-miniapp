@@ -45,6 +45,7 @@ import {
   type Step,
 } from "@/app/register/schema";
 import { compressImage } from "@/lib/compress-image";
+import { nextPathFromLocation } from "@/lib/safe-redirect";
 
 /** The heading each step opens with. Education depends on the tutor's status. */
 function stepHeading(
@@ -820,12 +821,17 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
       setCompleted(true);
       clearDraft();
 
+      // Back to the job they came from (`?next=/apply/<code>`), else home.
+      const next = nextPathFromLocation();
+
       // Stays "submitting" through the navigation, so it can't be sent twice.
       if (data.signedIn) {
         toast.success("Welcome to Excellence Tutor! Your account is ready.");
-        router.replace("/tutor");
+        router.replace(next);
       } else {
-        router.replace("/login?registered=1");
+        router.replace(
+          `/login?registered=1&next=${encodeURIComponent(next)}`
+        );
       }
     } catch (error) {
       setFormError(

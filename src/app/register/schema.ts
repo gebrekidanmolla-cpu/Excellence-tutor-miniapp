@@ -425,6 +425,14 @@ export const registerSchema = z
         path: ["entranceScore"],
         message: "Please enter a valid entrance score.",
       });
+    } else if (!Number.isInteger(score)) {
+      /* The column is an Int: a decimal would be stored rounded while the
+         percentage was computed from the unrounded value. */
+      ctx.addIssue({
+        code: "custom",
+        path: ["entranceScore"],
+        message: "Entrance score must be a whole number.",
+      });
     } else if (score < 0 || score > total) {
       ctx.addIssue({
         code: "custom",
