@@ -315,7 +315,12 @@ export async function POST(request: Request) {
           graduationDocumentUrl: keys.graduationDocument ?? null,
           cvUrl: keys.cv ?? null,
         },
-        select: { id: true, fullName: true, email: true },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          sessionVersion: true,
+        },
       }),
       prisma.emailVerification.delete({ where: { id: verifiedEmail.id } }),
     ]);
@@ -330,7 +335,7 @@ export async function POST(request: Request) {
     let signedIn = false;
 
     try {
-      await createTutorSession(tutor.id);
+      await createTutorSession(tutor);
       signedIn = true;
     } catch (error) {
       console.error("Registration: could not start a session:", error);
@@ -341,7 +346,7 @@ export async function POST(request: Request) {
         success: true,
         signedIn,
         message: "Your tutor account has been created successfully.",
-        tutor,
+        tutor: { id: tutor.id, fullName: tutor.fullName, email: tutor.email },
       },
       { status: 201 }
     );
