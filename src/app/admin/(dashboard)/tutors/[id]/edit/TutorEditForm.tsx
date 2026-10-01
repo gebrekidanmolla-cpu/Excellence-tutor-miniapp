@@ -127,8 +127,17 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
 
     entranceScore: String(tutor.entranceScore),
     entranceTotal: String(tutor.entranceTotal),
-    entrancePercentage: String(tutor.entrancePercentage),
   });
+
+  // Derived, never typed: the route computes and stores the same value.
+  const entranceScoreNumber = Number(form.entranceScore);
+  const entrancePercentage =
+    form.entranceScore.trim() !== "" &&
+    Number.isInteger(entranceScoreNumber) &&
+    entranceScoreNumber >= 0 &&
+    entranceScoreNumber <= Number(form.entranceTotal)
+      ? ((entranceScoreNumber / Number(form.entranceTotal)) * 100).toFixed(2)
+      : "";
 
   const [address, setAddress] = useState<Address>(tutor.address);
   const [hasSecondAddress, setHasSecondAddress] = useState(
@@ -191,7 +200,6 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
 
           entranceScore: form.entranceScore,
           entranceTotal: form.entranceTotal,
-          entrancePercentage: form.entrancePercentage,
         }),
       });
 
@@ -425,7 +433,7 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
         <SectionHeading
           title="Entrance examination"
-          description="The percentage is stored alongside the score."
+          description="The percentage is worked out from the score and total."
         />
 
         <div className="mt-5 grid gap-5 sm:grid-cols-3">
@@ -452,13 +460,10 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
             id="entrancePercentage"
             label="Percentage"
             type="number"
-            step="0.01"
-            min="0"
-            max="100"
-            value={form.entrancePercentage}
-            onChange={(event) =>
-              updateField("entrancePercentage", event.target.value)
-            }
+            value={entrancePercentage}
+            readOnly
+            disabled
+            hint="Worked out from the score."
           />
         </div>
       </section>

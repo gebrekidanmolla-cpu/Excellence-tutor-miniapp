@@ -48,8 +48,16 @@ export async function POST(request: Request) {
        * host's reputation. Rows live in `LoginAttempt` under their own
        * scope, and are cleared by its 24-hour cleanup. Checked in here, not
        * before responding: a limited request still gets the same answer.
+       *
+       * Recorded first, then counted including this request's own row: a
+       * burst of parallel requests then sees every row inserted so far and
+       * fails closed. Counting first let a whole burst see the same count.
        */
       const since = new Date(Date.now() - RESET_WINDOW_MS);
+
+      await prisma.loginAttempt.create({
+        data: { scope: RESET_SCOPE, email, ip },
+      });
 
       const [emailRequests, ipRequests] = await Promise.all([
         prisma.loginAttempt.count({
@@ -62,13 +70,9 @@ export async function POST(request: Request) {
           : 0,
       ]);
 
-      await prisma.loginAttempt.create({
-        data: { scope: RESET_SCOPE, email, ip },
-      });
-
       if (
-        emailRequests >= RESET_LIMIT_PER_EMAIL ||
-        ipRequests >= RESET_LIMIT_PER_IP
+        emailRequests > RESET_LIMIT_PER_EMAIL ||
+        ipRequests > RESET_LIMIT_PER_IP
       ) {
         console.warn("Password reset rate limit reached; no email sent.");
         return;

@@ -9,6 +9,8 @@ import { EmploymentStatus } from "@prisma/client";
 import { deleteObjects } from "@/lib/r2";
 import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
 import { canonicalEthiopianPhone } from "@/lib/phone";
+import { EMAIL_PATTERN } from "@/lib/email-verification";
+import { NAME_MAX_LENGTH } from "@/app/register/schema";
 
 type RouteContext = {
   params: Promise<{
@@ -98,7 +100,6 @@ export async function PATCH(
 
       entranceScore,
       entranceTotal,
-      entrancePercentage,
     } = body;
 
     if (
@@ -185,22 +186,29 @@ export async function PATCH(
     const parsedEntranceTotal =
       Number(entranceTotal);
 
-    const parsedEntrancePercentage =
-      Number(entrancePercentage);
-
+    // Same rules as registration: a whole score out of 600 or 700. The
+    // percentage is derived here rather than trusted from the form.
     if (
-      !Number.isFinite(parsedEntranceScore) ||
-      !Number.isFinite(parsedEntranceTotal) ||
-      !Number.isFinite(parsedEntrancePercentage)
+      entranceScore === "" ||
+      entranceScore === null ||
+      entranceScore === undefined ||
+      !Number.isInteger(parsedEntranceScore) ||
+      (parsedEntranceTotal !== 600 && parsedEntranceTotal !== 700) ||
+      parsedEntranceScore < 0 ||
+      parsedEntranceScore > parsedEntranceTotal
     ) {
       return NextResponse.json(
         {
           error:
-            "Entrance examination values must be valid numbers.",
+            "Entrance score must be a whole number between 0 and the total (600 or 700).",
         },
         { status: 400 }
       );
     }
+
+    const parsedEntrancePercentage = Number(
+      ((parsedEntranceScore / parsedEntranceTotal) * 100).toFixed(2)
+    );
 
     const parsedCurrentGPA =
       currentGPA === "" ||
@@ -237,12 +245,14 @@ export async function PATCH(
 
     if (
       parsedCurrentGPA !== null &&
-      !Number.isFinite(parsedCurrentGPA)
+      (!Number.isFinite(parsedCurrentGPA) ||
+        parsedCurrentGPA < 0 ||
+        parsedCurrentGPA > 4)
     ) {
       return NextResponse.json(
         {
           error:
-            "Current GPA must be a valid number.",
+            "Current GPA must be between 0 and 4.",
         },
         { status: 400 }
       );
@@ -250,12 +260,35 @@ export async function PATCH(
 
     if (
       parsedCGPA !== null &&
-      !Number.isFinite(parsedCGPA)
+      (!Number.isFinite(parsedCGPA) ||
+        parsedCGPA < 0 ||
+        parsedCGPA > 4)
     ) {
       return NextResponse.json(
         {
           error:
-            "CGPA must be a valid number.",
+            "CGPA must be between 0 and 4.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    if (
+      normalizedEmail.length > 254 ||
+      !EMAIL_PATTERN.test(normalizedEmail)
+    ) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address." },
+        { status: 400 }
+      );
+    }
+
+    if (String(fullName).trim().length > NAME_MAX_LENGTH) {
+      return NextResponse.json(
+        {
+          error: `Full name must be ${NAME_MAX_LENGTH} characters or fewer.`,
         },
         { status: 400 }
       );
@@ -266,7 +299,7 @@ export async function PATCH(
       await prisma.tutor.findFirst({
         where: {
           email: {
-            equals: String(email).trim(),
+            equals: normalizedEmail,
             mode: "insensitive",
           },
           NOT: {
@@ -322,9 +355,7 @@ export async function PATCH(
 
           gender,
 
-          email: String(email)
-            .trim()
-            .toLowerCase(),
+          email: normalizedEmail,
 
           phone: canonicalPhone,
 
