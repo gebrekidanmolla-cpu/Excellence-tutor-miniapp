@@ -147,7 +147,7 @@ export default async function MyApplicationsPage() {
 
                 <Button
                   render={
-                    <Link href={`/tutor/applications/${application.id}`} />
+                    <Link href={`/tutor/applications/${application.id}`} prefetch={false} />
                   }
                   variant="outline"
                   size="xl"

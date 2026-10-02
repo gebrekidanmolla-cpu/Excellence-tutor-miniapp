@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
+import { refreshPublicJobPages } from "@/lib/public-job-pages";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
 
 /* Closing or re-opening a job waits on a Telegram edit. */
@@ -113,6 +114,8 @@ export async function PATCH(
     // Closing appends the CLOSED marker to the channel post and drops
     // its apply button; re-opening restores both, because the post is
     // re-rendered from the row rather than patched.
+
+    refreshPublicJobPages();
 
     const telegram =
       await safeSyncJobTelegramPost(

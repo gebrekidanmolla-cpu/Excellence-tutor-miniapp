@@ -158,7 +158,7 @@ export default function TutorsPage() {
         cell: (tutor) => (
           <div className="min-w-0">
             <Link
-              href={`/admin/tutors/${tutor.id}`}
+              href={`/admin/tutors/${tutor.id}`} prefetch={false}
               className="font-medium text-primary underline-offset-4 hover:underline"
             >
               {tutor.fullName}
@@ -235,7 +235,7 @@ export default function TutorsPage() {
         cellClassName: "text-right",
         cell: (tutor) => (
           <Button
-            render={<Link href={`/admin/tutors/${tutor.id}`} />}
+            render={<Link href={`/admin/tutors/${tutor.id}`} prefetch={false} />}
             variant="outline"
             size="sm"
           >

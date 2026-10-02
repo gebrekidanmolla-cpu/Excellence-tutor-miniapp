@@ -97,7 +97,7 @@ function DetailPanel({ applicant }: { applicant: JobApplicant }) {
         <dt className="text-xs text-muted-foreground">Tutor profile</dt>
         <dd className="mt-0.5">
           <Link
-            href={`/admin/tutors/${tutor.id}`}
+            href={`/admin/tutors/${tutor.id}`} prefetch={false}
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
             Open profile
@@ -161,7 +161,7 @@ export default function JobApplicants({
       cell: (applicant) => (
         <div className="min-w-0">
           <Link
-            href={`/admin/applications/${applicant.id}`}
+            href={`/admin/applications/${applicant.id}`} prefetch={false}
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
             {applicant.tutor.fullName}
@@ -220,7 +220,7 @@ export default function JobApplicants({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <Link
-                href={`/admin/applications/${applicant.id}`}
+                href={`/admin/applications/${applicant.id}`} prefetch={false}
                 className="font-medium text-primary underline-offset-4 hover:underline"
               >
                 {applicant.tutor.fullName}

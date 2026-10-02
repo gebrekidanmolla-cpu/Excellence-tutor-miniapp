@@ -351,7 +351,7 @@ export default async function TutorDashboard() {
               {recentApplications.map((application) => (
                 <li key={application.id}>
                   <Link
-                    href={`/tutor/applications/${application.id}`}
+                    href={`/tutor/applications/${application.id}`} prefetch={false}
                     className="group flex items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none sm:gap-4"
                   >
                     <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
@@ -488,7 +488,7 @@ export default async function TutorDashboard() {
             {freshJobs.map((job) => (
               <li key={job.id}>
                 <Link
-                  href={`/apply/${job.jobCode}`}
+                  href={`/apply/${job.jobCode}`} prefetch={false}
                   className="group flex h-full flex-col rounded-[1.5rem] border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   <div className="flex items-center justify-between gap-3">

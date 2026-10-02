@@ -199,7 +199,7 @@ export default async function AdminDashboard() {
               {recentApplications.map((application) => (
                 <li key={application.id}>
                   <Link
-                    href={`/admin/applications/${application.id}`}
+                    href={`/admin/applications/${application.id}`} prefetch={false}
                     className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
                   >
                     <div className="min-w-0">
