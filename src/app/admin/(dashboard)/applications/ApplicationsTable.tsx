@@ -523,7 +523,9 @@ export default function ApplicationsTable({ applications }: Props) {
           setPage(1);
         }}
       >
-        <TabsList className="w-full overflow-x-auto sm:w-fit">
+        {/* `justify-start`: a centred row that overflows spills off both
+            edges, and the part past the left edge can never be scrolled to. */}
+        <TabsList className="w-full justify-start overflow-x-auto sm:w-fit">
           {STATUS_TABS.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
               {tab.label}

@@ -155,13 +155,3 @@ export async function destroyAdminSession(): Promise<void> {
 
   cookieStore.delete(SESSION_COOKIE_NAME);
 }
-
-export async function requireAdmin() {
-  const admin = await getCurrentAdmin();
-
-  if (!admin) {
-    return null;
-  }
-
-  return admin;
-}

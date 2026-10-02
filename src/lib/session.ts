@@ -321,19 +321,3 @@ export async function destroyTutorSession(): Promise<void> {
     SESSION_COOKIE_NAME
   );
 }
-
-/**
- * Require an authenticated tutor.
- *
- * Useful for protected server pages.
- */
-export async function requireTutor() {
-  const tutor =
-    await getCurrentTutor();
-
-  if (!tutor) {
-    return null;
-  }
-
-  return tutor;
-}
