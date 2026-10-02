@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -20,6 +20,30 @@ export function isNavItemActive(pathname: string, item: NavItem): boolean {
   }
 
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+/**
+ * Shows a tap registered while the page loads. Nav links don't prefetch —
+ * every portal and admin page is dynamic, and prefetching one costs two
+ * function invocations on each page view that shows the nav — so a tap waits
+ * one round trip before the route's loading skeleton arrives.
+ *
+ * Fixed-size and always rendered, so toggling it never shifts the row. Must
+ * sit inside the `<Link>` it reports on.
+ */
+export function NavPendingDot({ className }: { className?: string }) {
+  const { pending } = useLinkStatus();
+
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "size-1.5 shrink-0 rounded-full bg-current opacity-0 transition-opacity",
+        pending && "animate-pulse opacity-100",
+        className
+      )}
+    />
+  );
 }
 
 /**
@@ -51,6 +75,7 @@ export function SidebarNav({
           <Link
             key={item.href}
             href={item.href}
+            prefetch={false}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
@@ -63,6 +88,7 @@ export function SidebarNav({
           >
             {item.icon}
             {item.label}
+            <NavPendingDot className="ml-auto" />
           </Link>
         );
       })}

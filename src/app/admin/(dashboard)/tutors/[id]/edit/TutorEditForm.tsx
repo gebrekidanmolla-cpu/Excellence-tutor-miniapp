@@ -472,7 +472,7 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
 
       <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:justify-end">
         <Button
-          render={<Link href={`/admin/tutors/${tutor.id}`} />}
+          render={<Link href={`/admin/tutors/${tutor.id}`} prefetch={false} />}
           variant="outline"
           size="xl"
           disabled={saving}

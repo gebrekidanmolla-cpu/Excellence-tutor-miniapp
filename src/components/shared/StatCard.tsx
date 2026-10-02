@@ -60,7 +60,7 @@ export function StatCard({
         className
       )}
     >
-      <Link href={href} className="outline-none">
+      <Link href={href} prefetch={false} className="outline-none">
         {body}
       </Link>
     </Card>

@@ -197,7 +197,7 @@ function Hero({ jobs, openCount }: { jobs: LiveJob[]; openCount: number }) {
               <Arrow />
             </Link>
             <Link
-              href="/jobs"
+              href="/jobs" prefetch={false}
               className="group inline-flex items-center justify-center gap-2 text-[0.9375rem] font-medium"
             >
               <span className="bg-[linear-gradient(currentColor,currentColor)] bg-size-[0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-500 group-hover:bg-size-[100%_1px]">
@@ -250,7 +250,7 @@ function JobBoard({ jobs, openCount }: { jobs: LiveJob[]; openCount: number }) {
             </p>
           </div>
           <Link
-            href="/jobs"
+            href="/jobs" prefetch={false}
             className="group inline-flex items-center gap-1 rounded-sm text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             View all

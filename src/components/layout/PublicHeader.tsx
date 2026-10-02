@@ -52,6 +52,7 @@ export function PublicHeader({
             <Link
               key={link.href}
               href={link.href}
+              prefetch={link.href === "/jobs" ? false : undefined}
               className="rounded-sm text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               {link.label}
@@ -61,7 +62,7 @@ export function PublicHeader({
 
         <div className="flex items-center gap-2">
           {tutor ? (
-            <Button render={<Link href="/tutor" />} size="lg">
+            <Button render={<Link href="/tutor" prefetch={false} />} size="lg">
               Go to portal
             </Button>
           ) : (
@@ -114,6 +115,7 @@ export function PublicHeader({
                   <Link
                     key={link.href}
                     href={link.href}
+                    prefetch={link.href === "/jobs" ? false : undefined}
                     onClick={closeDrawer}
                     className="rounded-lg px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
@@ -125,7 +127,7 @@ export function PublicHeader({
               <div className="grid gap-2 border-t p-3">
                 {tutor ? (
                   <Button
-                    render={<Link href="/tutor" onClick={closeDrawer} />}
+                    render={<Link href="/tutor" prefetch={false} onClick={closeDrawer} />}
                     size="xl"
                   >
                     Go to portal

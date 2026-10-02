@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { TUTOR_SESSION_COOKIE } from "./src/lib/tutor-session-cookie";
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
 
@@ -18,6 +20,23 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
+      },
+    ];
+  },
+
+  /*
+   * A Telegram reader without an account gets the cached copy of the job
+   * page, so the busiest public route costs no function invocation for them.
+   * The cookie is only checked for presence here, at the edge; whoever has
+   * one still gets the dynamic page, whose session check is unchanged (and
+   * which shows the same signed-out view if the cookie turns out invalid).
+   */
+  async rewrites() {
+    return [
+      {
+        source: "/apply/:jobCode",
+        missing: [{ type: "cookie", key: TUTOR_SESSION_COOKIE }],
+        destination: "/apply/:jobCode/guest",
       },
     ];
   },

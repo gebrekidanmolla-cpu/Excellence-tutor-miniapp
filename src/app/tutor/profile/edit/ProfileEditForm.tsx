@@ -382,7 +382,7 @@ export function ProfileEditForm({
       ----------------------------------------------------- */}
       <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 flex items-center justify-end gap-2 rounded-xl border bg-background/90 p-3 shadow-lg backdrop-blur-xl lg:bottom-4">
         <Button
-          render={<Link href="/tutor/profile" />}
+          render={<Link href="/tutor/profile" prefetch={false} />}
           variant="ghost"
           size="xl"
         >

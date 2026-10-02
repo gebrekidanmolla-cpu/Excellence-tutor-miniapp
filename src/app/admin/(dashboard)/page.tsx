@@ -109,13 +109,13 @@ export default async function AdminDashboard() {
         description="An overview of tutors, jobs and applications."
         actions={
           <>
-            <Button render={<Link href="/admin/jobs/new" />} size="xl">
+            <Button render={<Link href="/admin/jobs/new" prefetch={false} />} size="xl">
               <Plus data-icon="inline-start" aria-hidden="true" />
               New job
             </Button>
 
             <Button
-              render={<Link href="/admin/tutors" />}
+              render={<Link href="/admin/tutors" prefetch={false} />}
               variant="outline"
               size="xl"
             >
@@ -177,7 +177,7 @@ export default async function AdminDashboard() {
 
             {recentApplications.length > 0 ? (
               <Button
-                render={<Link href="/admin/applications" />}
+                render={<Link href="/admin/applications" prefetch={false} />}
                 variant="ghost"
                 size="sm"
               >
@@ -275,7 +275,7 @@ export default async function AdminDashboard() {
             </div>
 
             <Button
-              render={<Link href="/admin/jobs" />}
+              render={<Link href="/admin/jobs" prefetch={false} />}
               variant="outline"
               size="lg"
               className="mt-5 w-full"
@@ -304,7 +304,7 @@ export default async function AdminDashboard() {
                   </p>
 
                   <Button
-                    render={<Link href="/admin/applications" />}
+                    render={<Link href="/admin/applications" prefetch={false} />}
                     size="lg"
                     className="mt-3"
                   >

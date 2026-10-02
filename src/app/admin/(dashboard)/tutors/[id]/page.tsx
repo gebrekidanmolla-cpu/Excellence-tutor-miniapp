@@ -107,7 +107,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
       mobileTitle: true,
       cell: (application) => (
         <Link
-          href={`/admin/jobs/${application.job.id}`}
+          href={`/admin/jobs/${application.job.id}`} prefetch={false}
           className="font-mono font-medium text-primary underline-offset-4 hover:underline"
         >
           {application.job.jobCode}
@@ -153,7 +153,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
       cellClassName: "text-right",
       cell: (application) => (
         <Button
-          render={<Link href={`/admin/applications/${application.id}`} />}
+          render={<Link href={`/admin/applications/${application.id}`} prefetch={false} />}
           variant="outline"
           size="sm"
         >
@@ -189,7 +189,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
             )}
 
             <Button
-              render={<Link href={`/admin/tutors/${tutor.id}/edit`} />}
+              render={<Link href={`/admin/tutors/${tutor.id}/edit`} prefetch={false} />}
               variant="outline"
               size="xl"
             >

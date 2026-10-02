@@ -377,7 +377,7 @@ export async function POST(request: Request) {
     //
     // =====================================================
 
-    refreshPublicJobPages();
+    refreshPublicJobPages(job.jobCode);
 
     const telegram = await safeSyncJobTelegramPost(job.id, {
       deadlineMs: 6_000,

@@ -115,7 +115,7 @@ export async function PATCH(
     // its apply button; re-opening restores both, because the post is
     // re-rendered from the row rather than patched.
 
-    refreshPublicJobPages();
+    refreshPublicJobPages(updatedJob.jobCode);
 
     const telegram =
       await safeSyncJobTelegramPost(

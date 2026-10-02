@@ -308,7 +308,7 @@ export async function POST(
     // its CLOSED marker. Same containment as the email: recorded on
     // the row, logged, never fatal.
 
-    refreshPublicJobPages();
+    refreshPublicJobPages(result.updatedJob.jobCode);
 
     const telegram =
       await safeSyncJobTelegramPost(

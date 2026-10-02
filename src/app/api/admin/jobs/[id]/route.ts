@@ -383,7 +383,7 @@ export async function PATCH(
     // The channel post is a rendering of the row, so an edit here is
     // an edit there. Contained, never fatal — see `telegram-job-post`.
 
-    refreshPublicJobPages();
+    refreshPublicJobPages(updatedJob.jobCode);
 
     const telegram =
       await safeSyncJobTelegramPost(
@@ -532,7 +532,7 @@ export async function DELETE(
     // Same treatment for the sheet mirror: best-effort, by code, and
     // a leftover row is named in the response. Never throws.
 
-    refreshPublicJobPages();
+    refreshPublicJobPages(job.jobCode);
 
     const sheet =
       await safeRemoveJobSheetRow(job.jobCode);

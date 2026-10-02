@@ -307,7 +307,7 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
           </div>
 
           <Button
-            render={<Link href="/tutor/profile" />}
+            render={<Link href="/tutor/profile" prefetch={false} />}
             variant="outline"
             size="lg"
             className="shrink-0"
@@ -340,14 +340,14 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button
-          render={<Link href="/tutor/applications" />}
+          render={<Link href="/tutor/applications" prefetch={false} />}
           variant="outline"
           size="xl"
         >
           My applications
         </Button>
 
-        <Button render={<Link href="/jobs" />} size="xl">
+        <Button render={<Link href="/jobs" prefetch={false} />} size="xl">
           <BriefcaseBusiness data-icon="inline-start" aria-hidden="true" />
           Browse available jobs
         </Button>

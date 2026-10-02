@@ -142,7 +142,7 @@ export default async function JobDetailsPage({
             <StatusBadge status={job.status} size="lg" />
 
             <Button
-              render={<Link href={`/admin/jobs/${job.id}/edit`} />}
+              render={<Link href={`/admin/jobs/${job.id}/edit`} prefetch={false} />}
               variant="outline"
               size="xl"
             >
@@ -211,7 +211,7 @@ export default async function JobDetailsPage({
             label="Applications"
             value={
               <Link
-                href="#applicants"
+                href="#applicants" prefetch={false}
                 className="text-primary underline-offset-4 hover:underline"
               >
                 {applicantCount}
@@ -229,7 +229,7 @@ export default async function JobDetailsPage({
             value={
               job.assignedTutor ? (
                 <Link
-                  href={`/admin/tutors/${job.assignedTutor.id}`}
+                  href={`/admin/tutors/${job.assignedTutor.id}`} prefetch={false}
                   className="text-primary underline-offset-4 hover:underline"
                 >
                   {job.assignedTutor.fullName}
@@ -277,7 +277,7 @@ export default async function JobDetailsPage({
 
           {applicantCount > 0 ? (
             <Button
-              render={<Link href="/admin/applications" />}
+              render={<Link href="/admin/applications" prefetch={false} />}
               variant="ghost"
               size="sm"
             >

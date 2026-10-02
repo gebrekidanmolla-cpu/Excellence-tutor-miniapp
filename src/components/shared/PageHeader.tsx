@@ -27,6 +27,7 @@ export function PageHeader({
       {backHref ? (
         <Link
           href={backHref}
+          prefetch={false}
           className="-ml-1 inline-flex items-center gap-1 rounded-md py-1 pr-2 pl-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
         >
           <ChevronLeft className="size-4" aria-hidden="true" />

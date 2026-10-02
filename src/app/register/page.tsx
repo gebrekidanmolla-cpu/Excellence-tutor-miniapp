@@ -828,6 +828,10 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
       if (data.signedIn) {
         toast.success("Welcome to Excellence Tutor! Your account is ready.");
         router.replace(next);
+        // Drops the router cache, as login does: `/apply/<code>` may be held
+        // there as its cached signed-out copy, which would still say
+        // "Sign in to apply".
+        router.refresh();
       } else {
         router.replace(
           `/login?registered=1&next=${encodeURIComponent(next)}`

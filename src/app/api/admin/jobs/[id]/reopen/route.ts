@@ -266,7 +266,7 @@ export async function POST(
     // The post is re-rendered from the row, so re-opening removes the
     // CLOSED marker and brings the apply button back on its own.
 
-    refreshPublicJobPages();
+    refreshPublicJobPages(result.updatedJob.jobCode);
 
     const telegram =
       await safeSyncJobTelegramPost(

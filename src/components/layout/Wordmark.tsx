@@ -54,6 +54,9 @@ export function Wordmark({
   return (
     <Link
       href={href}
+      // `/` is prerendered, so prefetching it is a CDN hit; the portal and
+      // admin homes are dynamic, where each prefetch is two invocations.
+      prefetch={href === "/" ? undefined : false}
       className={cn(
         "flex items-center gap-2.5 rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
         className
