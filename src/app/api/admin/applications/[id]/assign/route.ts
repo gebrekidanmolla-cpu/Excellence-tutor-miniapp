@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
+import { refreshPublicJobPages } from "@/lib/public-job-pages";
 import { sendApplicationAcceptedEmail } from "@/lib/email";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
 import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
@@ -306,6 +307,8 @@ export async function POST(
     // The transaction above closed the job, so the channel post needs
     // its CLOSED marker. Same containment as the email: recorded on
     // the row, logged, never fatal.
+
+    refreshPublicJobPages();
 
     const telegram =
       await safeSyncJobTelegramPost(

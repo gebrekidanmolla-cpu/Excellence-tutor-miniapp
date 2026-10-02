@@ -214,7 +214,7 @@ export default function ApplicationRowActions({
 
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem
-            render={<Link href={`/admin/applications/${applicationId}`} />}
+            render={<Link href={`/admin/applications/${applicationId}`} prefetch={false} />}
           >
             <Eye aria-hidden="true" />
             View details

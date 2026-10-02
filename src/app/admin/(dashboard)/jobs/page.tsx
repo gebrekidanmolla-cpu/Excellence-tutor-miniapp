@@ -46,7 +46,7 @@ export default async function AdminJobsPage() {
       mobileTitle: true,
       cell: (job) => (
         <Link
-          href={`/admin/jobs/${job.id}`}
+          href={`/admin/jobs/${job.id}`} prefetch={false}
           className="font-mono font-medium text-primary underline-offset-4 hover:underline"
         >
           {job.jobCode}
@@ -90,7 +90,7 @@ export default async function AdminJobsPage() {
       cell: (job) =>
         job._count.applications > 0 ? (
           <Link
-            href={`/admin/jobs/${job.id}#applicants`}
+            href={`/admin/jobs/${job.id}#applicants`} prefetch={false}
             className="text-primary underline-offset-4 hover:underline"
           >
             {job._count.applications}
@@ -135,7 +135,7 @@ export default async function AdminJobsPage() {
       headClassName: "w-px",
       cell: (job) => (
         <Button
-          render={<Link href={`/admin/jobs/${job.id}`} />}
+          render={<Link href={`/admin/jobs/${job.id}`} prefetch={false} />}
           variant="ghost"
           size="sm"
           aria-label={`View job ${job.jobCode}`}

@@ -370,7 +370,7 @@ function JobCard({ job }: { job: Job }) {
             {/* Stretched link: the whole card is the click target, while the
                 accessible name stays the subject rather than the card text. */}
             <Link
-              href={`/apply/${job.jobCode}`}
+              href={`/apply/${job.jobCode}`} prefetch={false}
               className="outline-none after:absolute after:inset-0 after:rounded-2xl"
             >
               {job.subject}

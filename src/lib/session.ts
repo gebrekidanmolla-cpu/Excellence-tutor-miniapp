@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
@@ -225,9 +226,10 @@ export async function getTutorId(): Promise<
  * Get the currently authenticated tutor.
  *
  * Use this from protected server pages
- * and server-side API routes.
+ * and server-side API routes. Memoized per request (React `cache`): the
+ * portal layout and the page both call it, and that should cost one query.
  */
-export async function getCurrentTutor() {
+export const getCurrentTutor = cache(async () => {
   const session =
     await readSession();
 
@@ -308,7 +310,7 @@ export async function getCurrentTutor() {
   const { sessionVersion, ...currentTutor } = tutor;
 
   return currentTutor;
-}
+});
 
 /**
  * Destroy the current tutor session.

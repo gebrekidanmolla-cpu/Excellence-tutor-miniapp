@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
@@ -128,7 +129,11 @@ export async function getAdminId(): Promise<string | null> {
   return session.adminId;
 }
 
-export async function getCurrentAdmin() {
+/**
+ * Memoized per request (React `cache`): the dashboard layout and the page
+ * both call it, and that should cost one query, not two.
+ */
+export const getCurrentAdmin = cache(async () => {
   const adminId = await getAdminId();
 
   if (!adminId) {
@@ -148,7 +153,7 @@ export async function getCurrentAdmin() {
   });
 
   return admin;
-}
+});
 
 export async function destroyAdminSession(): Promise<void> {
   const cookieStore = await cookies();

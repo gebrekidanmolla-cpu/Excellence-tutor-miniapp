@@ -65,7 +65,16 @@ export function proxy(request: NextRequest) {
 export const config = {
   // Static assets must load on the subdomain too (the profile page's own
   // CSS/JS), so they never reach the host check.
+  //
+  // The `has` condition keeps the proxy off every request to the main
+  // domain, where it would only return `next()` — each run is a billed
+  // invocation. It has to be a constant, so it matches any `parent.` host;
+  // the exact one is still checked against `PARENT_PROFILE_URL` above.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)",
+    {
+      source:
+        "/((?!_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)",
+      has: [{ type: "host", value: "parent\\..+" }],
+    },
   ],
 };

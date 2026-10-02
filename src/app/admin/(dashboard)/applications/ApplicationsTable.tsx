@@ -424,7 +424,7 @@ export default function ApplicationsTable({ applications }: Props) {
       cell: (application) => (
         <div className="min-w-0">
           <Link
-            href={`/admin/applications/${application.id}`}
+            href={`/admin/applications/${application.id}`} prefetch={false}
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
             {application.tutor.fullName}
@@ -442,7 +442,7 @@ export default function ApplicationsTable({ applications }: Props) {
       cell: (application) => (
         <div className="min-w-0">
           <Link
-            href={`/admin/jobs/${application.job.id}`}
+            href={`/admin/jobs/${application.job.id}`} prefetch={false}
             className="font-mono text-sm font-medium underline-offset-4 hover:underline"
           >
             {application.job.jobCode}
@@ -624,7 +624,7 @@ export default function ApplicationsTable({ applications }: Props) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <Link
-                  href={`/admin/applications/${application.id}`}
+                  href={`/admin/applications/${application.id}`} prefetch={false}
                   className="font-medium text-primary underline-offset-4 hover:underline"
                 >
                   {application.tutor.fullName}

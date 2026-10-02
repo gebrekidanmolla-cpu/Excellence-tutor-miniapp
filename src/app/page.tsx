@@ -13,7 +13,9 @@ import {
 } from "@/lib/telegram-post";
 import styles from "./page.module.css";
 
-export const revalidate = 60;
+// Rebuilt when a job changes (`refreshPublicJobPages`); the hour is only a
+// backstop for edits made outside the app, e.g. in Prisma Studio.
+export const revalidate = 3600;
 
 /* Only the Ge'ez numerals that mark each section use this face. It is not
    preloaded: `unicode-range` means the browser fetches the Ethiopic file
@@ -274,7 +276,7 @@ function JobBoard({ jobs, openCount }: { jobs: LiveJob[]; openCount: number }) {
                 style={stagger(index + 3)}
               >
                 <Link
-                  href={`/apply/${job.jobCode}`}
+                  href={`/apply/${job.jobCode}`} prefetch={false}
                   className={cn(
                     styles.row,
                     "group grid grid-cols-[4.25rem_minmax(0,1fr)_auto] items-center gap-x-4 px-5 py-3.5 transition-colors duration-300 hover:bg-paper focus-visible:bg-paper focus-visible:outline-none"

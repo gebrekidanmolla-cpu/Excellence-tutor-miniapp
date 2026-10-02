@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
+import { refreshPublicJobPages } from "@/lib/public-job-pages";
 import { generateNextJobCode } from "@/lib/job-code";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
 import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
@@ -375,6 +376,8 @@ export async function POST(request: Request) {
     // for the slow cases.
     //
     // =====================================================
+
+    refreshPublicJobPages();
 
     const telegram = await safeSyncJobTelegramPost(job.id, {
       deadlineMs: 6_000,
