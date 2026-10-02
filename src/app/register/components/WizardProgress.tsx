@@ -52,24 +52,54 @@ export function WizardAside({
   onStepClick: (step: Step) => void;
   disabled?: boolean;
 }) {
+  const percent = Math.round(((step - 1) / (STEPS.length - 1)) * 100);
+
   return (
     <aside className="relative hidden overflow-hidden text-primary-foreground lg:block">
       <BrandBackdrop />
 
-      <div className="relative flex h-svh flex-col gap-10 overflow-y-auto p-10 lg:sticky lg:top-0 xl:p-12">
+      {/* A soft light edge where the panel meets the form, instead of a hard seam. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 right-0 w-px bg-linear-to-b from-primary-foreground/0 via-primary-foreground/25 to-primary-foreground/0"
+      />
+
+      {/* Fixed to the viewport and never scrolls: spacing tightens and the
+          checklist drops out on short screens so everything still fits. */}
+      <div className="relative flex h-svh flex-col overflow-hidden px-10 py-10 lg:sticky lg:top-0 xl:px-12 xl:py-12 [@media(max-height:50rem)]:py-7 xl:[@media(max-height:50rem)]:py-7">
         <BrandPanelWordmark />
 
-        <div>
-          <p className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-3 py-1 text-xs font-medium tracking-wide text-primary-foreground/85 ring-1 ring-primary-foreground/15">
-            <span className="size-1.5 rounded-full bg-highlight" />
+        <div className="mt-12 [@media(max-height:50rem)]:mt-7">
+          <p className="text-xs font-semibold tracking-[0.18em] text-highlight uppercase">
             Tutor application
           </p>
-          <h2 className="mt-5 font-heading text-3xl leading-[1.15] font-semibold tracking-tight text-balance">
+          <h2 className="mt-3 font-heading text-[1.85rem] leading-[1.15] font-semibold tracking-tight text-balance xl:text-[2.1rem] [@media(max-height:50rem)]:text-[1.6rem] xl:[@media(max-height:50rem)]:text-[1.75rem]">
             Share what you know. Get matched with families.
           </h2>
         </div>
 
-        <nav aria-label="Registration steps">
+        {/* Overall progress */}
+        <div className="mt-9 [@media(max-height:50rem)]:mt-6">
+          <div className="flex items-baseline justify-between text-xs">
+            <span className="font-medium text-primary-foreground/80">
+              Step {step} of {STEPS.length}
+            </span>
+            <span className="font-semibold tabular-nums text-primary-foreground">
+              {percent}%
+            </span>
+          </div>
+          <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-primary-foreground/12">
+            <div
+              className="h-full rounded-full bg-linear-to-r from-highlight to-[oklch(0.85_0.13_85)] shadow-[0_0_12px_var(--color-highlight)] transition-[width] duration-700 ease-out motion-reduce:transition-none"
+              style={{ width: `${Math.max(percent, 4)}%` }}
+            />
+          </div>
+        </div>
+
+        <nav
+          aria-label="Registration steps"
+          className="mt-8 [@media(max-height:50rem)]:mt-5"
+        >
           <ol className="space-y-1">
             {STEPS.map((item, index) => {
               const done = item.id < step;
@@ -80,39 +110,40 @@ export function WizardAside({
               const marker = (
                 <span
                   className={cn(
-                    "relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold transition-colors",
+                    "relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-all duration-300",
                     done && "bg-highlight text-highlight-foreground",
                     current &&
-                      "bg-primary-foreground text-primary shadow-lg shadow-black/20",
+                      "bg-primary-foreground text-primary shadow-[0_0_0_5px_rgb(255_255_255/0.12),0_8px_24px_-6px_rgb(0_0_0/0.45)]",
                     !done &&
                       !current &&
-                      "bg-primary-foreground/5 text-primary-foreground/55 ring-1 ring-primary-foreground/20"
+                      "text-primary-foreground/50 ring-1 ring-primary-foreground/20 ring-inset",
                   )}
                 >
                   {done ? (
-                    <Check className="size-4.5" strokeWidth={3} />
+                    <Check className="size-4" strokeWidth={3} />
                   ) : (
-                    <Icon className="size-4.5" />
+                    <Icon className="size-4" />
                   )}
                 </span>
               );
 
               const text = (
-                <span className="min-w-0 py-0.5">
+                <span className="min-w-0">
                   <span
                     className={cn(
-                      "block text-sm font-semibold",
-                      !done && !current && "text-primary-foreground/65"
+                      "block text-sm font-semibold transition-colors",
+                      done && "text-primary-foreground/85",
+                      !done && !current && "text-primary-foreground/55",
                     )}
                   >
                     {item.label}
                   </span>
                   <span
                     className={cn(
-                      "mt-0.5 block text-xs",
+                      "block text-xs transition-colors",
                       current
-                        ? "text-primary-foreground/75"
-                        : "text-primary-foreground/50"
+                        ? "mt-0.5 text-primary-foreground/70"
+                        : "mt-0.5 text-primary-foreground/40",
                     )}
                   >
                     {item.description}
@@ -121,9 +152,9 @@ export function WizardAside({
               );
 
               const row = cn(
-                "flex w-full items-center gap-3.5 rounded-2xl p-2.5 text-left transition-colors",
+                "relative flex w-full items-center gap-4 rounded-xl px-3 py-2.5 text-left transition-colors",
                 current &&
-                  "bg-primary-foreground/10 ring-1 ring-primary-foreground/15"
+                  "bg-linear-to-r from-primary-foreground/12 via-primary-foreground/5 to-transparent",
               );
 
               return (
@@ -132,14 +163,19 @@ export function WizardAside({
                   className="relative"
                   aria-current={current ? "step" : undefined}
                 >
+                  {/* Rail between markers; fills in amber once the step is done. */}
                   {!last ? (
                     <span
                       aria-hidden="true"
-                      className={cn(
-                        "absolute top-[3.25rem] -bottom-2.5 left-[calc(1.875rem-0.5px)] w-px",
-                        done ? "bg-highlight/70" : "bg-primary-foreground/15"
-                      )}
-                    />
+                      className="absolute top-[2.875rem] -bottom-[0.875rem] left-[calc(1.875rem-1px)] w-0.5 overflow-hidden rounded-full bg-primary-foreground/12"
+                    >
+                      <span
+                        className={cn(
+                          "block h-full w-full origin-top bg-highlight transition-transform duration-500 ease-out motion-reduce:transition-none",
+                          done ? "scale-y-100" : "scale-y-0",
+                        )}
+                      />
+                    </span>
                   ) : null}
 
                   {done ? (
@@ -149,7 +185,7 @@ export function WizardAside({
                       disabled={disabled}
                       className={cn(
                         row,
-                        "group outline-none hover:bg-primary-foreground/5 focus-visible:ring-3 focus-visible:ring-primary-foreground/40"
+                        "group outline-none hover:bg-primary-foreground/[0.06] focus-visible:ring-3 focus-visible:ring-primary-foreground/40",
                       )}
                     >
                       {marker}
@@ -160,6 +196,12 @@ export function WizardAside({
                     </button>
                   ) : (
                     <div className={row}>
+                      {current ? (
+                        <span
+                          aria-hidden="true"
+                          className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-highlight"
+                        />
+                      ) : null}
                       {marker}
                       {text}
                     </div>
@@ -170,17 +212,22 @@ export function WizardAside({
           </ol>
         </nav>
 
-        <div className="mt-auto space-y-4">
-          <div className="rounded-2xl bg-primary-foreground/[0.07] p-5 ring-1 ring-primary-foreground/15 backdrop-blur-sm">
-            <p className="flex items-center gap-2 text-sm font-semibold">
-              <FileCheck2 className="size-4 text-highlight" aria-hidden="true" />
+        <div className="mt-auto pt-10 [@media(max-height:50rem)]:pt-6">
+          <div className="h-px bg-linear-to-r from-primary-foreground/25 via-primary-foreground/10 to-transparent" />
+
+          <div className="[@media(max-height:45rem)]:hidden">
+            <p className="mt-6 flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-primary-foreground/70 uppercase [@media(max-height:50rem)]:mt-5">
+              <FileCheck2
+                className="size-3.5 text-highlight"
+                aria-hidden="true"
+              />
               Have these ready
             </p>
-            <ul className="mt-3.5 space-y-2 text-sm text-primary-foreground/80">
+            <ul className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5 text-[0.8125rem] leading-snug text-primary-foreground/80">
               {CHECKLIST.map((item) => (
-                <li key={item} className="flex items-center gap-2.5">
+                <li key={item} className="flex gap-2">
                   <CircleCheck
-                    className="size-4 shrink-0 text-primary-foreground/45"
+                    className="mt-px size-3.5 shrink-0 text-primary-foreground/40"
                     aria-hidden="true"
                   />
                   {item}
@@ -189,7 +236,7 @@ export function WizardAside({
             </ul>
           </div>
 
-          <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-primary-foreground/60">
+          <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-primary-foreground/55">
             <span className="flex items-center gap-1.5">
               <Clock className="size-3.5" aria-hidden="true" />
               About 10 minutes
@@ -252,7 +299,7 @@ export function MobileProgress({
                   ? "bg-primary"
                   : item.id === step
                     ? "bg-primary/60"
-                    : "bg-muted"
+                    : "bg-muted",
               )}
             />
           );
