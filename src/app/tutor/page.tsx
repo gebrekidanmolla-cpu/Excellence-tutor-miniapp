@@ -180,7 +180,7 @@ export default async function TutorDashboard() {
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Button
-              render={<Link href="/jobs" />}
+              render={<Link href="/jobs" prefetch={false} />}
               size="xl"
               className="group rounded-full bg-background px-5 text-foreground shadow-lg hover:bg-background/90"
             >
@@ -194,7 +194,7 @@ export default async function TutorDashboard() {
             </Button>
 
             <Button
-              render={<Link href="/tutor/profile" />}
+              render={<Link href="/tutor/profile" prefetch={false} />}
               variant="outline"
               size="xl"
               className="rounded-full border-white/25 bg-white/5 px-5 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground"
@@ -319,7 +319,7 @@ export default async function TutorDashboard() {
 
             {recentApplications.length > 0 ? (
               <Button
-                render={<Link href="/tutor/applications" />}
+                render={<Link href="/tutor/applications" prefetch={false} />}
                 variant="ghost"
                 size="sm"
                 className="group shrink-0 rounded-full"
@@ -341,7 +341,7 @@ export default async function TutorDashboard() {
               title="No applications yet"
               description="When you apply for a job, it will show up here with its current status."
               action={
-                <Button render={<Link href="/jobs" />} size="lg" className="rounded-full px-4">
+                <Button render={<Link href="/jobs" prefetch={false} />} size="lg" className="rounded-full px-4">
                   Find your first job
                 </Button>
               }
@@ -438,7 +438,7 @@ export default async function TutorDashboard() {
             <ProfileStrengthNudge strength={strength} className="mt-6" />
 
             <Button
-              render={<Link href="/tutor/profile" />}
+              render={<Link href="/tutor/profile" prefetch={false} />}
               variant="outline"
               size="xl"
               className="mt-5 w-full rounded-full"
@@ -465,7 +465,7 @@ export default async function TutorDashboard() {
           </div>
 
           <Link
-            href="/jobs"
+            href="/jobs" prefetch={false}
             className="group inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-primary"
           >
             All jobs
@@ -591,6 +591,7 @@ function Metric({
   return (
     <Link
       href={href}
+      prefetch={false}
       className={cn(
         className,
         "transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"

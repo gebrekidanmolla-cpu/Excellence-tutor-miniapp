@@ -1,4 +1,4 @@
-import { ExternalAccountClient } from "google-auth-library";
+import type { ExternalAccountClient } from "google-auth-library";
 import { getVercelOidcToken } from "@vercel/oidc";
 
 // ==========================================
@@ -160,12 +160,17 @@ function buildAudience(config: SheetsConfig): string {
  */
 let cachedAuth: { audience: string; client: ReturnType<typeof ExternalAccountClient.fromJSON> } | null = null;
 
-function getAuth(config: SheetsConfig) {
+async function getAuth(config: SheetsConfig) {
   const audience = buildAudience(config);
 
   if (cachedAuth && cachedAuth.audience === audience) {
     return cachedAuth.client;
   }
+
+  // Loaded here, not at the top of the module: the admin job pages import
+  // this file only for `isSheetSyncConfigured()`, and google-auth-library
+  // costs about 200 ms of CPU to load on every cold start that touches it.
+  const { ExternalAccountClient } = await import("google-auth-library");
 
   const client = ExternalAccountClient.fromJSON({
     type: "external_account",
@@ -209,7 +214,7 @@ function getAuth(config: SheetsConfig) {
 }
 
 async function getAccessToken(config: SheetsConfig): Promise<string> {
-  const client = getAuth(config);
+  const client = await getAuth(config);
 
   if (!client) {
     throw new SheetsApiError({

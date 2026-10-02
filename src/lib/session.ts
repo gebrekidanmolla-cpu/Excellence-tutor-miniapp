@@ -2,8 +2,9 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { TUTOR_SESSION_COOKIE } from "@/lib/tutor-session-cookie";
 
-const SESSION_COOKIE_NAME = "tutor_session";
+const SESSION_COOKIE_NAME = TUTOR_SESSION_COOKIE;
 const SESSION_DURATION = 60 * 60 * 24 * 30; // 30 days
 
 interface SessionPayload {

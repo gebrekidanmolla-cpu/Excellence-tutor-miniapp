@@ -164,7 +164,7 @@ export default async function AdminJobsPage() {
               <SheetSyncButton variant="outline" />
             ) : null}
 
-            <Button render={<Link href="/admin/jobs/new" />} size="xl">
+            <Button render={<Link href="/admin/jobs/new" prefetch={false} />} size="xl">
               <Plus data-icon="inline-start" aria-hidden="true" />
               Create job
             </Button>
@@ -183,7 +183,7 @@ export default async function AdminJobsPage() {
             title="No jobs yet"
             description="Create your first tutoring job to start receiving applications."
             action={
-              <Button render={<Link href="/admin/jobs/new" />} size="xl">
+              <Button render={<Link href="/admin/jobs/new" prefetch={false} />} size="xl">
                 <Plus data-icon="inline-start" aria-hidden="true" />
                 Create job
               </Button>

@@ -71,7 +71,7 @@ export default async function MyApplicationsPage() {
               } submitted`
         }
         actions={
-          <Button render={<Link href="/jobs" />} size="xl">
+          <Button render={<Link href="/jobs" prefetch={false} />} size="xl">
             <BriefcaseBusiness data-icon="inline-start" aria-hidden="true" />
             Browse jobs
           </Button>
@@ -84,7 +84,7 @@ export default async function MyApplicationsPage() {
           title="No applications yet"
           description="You have not applied for any tutoring jobs yet. Browse available jobs and apply with one click."
           action={
-            <Button render={<Link href="/jobs" />} size="xl">
+            <Button render={<Link href="/jobs" prefetch={false} />} size="xl">
               Browse available jobs
             </Button>
           }

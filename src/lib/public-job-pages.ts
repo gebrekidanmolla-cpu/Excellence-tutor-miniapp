@@ -1,12 +1,19 @@
 import { revalidatePath } from "next/cache";
 
 /**
- * The landing page lists open jobs and stays cached until they change
- * (its `revalidate` is only an hourly backstop). Every route that commits a
+ * Two cached pages show a job: the landing page lists open jobs, and
+ * `/apply/<jobCode>` is served to signed-out visitors from a cached copy
+ * (`src/app/apply/[jobCode]/guest`). Both stay cached until a job changes —
+ * their `revalidate` values are only backstops. Every route that commits a
  * write to a job — create, edit, delete, status, reopen, assign — calls this
- * afterwards, so the page updates on the next visit instead of being rebuilt
- * every minute whether or not anything changed.
+ * afterwards, so both update on the next visit.
+ *
+ * The guest page is revalidated by its rewrite destination, not the
+ * `/apply/<jobCode>` URL visitors see: that is where the cache entry lives.
+ * Creating a job refreshes its code's page too, which clears a cached 404 if
+ * anyone had opened that URL before the job existed.
  */
-export function refreshPublicJobPages() {
+export function refreshPublicJobPages(jobCode: string) {
   revalidatePath("/");
+  revalidatePath(`/apply/${jobCode}/guest`);
 }

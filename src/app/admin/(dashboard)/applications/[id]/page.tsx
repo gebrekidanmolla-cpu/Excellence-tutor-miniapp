@@ -275,7 +275,7 @@ export default async function ApplicationDetailsPage({
           <h2 className="font-heading font-medium">Job information</h2>
 
           <Button
-            render={<Link href={`/admin/jobs/${job.id}`} />}
+            render={<Link href={`/admin/jobs/${job.id}`} prefetch={false} />}
             variant="outline"
             size="sm"
           >
@@ -366,7 +366,7 @@ export default async function ApplicationDetailsPage({
 function JobLink({ jobId }: { jobId: string }) {
   return (
     <Link
-      href={`/admin/jobs/${jobId}#applicants`}
+      href={`/admin/jobs/${jobId}#applicants`} prefetch={false}
       className="font-medium text-primary underline-offset-4 hover:underline"
     >
       Open the job

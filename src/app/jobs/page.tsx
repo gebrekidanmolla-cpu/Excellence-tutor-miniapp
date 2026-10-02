@@ -276,7 +276,7 @@ export default function JobsPage() {
           title="No jobs yet"
           description="There are no tutoring opportunities posted yet. Please check again later."
           action={
-            <Button render={<Link href="/tutor" />} size="lg">
+            <Button render={<Link href="/tutor" prefetch={false} />} size="lg">
               <LayoutDashboard data-icon="inline-start" aria-hidden="true" />
               Back to dashboard
             </Button>

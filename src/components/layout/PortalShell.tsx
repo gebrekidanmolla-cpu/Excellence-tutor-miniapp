@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BriefcaseBusiness,
@@ -71,6 +71,32 @@ const TAB_LABELS: Record<string, string> = {
   "/tutor/profile": "Profile",
 };
 
+/**
+ * The tab's icon pill. It lights up while the tapped page loads, since the
+ * tabs don't prefetch (see `NavPendingDot`). Must render inside the `<Link>`.
+ */
+function TabIcon({
+  active,
+  children,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  const { pending } = useLinkStatus();
+
+  return (
+    <span
+      className={cn(
+        "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+        (active || pending) && "bg-primary/10",
+        pending && "animate-pulse"
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
 function MobileTabBar() {
   const pathname = usePathname();
 
@@ -87,20 +113,14 @@ function MobileTabBar() {
             <li key={item.href}>
               <Link
                 href={item.href}
+                prefetch={false}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex flex-col items-center gap-1 py-2.5 text-[0.7rem] font-medium transition-colors focus-visible:outline-none [&_svg]:size-5",
                   active ? "text-primary" : "text-muted-foreground"
                 )}
               >
-                <span
-                  className={cn(
-                    "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
-                    active && "bg-primary/10"
-                  )}
-                >
-                  {item.icon}
-                </span>
+                <TabIcon active={active}>{item.icon}</TabIcon>
                 {TAB_LABELS[item.href] ?? item.label}
               </Link>
             </li>
@@ -258,7 +278,7 @@ export function PortalShell({
           <Wordmark href="/tutor" />
 
           <Link
-            href="/tutor/profile"
+            href="/tutor/profile" prefetch={false}
             aria-label="My profile"
             className="ml-auto rounded-xl focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >

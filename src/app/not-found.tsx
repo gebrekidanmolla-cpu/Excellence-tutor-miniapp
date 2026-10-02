@@ -30,7 +30,7 @@ export default function NotFound() {
           Go home
         </Button>
 
-        <Button render={<Link href="/jobs" />} variant="outline" size="xl">
+        <Button render={<Link href="/jobs" prefetch={false} />} variant="outline" size="xl">
           <Compass data-icon="inline-start" aria-hidden="true" />
           Browse jobs
         </Button>

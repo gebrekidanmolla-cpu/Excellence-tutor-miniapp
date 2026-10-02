@@ -110,6 +110,7 @@ export function ProfileStrengthCard({
             ) : (
               <Link
                 href={item.href}
+                prefetch={false}
                 className="group flex h-full items-start gap-3 rounded-lg border border-dashed p-3 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
               >
                 <span
@@ -156,6 +157,7 @@ export function ProfileStrengthNudge({
       {strength.next ? (
         <Link
           href={strength.next.href}
+          prefetch={false}
           className="group flex items-center gap-2 rounded-lg bg-highlight/10 px-3 py-2 text-xs font-medium transition-colors hover:bg-highlight/20 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
         >
           <Sparkles

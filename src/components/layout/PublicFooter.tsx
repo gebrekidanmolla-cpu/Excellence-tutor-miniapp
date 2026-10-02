@@ -70,6 +70,7 @@ export function PublicFooter() {
                     <li key={link.href}>
                       <Link
                         href={link.href}
+                        prefetch={link.href === "/jobs" ? false : undefined}
                         className="text-muted-foreground transition-colors hover:text-foreground"
                       >
                         {link.label}

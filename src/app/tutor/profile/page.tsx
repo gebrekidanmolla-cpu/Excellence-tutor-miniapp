@@ -72,7 +72,7 @@ export default async function TutorProfilePage() {
         title="My profile"
         description="The information Excellence Tutor holds for your tutor account."
         actions={
-          <Button render={<Link href="/tutor/profile/edit" />} size="lg">
+          <Button render={<Link href="/tutor/profile/edit" prefetch={false} />} size="lg">
             <PenLine data-icon="inline-start" aria-hidden="true" />
             Edit profile
           </Button>
@@ -141,7 +141,7 @@ export default async function TutorProfilePage() {
           <InfoItem label="About me" value={tutor.aboutMe} />
         ) : (
           <Link
-            href="/tutor/profile/edit#about"
+            href="/tutor/profile/edit#about" prefetch={false}
             className="group flex items-center gap-3 rounded-lg border border-dashed p-4 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <span

@@ -44,13 +44,13 @@ export default function ApplicationSuccessContent() {
         ) : null}
 
         <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <Button render={<Link href="/tutor/applications" />} size="xl">
+          <Button render={<Link href="/tutor/applications" prefetch={false} />} size="xl">
             <FileText data-icon="inline-start" aria-hidden="true" />
             Track my applications
           </Button>
 
           <Button
-            render={<Link href="/jobs" />}
+            render={<Link href="/jobs" prefetch={false} />}
             variant="outline"
             size="xl"
           >
