@@ -38,10 +38,12 @@ export function StatCard({
         ) : null}
       </div>
 
+      {/* Dropped on a phone, where tiles sit two to a row and the label
+          needs the width more than the decoration does. */}
       {icon ? (
         <span
           aria-hidden="true"
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary [&>svg]:size-4.5"
+          className="hidden size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:flex [&>svg]:size-4.5"
         >
           {icon}
         </span>

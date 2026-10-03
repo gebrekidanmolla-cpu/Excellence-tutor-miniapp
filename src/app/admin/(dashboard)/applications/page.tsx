@@ -1,129 +1,62 @@
 import { prisma } from "@/lib/prisma";
-import { getCurrentAdmin } from "@/lib/admin-session";
-import { redirect } from "next/navigation";
-import ApplicationsTable from "./ApplicationsTable";
+import { requireAdmin } from "@/lib/admin-context";
+import { APPLICATION_ROW_SELECT, toApplicationRow } from "@/lib/admin-rows";
+import { getProfileShareLinkBase } from "@/lib/tutor-profile-server";
 import { PageHeader } from "@/components/shared/PageHeader";
+import ApplicationsTable from "./ApplicationsTable";
 
-export default async function ApplicationsPage() {
-  // =====================================================
-  // ADMIN PROTECTION
-  // =====================================================
+export const metadata = {
+  title: "Applications",
+};
 
-  const admin = await getCurrentAdmin();
-
-  if (!admin) {
-    redirect("/admin/login");
-  }
-
-  // =====================================================
-  // FETCH APPLICATIONS
-  // =====================================================
-
+/** Every application, plus the moment it was read — the date filters count
+ *  back from there rather than from the browser's clock, which would put a
+ *  row near a cutoff on different sides of it in the server and client
+ *  renders. */
+async function loadApplications() {
   const applications = await prisma.application.findMany({
     orderBy: {
       createdAt: "desc",
     },
-
-    include: {
-      tutor: {
-        select: {
-          id: true,
-          fullName: true,
-          phone: true,
-          gender: true,
-
-          university: true,
-          department: true,
-
-          currentGPA: true,
-          CGPA: true,
-
-          tutorStatus: true,
-
-          entranceScore: true,
-          entranceTotal: true,
-          entrancePercentage: true,
-
-          createdAt: true,
-        },
-      },
-
-      job: {
-        select: {
-          id: true,
-          jobCode: true,
-          grade: true,
-          subject: true,
-          salary: true,
-          status: true,
-          assignedTutorId: true,
-        },
-      },
-    },
+    select: APPLICATION_ROW_SELECT,
   });
 
-  // =====================================================
-  // SERIALIZE DATA FOR CLIENT COMPONENT
-  // =====================================================
+  return {
+    rows: applications.map(toApplicationRow),
+    loadedAt: Date.now(),
+  };
+}
 
-  const serializedApplications = applications.map(
-    (application) => ({
-      // IMPORTANT:
-      // Keep the application ID here.
-      id: application.id,
+export default async function ApplicationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  await requireAdmin();
 
-      status: application.status,
-
-      createdAt: application.createdAt.toISOString(),
-
-      tutor: {
-        id: application.tutor.id,
-        fullName: application.tutor.fullName,
-        phone: application.tutor.phone,
-        gender: application.tutor.gender,
-
-        university: application.tutor.university,
-        department: application.tutor.department,
-
-        currentGPA: application.tutor.currentGPA,
-        CGPA: application.tutor.CGPA,
-
-        tutorStatus: application.tutor.tutorStatus,
-
-        entranceScore: application.tutor.entranceScore,
-        entranceTotal: application.tutor.entranceTotal,
-        entrancePercentage:
-          application.tutor.entrancePercentage,
-
-        createdAt:
-          application.tutor.createdAt.toISOString(),
-      },
-
-      job: {
-        id: application.job.id,
-        jobCode: application.job.jobCode,
-        grade: application.job.grade,
-        subject: application.job.subject,
-        salary: application.job.salary,
-        status: application.job.status,
-        assignedTutorId:
-          application.job.assignedTutorId,
-      },
-    })
-  );
-
-  // =====================================================
-  // PAGE
-  // =====================================================
+  // One query for every application: search, filters and sorting all run
+  // in the browser, so changing them never calls the server again.
+  const [{ rows, loadedAt }, linkBase, params] = await Promise.all([
+    loadApplications(),
+    getProfileShareLinkBase(),
+    searchParams,
+  ]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Applications"
-        description="Review tutor applications and manually assign the best candidate to each job."
+        description="Review tutor applications and assign the best candidate to each job."
       />
 
-      <ApplicationsTable applications={serializedApplications} />
+      {/* Keyed on the query string, so a link to a different filtered view
+          (the overview's tiles, the nav) starts the list afresh. */}
+      <ApplicationsTable
+        key={JSON.stringify(params)}
+        applications={rows}
+        linkBase={linkBase}
+        loadedAt={loadedAt}
+      />
     </div>
   );
 }

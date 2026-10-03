@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   BadgeCheck,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -27,8 +27,10 @@ import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import DeleteTutorButton from "@/components/admin/DeleteTutorButton";
 import TutorShareLink from "@/components/admin/TutorShareLink";
-import { profileShareLinkBase } from "@/lib/tutor-profile";
-import { isProfileShareExpired } from "@/lib/tutor-profile-server";
+import {
+  getProfileShareLinkBase,
+  isProfileShareExpired,
+} from "@/lib/tutor-profile-server";
 import {
   formatDate,
   formatEnum,
@@ -82,6 +84,8 @@ async function loadTutor(id: string) {
 }
 
 export default async function TutorDetailsPage({ params }: PageProps) {
+  await requireAdmin();
+
   const { id } = await params;
 
   const tutor = await loadTutor(id);
@@ -92,13 +96,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
 
   const isStudent = tutor.tutorStatus === "STUDENT";
 
-  // The share link is copied into chats, so it has to be absolute. Without
-  // the parent subdomain configured it falls back to this request's own
-  // host, which is right in every environment.
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
-  const origin = host ? `${protocol}://${host}` : "";
+  const linkBase = await getProfileShareLinkBase();
 
   const applicationColumns: DataTableColumn<ApplicationRow>[] = [
     {
@@ -254,7 +252,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
           initialExpired={isProfileShareExpired(
             tutor.profileShareExpiresAt
           )}
-          linkBase={profileShareLinkBase(origin)}
+          linkBase={linkBase}
         />
       </section>
 

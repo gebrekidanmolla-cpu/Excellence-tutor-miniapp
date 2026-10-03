@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -45,6 +46,8 @@ type DocumentType =
 export default async function ApplicationDetailsPage({
   params,
 }: ApplicationDetailsPageProps) {
+  await requireAdmin();
+
   const { id } = await params;
 
   const application = await prisma.application.findUnique({

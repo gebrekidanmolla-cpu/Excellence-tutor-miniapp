@@ -8,11 +8,54 @@ import { cn } from "@/lib/utils";
 export type NavItem = {
   href: string;
   label: string;
+  /** The bottom tab bar's label, where `label` is too long for a tab. */
+  shortLabel?: string;
   icon: React.ReactNode;
   /** Match the pathname exactly. Use for index routes like `/tutor`, which
    *  would otherwise stay active on every child route. */
   exact?: boolean;
+  /** A count beside the label, e.g. new applications. Hidden at zero. */
+  badge?: NavBadge;
 };
+
+export type NavBadge = {
+  count: number;
+  /** What the number means, for screen readers: "new applications". */
+  label: string;
+  /** `attention` for work waiting on the admin; `muted` for a plain tally. */
+  tone?: "attention" | "muted";
+};
+
+/**
+ * The count pill shared by the sidebar and the bottom tab bar. Renders
+ * nothing at zero, so a quiet queue doesn't shout.
+ */
+export function NavCount({
+  badge,
+  className,
+}: {
+  badge: NavBadge | undefined;
+  className?: string;
+}) {
+  if (!badge || badge.count <= 0) {
+    return null;
+  }
+
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.7rem] font-semibold tabular-nums",
+        badge.tone === "muted"
+          ? "bg-muted text-muted-foreground"
+          : "bg-highlight text-highlight-foreground",
+        className
+      )}
+    >
+      {badge.count > 99 ? "99+" : badge.count}
+      <span className="sr-only"> {badge.label}</span>
+    </span>
+  );
+}
 
 export function isNavItemActive(pathname: string, item: NavItem): boolean {
   if (item.exact) {
@@ -88,7 +131,10 @@ export function SidebarNav({
           >
             {item.icon}
             {item.label}
-            <NavPendingDot className="ml-auto" />
+            <span className="ml-auto flex items-center gap-2">
+              <NavCount badge={item.badge} />
+              <NavPendingDot />
+            </span>
           </Link>
         );
       })}

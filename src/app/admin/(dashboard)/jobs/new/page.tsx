@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin-context";
 import CreateJobForm from "@/components/admin/CreateJobForm";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -5,7 +6,9 @@ export const metadata = {
   title: "Create job",
 };
 
-export default function NewJobPage() {
+export default async function NewJobPage() {
+  await requireAdmin();
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
