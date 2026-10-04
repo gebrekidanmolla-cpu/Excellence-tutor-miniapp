@@ -247,6 +247,7 @@ export const TUTOR_ROW_SELECT = {
   entrancePercentage: true,
   city: true,
   subcity: true,
+  exactPlace: true,
   createdAt: true,
   profileShareToken: true,
   profileShareExpiresAt: true,
@@ -269,6 +270,9 @@ export type TutorRow = {
   field: string | null;
   gpa: number | null;
   entrancePercentage: number;
+  /** The "Specific area" field: Ayat, 4 Kilo, Bethel… */
+  exactPlace: string;
+  /** Sub-city and city: "Bole, Addis Ababa". */
   location: string;
   createdAt: string;
   applicationCount: number;
@@ -293,6 +297,7 @@ export function toTutorRow(
     field: isStudent ? tutor.department : tutor.fieldOfGraduation,
     gpa: isStudent ? tutor.currentGPA : tutor.CGPA,
     entrancePercentage: tutor.entrancePercentage,
+    exactPlace: tutor.exactPlace,
     location: [tutor.subcity, tutor.city].filter(Boolean).join(", "),
     createdAt: tutor.createdAt.toISOString(),
     applicationCount: tutor._count.applications,

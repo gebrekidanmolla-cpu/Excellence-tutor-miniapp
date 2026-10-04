@@ -32,7 +32,7 @@ import {
   plural,
 } from "@/lib/admin-list";
 import type { TutorRow } from "@/lib/admin-rows";
-import { formatDate, formatEnum } from "@/lib/format";
+import { formatEnum } from "@/lib/format";
 import { useListFilters } from "@/lib/use-list-filters";
 import { cn } from "@/lib/utils";
 
@@ -149,10 +149,10 @@ function TutorRowActions({
 
 function Assignments({ tutor }: { tutor: TutorRow }) {
   return (
-    <span className="tabular-nums">
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 tabular-nums">
       {plural(tutor.applicationCount, "application")}
       {tutor.assignedJobCount > 0 ? (
-        <span className="ml-2 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-[color-mix(in_oklch,var(--success),var(--foreground)_35%)]">
+        <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-[color-mix(in_oklch,var(--success),var(--foreground)_35%)]">
           {tutor.assignedJobCount === 1
             ? "Assigned"
             : `${tutor.assignedJobCount} jobs`}
@@ -200,6 +200,7 @@ export default function TutorsList({
             tutor.email,
             tutor.institution,
             tutor.field,
+            tutor.exactPlace,
             tutor.location,
           ],
           [tutor.phone]
@@ -293,7 +294,7 @@ export default function TutorsList({
           >
             {tutor.fullName}
           </Link>
-          <p className="mt-0.5 max-w-56 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 max-w-44 truncate text-xs text-muted-foreground">
             {tutor.email}
           </p>
         </div>
@@ -308,7 +309,7 @@ export default function TutorsList({
           variant="ghost"
           size="sm"
           successMessage="Phone number copied"
-          className="-ml-2 font-normal tabular-nums"
+          className="-ml-2 max-w-none font-normal tabular-nums"
         >
           {tutor.phone}
         </CopyButton>
@@ -320,7 +321,7 @@ export default function TutorsList({
       cellClassName: "whitespace-normal",
       cell: (tutor) => (
         <div className="min-w-0">
-          <p className="max-w-48 truncate">{tutor.institution || "—"}</p>
+          <p className="max-w-40 truncate">{tutor.institution || "—"}</p>
           <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
             {formatEnum(tutor.tutorStatus)} · GPA {gpaOf(tutor)} ·{" "}
             {tutor.entrancePercentage.toFixed(1)}%
@@ -331,13 +332,20 @@ export default function TutorsList({
     {
       id: "applications",
       header: "Applications",
+      /* Lets the "Assigned" badge drop under the count instead of widening
+         the table past a 1280px screen. */
+      cellClassName: "whitespace-normal",
       cell: (tutor) => <Assignments tutor={tutor} />,
     },
     {
-      id: "joined",
-      header: "Joined",
-      cellClassName: "text-muted-foreground",
-      cell: (tutor) => formatDate(tutor.createdAt),
+      id: "area",
+      header: "Area",
+      cellClassName: "whitespace-normal",
+      cell: (tutor) => (
+        <span className="block max-w-36 truncate">
+          {tutor.exactPlace || "—"}
+        </span>
+      ),
     },
     {
       id: "actions",
@@ -357,7 +365,7 @@ export default function TutorsList({
     <div className="space-y-4">
       <ListToolbar
         searchLabel="Search tutors"
-        searchPlaceholder="Name, phone, email…"
+        searchPlaceholder="Name, phone, area…"
         query={query}
         onQueryChange={setQuery}
         primary={primary}
@@ -402,7 +410,7 @@ export default function TutorsList({
               </p>
             </div>
 
-            <dl className="grid grid-cols-3 gap-x-4 gap-y-2 text-sm">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">Entrance</dt>
                 <dd className="font-medium tabular-nums">
@@ -415,12 +423,14 @@ export default function TutorsList({
                 <dd className="font-medium tabular-nums">{gpaOf(tutor)}</dd>
               </div>
 
-              <div>
-                <dt className="text-xs text-muted-foreground">Joined</dt>
-                <dd className="font-medium">{formatDate(tutor.createdAt)}</dd>
+              <div className="col-span-2 min-w-0">
+                <dt className="text-xs text-muted-foreground">Area</dt>
+                <dd className="truncate font-medium">
+                  {tutor.exactPlace || "—"}
+                </dd>
               </div>
 
-              <div className="col-span-3 min-w-0">
+              <div className="col-span-2 min-w-0">
                 <dt className="text-xs text-muted-foreground">Education</dt>
                 <dd className="truncate font-medium">
                   {tutor.institution || "—"}
@@ -433,7 +443,7 @@ export default function TutorsList({
                 </dd>
               </div>
 
-              <div className="col-span-3">
+              <div className="col-span-2">
                 <dt className="sr-only">Applications</dt>
                 <dd className="text-muted-foreground">
                   <Assignments tutor={tutor} />
