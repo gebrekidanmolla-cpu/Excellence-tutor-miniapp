@@ -1,7 +1,8 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { prisma } from "@/lib/prisma";
-import { APPLY_JOB_SELECT, JobApplyView } from "../JobApplyView";
+import { JobApplyView } from "../JobApplyView";
+import { applyJobMetadata, findApplyJob } from "../apply-job";
 
 /*
  * Rendered on a job's first signed-out visit and then served from the CDN.
@@ -21,12 +22,21 @@ interface PageProps {
   }>;
 }
 
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { jobCode } = await params;
+
+  return applyJobMetadata(await findApplyJob(jobCode));
+}
+
 /**
  * `/apply/<jobCode>` for visitors without a `tutor_session` cookie, which
  * `next.config.ts` rewrites here — the URL in the address bar stays
  * `/apply/<jobCode>`. Most Telegram readers arrive this way, and with no
  * session to read the page is identical for all of them, so it is cached
- * rather than rendered per visit.
+ * rather than rendered per visit. Search crawlers carry no cookie either,
+ * so this is the copy they index.
  *
  * It must never read the session (or cookies at all): that would make the
  * route dynamic again, and a cached copy could carry one tutor's state.
@@ -34,12 +44,7 @@ interface PageProps {
 export default async function ApplyGuestPage({ params }: PageProps) {
   const { jobCode } = await params;
 
-  const job = await prisma.job.findUnique({
-    where: {
-      jobCode,
-    },
-    select: APPLY_JOB_SELECT,
-  });
+  const job = await findApplyJob(jobCode);
 
   if (!job) {
     notFound();

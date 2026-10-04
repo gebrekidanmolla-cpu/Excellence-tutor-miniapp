@@ -1,13 +1,23 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentTutor } from "@/lib/session";
-import { APPLY_JOB_SELECT, JobApplyView } from "./JobApplyView";
+import { JobApplyView } from "./JobApplyView";
+import { applyJobMetadata, findApplyJob } from "./apply-job";
 
 interface PageProps {
   params: Promise<{
     jobCode: string;
   }>;
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { jobCode } = await params;
+
+  return applyJobMetadata(await findApplyJob(jobCode));
 }
 
 /**
@@ -28,12 +38,7 @@ export default async function ApplyPage({ params }: PageProps) {
 
   const tutor = await getCurrentTutor();
 
-  const job = await prisma.job.findUnique({
-    where: {
-      jobCode,
-    },
-    select: APPLY_JOB_SELECT,
-  });
+  const job = await findApplyJob(jobCode);
 
   if (!job) {
     notFound();

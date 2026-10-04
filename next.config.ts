@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 
+import { SITE_URL } from "./src/lib/site";
 import { TUTOR_SESSION_COOKIE } from "./src/lib/tutor-session-cookie";
 
 const nextConfig: NextConfig = {
@@ -20,6 +21,27 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
+      },
+    ];
+  },
+
+  /*
+   * `www.` is attached to the project too, and used to serve a full second
+   * copy of the site: Google saw two of every page, and a tutor signed in
+   * on one host was signed out on the other (the cookies are host-only).
+   * Matched in the routing layer, so it never reaches a function.
+   */
+  async redirects() {
+    const apex = new URL(SITE_URL);
+    // `has` values are regular expressions.
+    const wwwHost = `www.${apex.hostname}`.replace(/\./g, "\\.");
+
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: wwwHost }],
+        destination: `${apex.origin}/:path*`,
+        permanent: true,
       },
     ];
   },
