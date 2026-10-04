@@ -5,11 +5,6 @@ import Link from "next/link";
 import { FileText, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CopyButton } from "@/components/shared/CopyButton";
@@ -31,12 +26,7 @@ import {
   plural,
 } from "@/lib/admin-list";
 import type { ApplicationRow } from "@/lib/admin-rows";
-import {
-  formatDate,
-  formatDateTime,
-  formatEnum,
-  formatSalary,
-} from "@/lib/format";
+import { formatDateTime, formatEnum, formatSalary } from "@/lib/format";
 import { useListFilters } from "@/lib/use-list-filters";
 import ApplicationRowActions from "./ApplicationRowActions";
 
@@ -198,12 +188,52 @@ export default function ApplicationsTable({
             application.job.grade,
             application.tutor.institution,
             application.tutor.field,
+            application.tutor.exactPlace,
           ],
           [application.tutor.phone]
         ),
       })),
     [applications]
   );
+
+  /* Every application is already on the page, so a tutor's total is a count
+     over the list rather than another query. */
+  const applicationsByTutor = useMemo(
+    () => countBy(applications, (application) => application.tutor.id),
+    [applications]
+  );
+
+  /** Narrows the list to one tutor, by their phone number, which is unique. */
+  function showTutor(phone: string) {
+    clear();
+    setQuery(phone);
+  }
+
+  /** The tutor's total; tapping it lists all of them when there are more. */
+  function tutorTotal(application: ApplicationRow) {
+    const { tutor } = application;
+
+    const count = applicationsByTutor[tutor.id] ?? 1;
+
+    if (count < 2) {
+      return <span className="font-medium tabular-nums">1</span>;
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => showTutor(tutor.phone)}
+        title={`Show all ${count} applications by ${tutor.fullName}`}
+        className="rounded-md font-medium text-primary tabular-nums underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        {count}
+        <span className="sr-only">
+          {" "}
+          applications by {tutor.fullName}. Show them all.
+        </span>
+      </button>
+    );
+  }
 
   /* Every filter except status: what each status segment would hold, so
      its count stays truthful while the other filters are applied. */
@@ -358,7 +388,7 @@ export default function ApplicationsTable({
           >
             {application.job.jobCode}
           </Link>
-          <p className="mt-0.5 max-w-44 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 max-w-40 truncate text-xs text-muted-foreground">
             {application.job.subject} · {application.job.grade}
           </p>
         </div>
@@ -366,36 +396,33 @@ export default function ApplicationsTable({
     },
     {
       id: "scores",
-      header: "Entrance · GPA",
+      header: "Entrance",
+      /* GPA sits under the entrance result rather than beside it, which
+         keeps the table inside a 1280px screen. */
       cell: (application) => (
         <div className="tabular-nums">
-          <span className="font-medium">
+          <p className="font-medium">
             {application.tutor.entrancePercentage.toFixed(1)}%
-          </span>
-          <span className="ml-1.5 text-xs text-muted-foreground">
-            {formatGPA(application)}
-          </span>
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            GPA {formatGPA(application)}
+          </p>
         </div>
       ),
     },
     {
-      id: "applied",
-      header: "Applied",
-      /* The compact date keeps the column narrow; the tooltip carries the
-         exact time. */
+      id: "area",
+      header: "Area",
       cell: (application) => (
-        <Tooltip>
-          <TooltipTrigger
-            render={<span className="cursor-default text-muted-foreground" />}
-          >
-            {formatDate(application.createdAt)}
-          </TooltipTrigger>
-
-          <TooltipContent>
-            {formatDateTime(application.createdAt)}
-          </TooltipContent>
-        </Tooltip>
+        <span className="block max-w-28 truncate">
+          {application.tutor.exactPlace || "—"}
+        </span>
       ),
+    },
+    {
+      id: "total",
+      header: "Applications",
+      cell: tutorTotal,
     },
     {
       id: "status",
@@ -473,7 +500,7 @@ export default function ApplicationsTable({
               <StatusBadge status={application.status} />
             </div>
 
-            <dl className="grid grid-cols-3 gap-x-4 gap-y-2 text-sm">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">Entrance</dt>
                 <dd className="font-medium tabular-nums">
@@ -488,11 +515,18 @@ export default function ApplicationsTable({
                 </dd>
               </div>
 
-              <div>
-                <dt className="text-xs text-muted-foreground">Applied</dt>
-                <dd className="font-medium">
-                  {formatDate(application.createdAt)}
+              <div className="min-w-0">
+                <dt className="text-xs text-muted-foreground">Area</dt>
+                <dd className="truncate font-medium">
+                  {application.tutor.exactPlace || "—"}
                 </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs text-muted-foreground">
+                  Applications
+                </dt>
+                <dd>{tutorTotal(application)}</dd>
               </div>
             </dl>
 

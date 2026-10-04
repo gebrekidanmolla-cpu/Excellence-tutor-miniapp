@@ -45,6 +45,7 @@ export const TUTOR_SUMMARY_SELECT = {
   entranceScore: true,
   entranceTotal: true,
   entrancePercentage: true,
+  exactPlace: true,
   profileShareToken: true,
   profileShareExpiresAt: true,
   ...TUTOR_DOCUMENT_SELECT,
@@ -65,6 +66,8 @@ export type TutorSummary = {
   entranceScore: number;
   entranceTotal: number;
   entrancePercentage: number;
+  /** The "Specific area" field: Ayat, 4 Kilo, Bethel… */
+  exactPlace: string;
   documents: TutorDocumentKind[];
   /** The live parent-link token, or null when there is none to copy. */
   shareToken: string | null;
@@ -87,6 +90,7 @@ export function toTutorSummary(
     entranceScore: tutor.entranceScore,
     entranceTotal: tutor.entranceTotal,
     entrancePercentage: tutor.entrancePercentage,
+    exactPlace: tutor.exactPlace,
     documents: availableDocuments(tutor),
     shareToken: liveShareToken(
       tutor.profileShareToken,
