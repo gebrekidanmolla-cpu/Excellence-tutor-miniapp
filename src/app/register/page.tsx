@@ -147,6 +147,45 @@ type ApiResponse = {
   } | null;
 };
 
+/**
+ * How long an upload may go without progress before it counts as dead. A
+ * dropped mobile connection can otherwise hang for minutes before the
+ * browser gives up, with the bar frozen and the tutor left guessing.
+ */
+const STALL_TIMEOUT_MS = 45_000;
+
+/**
+ * How long to wait for the reply once every byte has gone out. Deliberately
+ * generous: the browser can report the upload finished while the data is
+ * still buffered on its way, so this covers the tail of a slow upload too.
+ */
+const RESPONSE_TIMEOUT_MS = 120_000;
+
+/**
+ * No reply arrived at all: the connection failed, not the server. Every
+ * answer from the server, errors included, resolves instead.
+ */
+class ConnectionError extends Error {
+  /** `stalled`: no sign of life for too long, so the request was abandoned. */
+  readonly reason: "dropped" | "stalled";
+  /** Every byte went out, so the server may have created the account. */
+  readonly uploaded: boolean;
+  /** How far the upload got, from 0 to 1. */
+  readonly progress: number;
+
+  constructor(
+    reason: "dropped" | "stalled",
+    uploaded: boolean,
+    progress: number
+  ) {
+    super("The connection failed before the server replied.");
+    this.name = "ConnectionError";
+    this.reason = reason;
+    this.uploaded = uploaded;
+    this.progress = progress;
+  }
+}
+
 function postWithProgress(
   url: string,
   body: FormData,
@@ -155,17 +194,62 @@ function postWithProgress(
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
 
+    let progress = 0;
+    let uploaded = false;
+    let settled = false;
+    let watchdog: number | undefined;
+
+    const settle = () => {
+      settled = true;
+      window.clearTimeout(watchdog);
+    };
+
+    const fail = (reason: ConnectionError["reason"]) => {
+      if (settled) {
+        return;
+      }
+
+      settle();
+      reject(new ConnectionError(reason, uploaded, progress));
+    };
+
+    const watch = (ms: number) => {
+      window.clearTimeout(watchdog);
+      watchdog = window.setTimeout(() => {
+        fail("stalled");
+        request.abort();
+      }, ms);
+    };
+
     request.open("POST", url);
 
+    // Armed only once upload events are seen to fire, so a browser that
+    // never sends them is left to its own timeout rather than cut off.
+    request.upload.onloadstart = () => watch(STALL_TIMEOUT_MS);
+
     request.upload.onprogress = (event) => {
+      watch(STALL_TIMEOUT_MS);
+
       if (event.lengthComputable) {
-        onProgress(event.loaded / event.total);
+        progress = event.loaded / event.total;
+        onProgress(progress);
       }
     };
 
-    request.upload.onload = () => onProgress(1);
+    request.upload.onload = () => {
+      uploaded = true;
+      progress = 1;
+      onProgress(1);
+      watch(RESPONSE_TIMEOUT_MS);
+    };
 
     request.onload = () => {
+      if (settled) {
+        return;
+      }
+
+      settle();
+
       // Errors raised before the route runs (Vercel's 413 for an oversized
       // body, a gateway timeout) come back as HTML or plain text, not JSON.
       let data: ApiResponse["data"] = null;
@@ -179,15 +263,166 @@ function postWithProgress(
       resolve({ status: request.status, data });
     };
 
-    request.onerror = () =>
-      reject(
-        new Error(
-          "The connection was interrupted. Please check your internet connection and try again."
-        )
-      );
+    request.onerror = () => fail("dropped");
 
     request.send(body);
   });
+}
+
+/* =========================================================
+   CONNECTION RECOVERY
+
+   Documents travel in one request, so on a weak signal a
+   single dropout used to lose the whole submission. A failed
+   attempt is now retried, and an account an earlier attempt
+   may have created is found by signing in, not resubmitted.
+========================================================= */
+
+/** Attempts per tap of "Create my account", the first included. */
+const MAX_ATTEMPTS = 3;
+
+/** Pause before a retry, multiplied by the attempt: 3 s, then 6 s. */
+const RETRY_DELAY_MS = 3000;
+
+/** How long to wait for a lost connection to return before giving up. */
+const OFFLINE_WAIT_MS = 20_000;
+
+/** Lets a request that did arrive finish creating the account. */
+const SERVER_SETTLE_MS = 2000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+/** Resolves true once the browser reports a connection, false after `ms`. */
+function waitForOnline(ms: number): Promise<boolean> {
+  if (navigator.onLine) {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve) => {
+    const done = (online: boolean) => {
+      window.clearTimeout(timer);
+      window.removeEventListener("online", onOnline);
+      resolve(online);
+    };
+
+    const onOnline = () => done(true);
+    const timer = window.setTimeout(() => done(false), ms);
+
+    window.addEventListener("online", onOnline);
+  });
+}
+
+/**
+ * Keeps the screen on during the upload. Phones often turn the screen off
+ * after 30 seconds — shorter than a slow upload — and a page in the
+ * background can lose its connection. Best-effort: some in-app browsers
+ * lack the API, and the request can be refused.
+ */
+async function keepScreenOn(): Promise<() => void> {
+  if (!("wakeLock" in navigator)) {
+    return () => {};
+  }
+
+  try {
+    const lock = await navigator.wakeLock.request("screen");
+
+    return () => {
+      lock.release().catch(() => {});
+    };
+  } catch {
+    return () => {};
+  }
+}
+
+/**
+ * Whether a refusal could be the server meeting an account that an earlier
+ * attempt created, its reply lost to a dropped connection. Creating the
+ * account uses up the email verification, so a repeat is refused as an
+ * expired verification — or as a duplicate, if it raced past that check.
+ */
+function mayBeOwnAccount(
+  status: number,
+  data: ApiResponse["data"],
+  earlierAttemptArrived: boolean
+): boolean {
+  if (data?.code === "EMAIL_NOT_VERIFIED") {
+    return true;
+  }
+
+  if (status === 409) {
+    // A taken phone number is someone else's account.
+    return data?.field !== "phone";
+  }
+
+  return earlierAttemptArrived && status >= 500;
+}
+
+/**
+ * Signs in with the email and password just entered, which succeeds only if
+ * the account exists. Goes through the login route, so its rate limit and
+ * the session cookie work exactly as they do for a normal sign-in.
+ */
+async function signInIfCreated(
+  email: string,
+  password: string
+): Promise<boolean> {
+  try {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+type ConnectionFailure = {
+  reason: "offline" | "dropped" | "stalled";
+  progress: number;
+  /** The page was hidden at some point: another app, or the screen off. */
+  leftScreen: boolean;
+  /** An attempt's upload finished, so the account may exist. */
+  sent: boolean;
+};
+
+const DETAILS_KEPT = "Everything you entered is still here.";
+
+/**
+ * What to tell the tutor when every attempt failed without a reply. Each
+ * case names the cause and the one thing to do about it — "check your
+ * internet connection" alone left people guessing.
+ */
+function connectionFailureMessage({
+  reason,
+  progress,
+  leftScreen,
+  sent,
+}: ConnectionFailure): string {
+  if (sent) {
+    return 'Your documents were sent, but the connection dropped before we could confirm your account. Tap "Create my account" again once your signal is better. If your account was already created, we\'ll sign you straight in.';
+  }
+
+  if (reason === "offline") {
+    return `You're offline. Turn on mobile data or connect to Wi-Fi, then tap "Create my account" again. ${DETAILS_KEPT}`;
+  }
+
+  if (leftScreen) {
+    return `The upload stopped because you left this screen or your phone's screen turned off. Tap "Create my account" again and keep this screen open until it finishes. ${DETAILS_KEPT}`;
+  }
+
+  const where =
+    progress > 0 && progress < 1 ? ` at ${Math.round(progress * 100)}%` : "";
+
+  const fix = `Move to a spot with a stronger signal or connect to Wi-Fi, then tap "Create my account" again. ${DETAILS_KEPT}`;
+
+  return reason === "stalled"
+    ? `Your internet is too slow to finish uploading your documents right now. The upload stopped moving${where}. ${fix}`
+    : `Your internet connection dropped while your documents were uploading${where}. We tried ${MAX_ATTEMPTS} times. ${fix}`;
 }
 
 /* =========================================================
@@ -226,7 +461,17 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
     null
   );
   const [formError, setFormError] = React.useState("");
+  /* Replaces the upload label while reconnecting or checking for the account. */
+  const [submitNote, setSubmitNote] = React.useState<string | null>(null);
   const [showRestored, setShowRestored] = React.useState(draft !== null);
+
+  /*
+   * Set once an attempt's upload finishes without a reply, and kept across
+   * taps: from then on the account may exist, so the next tap signs in first
+   * instead of uploading everything again. State, not a ref: `onSubmit` is
+   * handed to `handleSubmit` during render, so the compiler rejects ref reads.
+   */
+  const [accountMayExist, setAccountMayExist] = React.useState(false);
 
   /* Set once the account exists: stops the draft saving and the unload guard. */
   const [completed, setCompleted] = React.useState(false);
@@ -797,27 +1042,24 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
       formData.append(field, file);
     }
 
-    try {
-      const { status, data } = await postWithProgress(
-        "/api/auth/register",
-        formData,
-        setUploadProgress
-      );
+    const email = normalizeEmail(values.email);
+    const releaseScreen = await keepScreenOn();
 
-      if (status < 200 || status >= 300 || !data) {
-        if (status === 413) {
-          setFormError(
-            "Your documents are too large to upload together. Please use smaller files and try again."
-          );
-        } else {
-          showServerError(data, "Registration failed. Please try again.");
-        }
+    /* Leaving the page is a common way a mobile upload dies; note it for the message. */
+    let leftScreen = false;
 
-        setSubmitting(false);
-        setUploadProgress(null);
-        return;
+    const noticeHidden = () => {
+      if (document.visibilityState === "hidden") {
+        leftScreen = true;
       }
+    };
 
+    document.addEventListener("visibilitychange", noticeHidden);
+
+    let succeeded = false;
+
+    const succeed = (signedIn: boolean, recovered = false) => {
+      succeeded = true;
       setCompleted(true);
       clearDraft();
 
@@ -825,8 +1067,12 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
       const next = nextPathFromLocation();
 
       // Stays "submitting" through the navigation, so it can't be sent twice.
-      if (data.signedIn) {
-        toast.success("Welcome to Excellence Tutor! Your account is ready.");
+      if (signedIn) {
+        toast.success(
+          recovered
+            ? "You're signed in to your Excellence Tutor account."
+            : "Welcome to Excellence Tutor! Your account is ready."
+        );
         router.replace(next);
         // Drops the router cache, as login does: `/apply/<code>` may be held
         // there as its cached signed-out copy, which would still say
@@ -837,14 +1083,130 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
           `/login?registered=1&next=${encodeURIComponent(next)}`
         );
       }
+    };
+
+    const recoverAccount = async (): Promise<boolean> => {
+      setSubmitNote("Checking whether your account was created…");
+
+      const signedIn = await signInIfCreated(email, values.password);
+
+      if (signedIn) {
+        succeed(true, true);
+      }
+
+      return signedIn;
+    };
+
+    /* The state value is this render's; the local copy follows this tap's attempts. */
+    let mayExist = accountMayExist;
+
+    try {
+      if (mayExist && (await recoverAccount())) {
+        return;
+      }
+
+      let failure: ConnectionFailure = {
+        reason: "dropped",
+        progress: 0,
+        leftScreen: false,
+        sent: false,
+      };
+
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+        if (attempt > 1) {
+          setSubmitNote(
+            `Connection lost. Trying again (attempt ${attempt} of ${MAX_ATTEMPTS})…`
+          );
+          await delay(RETRY_DELAY_MS * (attempt - 1));
+        }
+
+        if (!navigator.onLine) {
+          setSubmitNote("You're offline. Waiting for your connection to return…");
+
+          if (!(await waitForOnline(OFFLINE_WAIT_MS))) {
+            failure = { ...failure, reason: "offline" };
+            break;
+          }
+        }
+
+        setSubmitNote(null);
+        setUploadProgress(0);
+
+        let response: ApiResponse;
+
+        try {
+          response = await postWithProgress(
+            "/api/auth/register",
+            formData,
+            setUploadProgress
+          );
+        } catch (error) {
+          if (!(error instanceof ConnectionError)) {
+            throw error;
+          }
+
+          failure = {
+            ...failure,
+            reason: navigator.onLine ? error.reason : "offline",
+            progress: error.progress,
+          };
+
+          if (error.uploaded) {
+            failure.sent = true;
+            mayExist = true;
+            setAccountMayExist(true);
+
+            await delay(SERVER_SETTLE_MS);
+
+            if (await recoverAccount()) {
+              return;
+            }
+          }
+
+          continue;
+        }
+
+        const { status, data } = response;
+
+        if (status >= 200 && status < 300 && data) {
+          succeed(Boolean(data.signedIn));
+          return;
+        }
+
+        if (
+          mayBeOwnAccount(status, data, mayExist) &&
+          (await recoverAccount())
+        ) {
+          return;
+        }
+
+        if (status === 413) {
+          setFormError(
+            "Your documents are too large to upload together. Please use smaller files and try again."
+          );
+        } else {
+          showServerError(data, "Registration failed. Please try again.");
+        }
+
+        return;
+      }
+
+      setFormError(connectionFailureMessage({ ...failure, leftScreen }));
     } catch (error) {
       setFormError(
         error instanceof Error
           ? error.message
           : "Registration failed. Please try again."
       );
-      setSubmitting(false);
-      setUploadProgress(null);
+    } finally {
+      document.removeEventListener("visibilitychange", noticeHidden);
+      releaseScreen();
+
+      if (!succeeded) {
+        setSubmitting(false);
+        setUploadProgress(null);
+        setSubmitNote(null);
+      }
     }
   }
 
@@ -1065,13 +1427,16 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
                 <div className="mt-8 space-y-1.5" aria-live="polite">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">
-                      {uploading
-                        ? "Uploading your documents…"
-                        : "Creating your account…"}
+                      {submitNote ??
+                        (uploading
+                          ? "Uploading your documents…"
+                          : "Creating your account…")}
                     </span>
-                    <span className="font-medium tabular-nums">
-                      {uploadPercent}%
-                    </span>
+                    {submitNote ? null : (
+                      <span className="font-medium tabular-nums">
+                        {uploadPercent}%
+                      </span>
+                    )}
                   </div>
 
                   <div
@@ -1087,6 +1452,10 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
                       style={{ width: `${uploadPercent}%` }}
                     />
                   </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Keep this screen open until it finishes.
+                  </p>
                 </div>
               ) : null}
             </div>
@@ -1154,9 +1523,11 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
                   )}
                   {!submitting
                     ? "Create my account"
-                    : uploading
-                      ? `Uploading… ${uploadPercent}%`
-                      : "Creating account…"}
+                    : submitNote
+                      ? "Please wait…"
+                      : uploading
+                        ? `Uploading… ${uploadPercent}%`
+                        : "Creating account…"}
                 </Button>
               )}
             </div>
