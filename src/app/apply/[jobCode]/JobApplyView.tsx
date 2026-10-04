@@ -20,6 +20,7 @@ import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
+import { IntentLink } from "@/components/shared/IntentLink";
 import { JsonLd } from "@/components/shared/JsonLd";
 import ApplicationForm from "@/components/forms/ApplicationForm";
 import { formatDate, formatSalary } from "@/lib/format";
@@ -203,7 +204,7 @@ export function JobApplyView({
                     </Button>
 
                     <Button
-                      render={<Link href={`/register?next=${returnTo}`} />}
+                      render={<IntentLink href={`/register?next=${returnTo}`} />}
                       variant="outline"
                       size="xl"
                     >

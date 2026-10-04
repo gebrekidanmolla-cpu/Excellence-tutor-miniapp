@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -16,21 +16,15 @@ const geistSans = Geist({
   display: "swap",
 });
 
+/* Only small runs of text use it (job codes, counts), so it isn't worth a
+   high-priority download competing with the page's own CSS and scripts:
+   the browser fetches it once such text is on screen. The headline face,
+   Fraunces, lives in `src/lib/fonts.ts`. */
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
   display: "swap",
-});
-
-/* Display face for headlines. Fraunces is variable: `opsz` lets large
-   headings use the high-contrast display cut, and `SOFT` rounds the
-   terminals slightly so it reads warm rather than bookish. */
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  style: ["normal", "italic"],
-  axes: ["opsz", "SOFT"],
-  display: "swap",
+  preload: false,
 });
 
 const DEFAULT_TITLE = `${SITE_NAME} — Home tutoring jobs across Ethiopia`;
@@ -87,7 +81,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         {children}

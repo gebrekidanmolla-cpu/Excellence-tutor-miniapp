@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
+import { fraunces } from "@/lib/fonts";
 import { profileStrength } from "@/lib/profile-strength";
 import { tutorFileHref } from "@/lib/tutor-files";
 import { ProfileStrengthNudge } from "@/app/tutor/profile/components/ProfileStrengthCard";
@@ -133,7 +134,7 @@ export default async function TutorDashboard() {
     .toUpperCase();
 
   return (
-    <div className="space-y-6">
+    <div className={cn(fraunces.variable, "space-y-6")}>
       {/* -----------------------------------------------------
           HERO + PIPELINE
       ----------------------------------------------------- */}

@@ -25,6 +25,7 @@ import {
   type GalleryDocument,
 } from "@/components/shared/DocumentGallery";
 import { formatDateLong, formatEnum } from "@/lib/format";
+import { fraunces } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 
 interface PageProps {
@@ -171,7 +172,12 @@ export default async function TutorProfilePage({ params }: PageProps) {
   );
 
   return (
-    <div className="flex min-h-svh flex-col bg-[oklch(0.985_0.004_264)]">
+    <div
+      className={cn(
+        fraunces.variable,
+        "flex min-h-svh flex-col bg-[oklch(0.985_0.004_264)]"
+      )}
+    >
       {/* -----------------------------------------------------
           HEADER
       ----------------------------------------------------- */}
