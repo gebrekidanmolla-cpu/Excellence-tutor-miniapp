@@ -23,15 +23,23 @@ export type GalleryDocument = {
   /** Short line under the title on the card. */
   caption: string;
   href: string;
+  /**
+   * Where the preview `<img>` loads from, when that differs from `href`.
+   * The admin application page passes a URL signed while it rendered, so
+   * its previews cost no request to the app; `href` stays the route that
+   * signs a fresh URL, for "Open original".
+   */
+  previewSrc?: string;
   /** Images open in the lightbox; a PDF opens in a new tab. */
   kind: "image" | "pdf";
 };
 
 /**
- * The public tutor profile's documents, each shown whole on the page, with a
- * lightbox for a closer look that steps through with the arrow buttons or the
- * keyboard. A PDF (only ever the CV) cannot be previewed reliably on phones,
- * so its card opens it in a new tab instead.
+ * A tutor's documents, each shown whole on the page, with a lightbox for a
+ * closer look that steps through with the arrow buttons or the keyboard. A
+ * PDF (only ever the CV) cannot be previewed reliably on phones, so its card
+ * opens it in a new tab instead. Used by the public tutor profile and the
+ * admin application page.
  *
  * Plain <img>s throughout: `next/image` would copy these private documents
  * into the optimizer's cache, where they would outlive a revoked link.
@@ -89,7 +97,7 @@ export function DocumentGallery({
                 <div className="border-t bg-muted/60 p-2 sm:p-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={document.href}
+                    src={document.previewSrc ?? document.href}
                     alt={document.title}
                     loading="lazy"
                     className="mx-auto block h-auto min-h-32 w-full rounded-lg bg-muted object-contain"
@@ -154,7 +162,7 @@ export function DocumentGallery({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   key={current.id}
-                  src={current.href}
+                  src={current.previewSrc ?? current.href}
                   alt={current.title}
                   className="max-h-[75svh] w-auto max-w-full object-contain animate-in fade-in duration-300"
                 />
