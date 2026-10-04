@@ -3,6 +3,12 @@ import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { Toaster } from "@/components/ui/sonner";
+import {
+  OPEN_GRAPH_DEFAULTS,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,24 +33,42 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
+const DEFAULT_TITLE = `${SITE_NAME} — Home tutoring jobs across Ethiopia`;
+
+/*
+ * No `alternates.canonical` here: a layout's value is inherited by every
+ * page below it, which would point them all at the home page. Each
+ * indexable page sets its own.
+ *
+ * Next.js copies the Open Graph title, description and image (see
+ * `OPEN_GRAPH_DEFAULTS`) into the Twitter card tags.
+ */
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Excellence Tutor — Tutoring jobs for qualified tutors",
-    template: "%s · Excellence Tutor",
+    default: DEFAULT_TITLE,
+    template: `%s · ${SITE_NAME}`,
   },
-  description:
-    "Excellence Tutor connects verified tutors with families looking for quality home tutoring. Browse open tutoring jobs, apply in minutes, and get matched.",
-  applicationName: "Excellence Tutor",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  category: "education",
   openGraph: {
-    title: "Excellence Tutor — Tutoring jobs for qualified tutors",
-    description:
-      "Browse open tutoring jobs, apply in minutes, and get matched with families looking for quality home tutoring.",
-    siteName: "Excellence Tutor",
-    type: "website",
+    ...OPEN_GRAPH_DEFAULTS,
+    title: DEFAULT_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 

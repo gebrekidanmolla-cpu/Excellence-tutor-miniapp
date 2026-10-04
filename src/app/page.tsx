@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Noto_Serif_Ethiopic } from "next/font/google";
 import { ArrowRight, ArrowUpRight, Send } from "lucide-react";
@@ -5,6 +6,14 @@ import { ArrowRight, ArrowUpRight, Send } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
+import { JsonLd } from "@/components/shared/JsonLd";
+import {
+  SITE_ALTERNATE_NAME,
+  SITE_DESCRIPTION,
+  SITE_LOGO_URL,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { formatSalary } from "@/lib/format";
 import {
@@ -64,11 +73,60 @@ async function getLiveJobs() {
 
 type LiveJob = Awaited<ReturnType<typeof getLiveJobs>>["jobs"][number];
 
+/* The title, description and Open Graph tags are the root layout's. */
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
+
+/**
+ * Who runs the site, and what to call it. Google reads the `WebSite` node
+ * for the site name above the result — it only looks for it on the home
+ * page — and the `Organization` node for the logo.
+ */
+function siteJsonLd() {
+  const channelUrl = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL?.trim();
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: SITE_NAME,
+        alternateName: SITE_ALTERNATE_NAME,
+        description: SITE_DESCRIPTION,
+        inLanguage: "en",
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        url: SITE_URL,
+        name: SITE_NAME,
+        alternateName: SITE_ALTERNATE_NAME,
+        description:
+          "Excellence Tutor connects qualified university students and graduates with families across Ethiopia looking for quality home tutoring.",
+        logo: {
+          "@type": "ImageObject",
+          url: SITE_LOGO_URL,
+          width: 180,
+          height: 180,
+        },
+        areaServed: { "@type": "Country", name: "Ethiopia" },
+        ...(channelUrl ? { sameAs: [channelUrl] } : {}),
+      },
+    ],
+  };
+}
+
 export default async function HomePage() {
   const { jobs, openCount, latestPost } = await getLiveJobs();
 
   return (
     <>
+      <JsonLd data={siteJsonLd()} />
+
       <PublicHeader />
 
       <main className="flex-1 overflow-x-clip">

@@ -12,7 +12,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import type { ApplicationStatus, Gender, Prisma } from "@prisma/client";
+import type { ApplicationStatus, Gender } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -20,24 +20,10 @@ import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
+import { JsonLd } from "@/components/shared/JsonLd";
 import ApplicationForm from "@/components/forms/ApplicationForm";
 import { formatDate, formatSalary } from "@/lib/format";
-
-/** The job columns both `/apply` renderings read. */
-export const APPLY_JOB_SELECT = {
-  id: true,
-  jobCode: true,
-  gender: true,
-  grade: true,
-  subject: true,
-  place: true,
-  salary: true,
-  status: true,
-  additionalDetails: true,
-  createdAt: true,
-} satisfies Prisma.JobSelect;
-
-type ApplyJob = Prisma.JobGetPayload<{ select: typeof APPLY_JOB_SELECT }>;
+import { jobPostingJsonLd, type ApplyJob } from "./apply-job";
 
 /** `ANY` reads as "Male/Female Tutor" rather than the raw enum. */
 function formatTutorRequirement(gender: Gender): string {
@@ -77,6 +63,8 @@ export function JobApplyView({
 
   return (
     <>
+      {isOpen ? <JsonLd data={jobPostingJsonLd(job)} /> : null}
+
       <PublicHeader tutor={tutor ? { fullName: tutor.fullName } : null} />
 
       <main className="flex-1 bg-muted/30 py-8 sm:py-12">
