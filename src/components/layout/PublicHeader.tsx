@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Wordmark } from "@/components/layout/Wordmark";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 /**
  * The public site header. The previous landing nav was `hidden md:flex` with
@@ -77,7 +78,7 @@ export function PublicHeader({
               </Button>
 
               <Button
-                render={<Link href="/register" />}
+                render={<IntentLink href="/register" />}
                 size="lg"
                 className="hidden rounded-md bg-foreground px-4 text-background hover:bg-primary sm:inline-flex"
               >

@@ -6,7 +6,9 @@ import { ArrowRight, ArrowUpRight, Send } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
+import { IntentLink } from "@/components/shared/IntentLink";
 import { JsonLd } from "@/components/shared/JsonLd";
+import { fraunces } from "@/lib/fonts";
 import {
   SITE_ALTERNATE_NAME,
   SITE_DESCRIPTION,
@@ -129,7 +131,7 @@ export default async function HomePage() {
 
       <PublicHeader />
 
-      <main className="flex-1 overflow-x-clip">
+      <main className={cn(fraunces.variable, "flex-1 overflow-x-clip")}>
         <Hero jobs={jobs} openCount={openCount} />
         <SubjectBand />
         <Universities />
@@ -247,13 +249,13 @@ function Hero({ jobs, openCount }: { jobs: LiveJob[]; openCount: number }) {
             className={cn(styles.fadeIn, "mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8")}
             style={stagger(3)}
           >
-            <Link
+            <IntentLink
               href="/register"
               className="group relative inline-flex h-13 items-center justify-center gap-3 overflow-hidden rounded-md bg-foreground px-7 text-[0.9375rem] font-medium text-background shadow-[0_10px_30px_-12px_color-mix(in_oklch,var(--color-foreground)_60%,transparent)] transition-[background-color,box-shadow] duration-300 hover:bg-primary hover:shadow-[0_14px_36px_-12px_color-mix(in_oklch,var(--color-primary)_70%,transparent)] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               Create your tutor profile
               <Arrow />
-            </Link>
+            </IntentLink>
             <Link
               href="/jobs" prefetch={false}
               className="group inline-flex items-center justify-center gap-2 text-[0.9375rem] font-medium"
@@ -537,7 +539,7 @@ function HowItWorks() {
             <h2 className="mt-6 font-display text-[clamp(2.25rem,4vw,3.5rem)] leading-[1.02] font-light text-balance">
               Four steps from sign-up to your first lesson.
             </h2>
-            <Link
+            <IntentLink
               href="/register"
               className="group mt-8 hidden items-center gap-2 text-sm font-medium lg:inline-flex"
             >
@@ -545,7 +547,7 @@ function HowItWorks() {
                 Start step one
               </span>
               <Arrow />
-            </Link>
+            </IntentLink>
           </div>
         </div>
 
@@ -977,13 +979,13 @@ function Closing() {
         </div>
 
         <div className={cn(styles.inView, "flex flex-col gap-5 lg:col-span-4 lg:items-end")}>
-          <Link
+          <IntentLink
             href="/register"
             className="group inline-flex h-13 items-center justify-center gap-3 rounded-md bg-background px-7 text-[0.9375rem] font-medium text-foreground transition-colors duration-300 hover:bg-highlight hover:text-highlight-foreground focus-visible:ring-3 focus-visible:ring-highlight/50 focus-visible:outline-none"
           >
             Create your tutor profile
             <Arrow />
-          </Link>
+          </IntentLink>
           <p className="text-sm text-background/60">
             Already registered?{" "}
             <Link

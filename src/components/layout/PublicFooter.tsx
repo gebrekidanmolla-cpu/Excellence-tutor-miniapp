@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
 import { Wordmark } from "@/components/layout/Wordmark";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 /**
  * Links only to routes that actually exist; the app has no legal pages or
@@ -66,17 +67,29 @@ export function PublicFooter() {
               <div key={column.title}>
                 <p className="text-xs font-semibold">{column.title}</p>
                 <ul className="mt-4 space-y-3 text-sm">
-                  {column.links.map((link) => (
-                    <li key={link.href}>
-                      <Link
-                        href={link.href}
-                        prefetch={link.href === "/jobs" ? false : undefined}
-                        className="text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        {link.label}
-                      </Link>
-                    </li>
-                  ))}
+                  {column.links.map((link) => {
+                    const className =
+                      "text-muted-foreground transition-colors hover:text-foreground";
+
+                    return (
+                      <li key={link.href}>
+                        {/* `/register` is heavy to prefetch; see IntentLink. */}
+                        {link.href === "/register" ? (
+                          <IntentLink href={link.href} className={className}>
+                            {link.label}
+                          </IntentLink>
+                        ) : (
+                          <Link
+                            href={link.href}
+                            prefetch={link.href === "/jobs" ? false : undefined}
+                            className={className}
+                          >
+                            {link.label}
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
