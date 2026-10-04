@@ -32,6 +32,20 @@ export type DataTableColumn<T> = {
   mobileTitle?: boolean;
 };
 
+/**
+ * Where the cards give way to the table. A wide table (many columns, or row
+ * actions) uses `xl`: below that it would scroll sideways inside its
+ * container, so the cards carry on, two to a row from `md:` up.
+ */
+const BREAKPOINT_CLASSES = {
+  md: { cards: "space-y-3 md:hidden", table: "hidden md:block" },
+  xl: {
+    cards:
+      "space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0 xl:hidden",
+    table: "hidden xl:block",
+  },
+} as const;
+
 export function DataTable<T>({
   items,
   columns,
@@ -41,6 +55,7 @@ export function DataTable<T>({
   getExpandLabel,
   empty,
   caption,
+  breakpoint = "md",
   className,
 }: {
   items: readonly T[];
@@ -60,6 +75,7 @@ export function DataTable<T>({
   getExpandLabel?: (item: T) => string;
   empty?: React.ReactNode;
   caption?: string;
+  breakpoint?: keyof typeof BREAKPOINT_CLASSES;
   className?: string;
 }) {
   if (items.length === 0) {
@@ -72,10 +88,12 @@ export function DataTable<T>({
     (column) => !column.hideOnMobile && !column.mobileTitle
   );
 
+  const layout = BREAKPOINT_CLASSES[breakpoint];
+
   return (
     <div className={className}>
       {/* Mobile: stacked cards */}
-      <ul className="space-y-3 md:hidden">
+      <ul className={layout.cards}>
         {items.map((item, index) => (
           <li
             key={getRowKey(item, index)}
@@ -110,7 +128,12 @@ export function DataTable<T>({
       </ul>
 
       {/* Desktop: a real table */}
-      <div className="hidden overflow-hidden rounded-xl ring-1 ring-foreground/10 md:block">
+      <div
+        className={cn(
+          "overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10",
+          layout.table
+        )}
+      >
         <Table>
           {caption ? <caption className="sr-only">{caption}</caption> : null}
 

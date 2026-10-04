@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Info } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-context";
 import { secondAddressOf } from "@/lib/address";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -14,6 +15,8 @@ interface PageProps {
 }
 
 export default async function EditTutorPage({ params }: PageProps) {
+  await requireAdmin();
+
   const { id } = await params;
 
   const tutor = await prisma.tutor.findUnique({

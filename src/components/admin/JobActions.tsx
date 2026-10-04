@@ -52,21 +52,7 @@ export default function JobActions({
   async function close() {
     setError("");
 
-    const response = await fetch(`/api/admin/jobs/${jobId}/status`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: "CLOSED",
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.message || "Failed to update job status.");
-    }
+    await closeJob(jobId);
 
     toast.success("Job closed.");
 
@@ -76,17 +62,7 @@ export default function JobActions({
   async function reopen() {
     setError("");
 
-    const response = await fetch(`/api/admin/jobs/${jobId}/reopen`, {
-      method: "POST",
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Failed to reopen job.");
-    }
-
-    toast.success(result.message);
+    toast.success(await reopenJob(jobId));
 
     router.refresh();
   }
@@ -189,11 +165,6 @@ export default function JobActions({
   // CLOSED (or assigned) -> re-open
   // -------------------------------------------------------
 
-  const applicationLabel =
-    applicationCount === 1
-      ? "application"
-      : `all ${applicationCount} applications`;
-
   return (
     <div className="space-y-4">
       <FormError message={error} />
@@ -208,33 +179,10 @@ export default function JobActions({
           }
           title="Re-open this job?"
           description={
-            <>
-              This will, in one step:
-              <ul className="mt-2 list-disc space-y-1 pl-4">
-                {assignedTutorName ? (
-                  <li>
-                    Unassign <strong>{assignedTutorName}</strong> from this job
-                  </li>
-                ) : null}
-
-                {applicationCount > 0 ? (
-                  <li>
-                    Put {applicationLabel} back to <strong>pending</strong>,
-                    including accepted and rejected ones
-                  </li>
-                ) : null}
-
-                <li>Re-open the job so more tutors can apply</li>
-              </ul>
-              {applicationCount > 0 ? (
-                <p className="mt-3">
-                  Nothing is deleted — everyone who already applied stays in the
-                  pool, so you can assign one of them straight away or wait for
-                  new applicants. Tutors who applied before will see their
-                  application as pending again.
-                </p>
-              ) : null}
-            </>
+            <ReopenJobDescription
+              applicationCount={applicationCount}
+              assignedTutorName={assignedTutorName}
+            />
           }
           confirmLabel="Re-open job"
           onConfirm={reopen}
@@ -243,5 +191,89 @@ export default function JobActions({
         {deleteAction}
       </div>
     </div>
+  );
+}
+
+// =========================================================
+// SHARED WITH THE JOBS LIST
+// =========================================================
+//
+// The jobs list offers the same close / re-open on each row, so the requests
+// and the re-open explanation live here once rather than in two copies.
+
+/** Throws with the API's message, so `ConfirmDialog` can show it in place. */
+export async function closeJob(jobId: string) {
+  const response = await fetch(`/api/admin/jobs/${jobId}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      status: "CLOSED",
+    }),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || "Failed to update job status.");
+  }
+}
+
+/** Resolves to the API's confirmation message. */
+export async function reopenJob(jobId: string): Promise<string> {
+  const response = await fetch(`/api/admin/jobs/${jobId}/reopen`, {
+    method: "POST",
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Failed to reopen job.");
+  }
+
+  return result.message;
+}
+
+export function ReopenJobDescription({
+  applicationCount,
+  assignedTutorName,
+}: {
+  applicationCount: number;
+  assignedTutorName: string | null;
+}) {
+  const applicationLabel =
+    applicationCount === 1
+      ? "application"
+      : `all ${applicationCount} applications`;
+
+  return (
+    <>
+      This will, in one step:
+      <ul className="mt-2 list-disc space-y-1 pl-4">
+        {assignedTutorName ? (
+          <li>
+            Unassign <strong>{assignedTutorName}</strong> from this job
+          </li>
+        ) : null}
+
+        {applicationCount > 0 ? (
+          <li>
+            Put {applicationLabel} back to <strong>pending</strong>,
+            including accepted and rejected ones
+          </li>
+        ) : null}
+
+        <li>Re-open the job so more tutors can apply</li>
+      </ul>
+      {applicationCount > 0 ? (
+        <p className="mt-3">
+          Nothing is deleted — everyone who already applied stays in the
+          pool, so you can assign one of them straight away or wait for
+          new applicants. Tutors who applied before will see their
+          application as pending again.
+        </p>
+      ) : null}
+    </>
   );
 }

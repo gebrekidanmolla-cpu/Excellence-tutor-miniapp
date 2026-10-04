@@ -101,6 +101,8 @@ No auth library — `src/lib/session.ts` (tutor, cookie `tutor_session`, 30 days
 
 **Every non-auth route under `src/app/api/admin/**` gates itself** by calling `getCurrentAdmin()` and returning a 401 when it is null. Mirror that in any new route.
 
+**Every page under `src/app/admin/(dashboard)/**` calls `requireAdmin()`** (`src/lib/admin-context.ts`) as well as the layout, because Next does not re-render a layout on client navigation. On a full load the call is memoized with the layout's. It runs one raw-SQL statement that returns the admin *and* the queue counts the nav badges and the overview tiles show, so the counts cost no extra query. The badges therefore refresh on a full load or a `router.refresh()`, not on every click between pages.
+
 The two logout routes are not symmetric: `POST /api/admin/auth/logout` responds with a **redirect**, so it has to stay a real form POST; the tutor's `POST /api/auth/logout` returns JSON for a `fetch` caller.
 
 ### Data layer: Prisma 7 with a driver adapter
@@ -132,6 +134,8 @@ Tutor-submitted files (transcript, entrance result, government ID, optional CV/g
 ### UI
 
 Primitives in `src/components/ui` were scaffolded by the shadcn CLI (`components.json`, style `base-nova`), but they are built on **`@base-ui/react`, not Radix** — there is no Radix package in this repo. Base UI's API differs: `Positioner`/`Popup`/`List`, `render={...}` instead of `asChild`, `data-checked:` instead of `data-[state=checked]`. Anything the shadcn CLI emits has to be checked against that before it is accepted, since Radix-shaped props typecheck against nothing here and render wrong. Tailwind v4 is configured entirely in CSS (`src/app/globals.css` via `@import "tailwindcss"` + `@theme inline`) — there is no `tailwind.config.*` file.
+
+The admin lists (applications, jobs, tutors) load every row in one Prisma call (selects and row mappers in `src/lib/admin-rows.ts`) and search, filter and sort in the browser. Filters live in the query string through `useListFilters` (`src/lib/use-list-filters.ts`), which writes with `window.history.replaceState`: a chip tap or a keystroke costs no request, and a filtered view survives a refresh. Prisma 7 runs each relation `include`/`select` as its own SQL statement, while `_count` is joined into the main one; count statements before adding a relation to a list query. `DataTable`'s `breakpoint="xl"` keeps wide tables as cards until there is room for every column. Both shells share `MobileTabBar` below `lg`.
 
 Forms are not uniform. The register wizard (`src/app/register/**`) uses `react-hook-form` + `@hookform/resolvers` against `src/app/register/schema.ts`; the admin forms (`CreateJobForm`, `EditJobForm`) are plain `useState` + `fetch`, and the job API routes hand-roll their validation rather than using Zod.
 

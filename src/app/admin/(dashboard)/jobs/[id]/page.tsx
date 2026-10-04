@@ -19,7 +19,11 @@ import {
 } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-context";
+import { TUTOR_SUMMARY_SELECT, toTutorSummary } from "@/lib/admin-rows";
+import { getProfileShareLinkBase } from "@/lib/tutor-profile-server";
 import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/shared/CopyButton";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
@@ -50,6 +54,8 @@ interface JobDetailsPageProps {
 export default async function JobDetailsPage({
   params,
 }: JobDetailsPageProps) {
+  await requireAdmin();
+
   const { id } = await params;
 
   const job = await prisma.job.findUnique({
@@ -82,20 +88,7 @@ export default async function JobDetailsPage({
           status: true,
           createdAt: true,
           tutor: {
-            select: {
-              id: true,
-              fullName: true,
-              phone: true,
-              gender: true,
-              tutorStatus: true,
-              university: true,
-              department: true,
-              currentGPA: true,
-              CGPA: true,
-              entranceScore: true,
-              entranceTotal: true,
-              entrancePercentage: true,
-            },
+            select: TUTOR_SUMMARY_SELECT,
           },
         },
       },
@@ -109,6 +102,7 @@ export default async function JobDetailsPage({
   const applicants = job.applications.map((application) => ({
     ...application,
     createdAt: application.createdAt.toISOString(),
+    tutor: toTutorSummary(application.tutor),
   }));
 
   const applicantCount = applicants.length;
@@ -121,9 +115,12 @@ export default async function JobDetailsPage({
   const telegramConfigured = isTelegramConfigured();
   const sheetConfigured = isSheetSyncConfigured();
 
-  const channelMessageUrl = job.telegramMessageId
-    ? await buildChannelMessageUrl(job.telegramMessageId)
-    : null;
+  const [channelMessageUrl, linkBase] = await Promise.all([
+    job.telegramMessageId
+      ? buildChannelMessageUrl(job.telegramMessageId)
+      : null,
+    getProfileShareLinkBase(),
+  ]);
 
   /* A localhost base URL is a dead link for a channel reader, so the
      post ships without its button. Say so rather than let it be a
@@ -168,7 +165,19 @@ export default async function JobDetailsPage({
           />
           <InfoItem
             label="Parent phone"
-            value={job.parentPhone}
+            value={
+              job.parentPhone ? (
+                <CopyButton
+                  value={job.parentPhone}
+                  variant="ghost"
+                  size="sm"
+                  successMessage="Parent phone copied"
+                  className="-ml-2 font-medium"
+                >
+                  {job.parentPhone}
+                </CopyButton>
+              ) : undefined
+            }
             icon={<Phone />}
           />
         </InfoGrid>
@@ -277,11 +286,16 @@ export default async function JobDetailsPage({
 
           {applicantCount > 0 ? (
             <Button
-              render={<Link href="/admin/applications" prefetch={false} />}
+              render={
+                <Link
+                  href={`/admin/applications?q=${encodeURIComponent(job.jobCode)}`}
+                  prefetch={false}
+                />
+              }
               variant="ghost"
               size="sm"
             >
-              All applications
+              View in list
               <ArrowRight data-icon="inline-end" aria-hidden="true" />
             </Button>
           ) : null}
@@ -312,6 +326,7 @@ export default async function JobDetailsPage({
             jobCode={job.jobCode}
             jobStatus={job.status}
             hasAssignedTutor={Boolean(job.assignedTutorId)}
+            linkBase={linkBase}
           />
         </div>
       </section>

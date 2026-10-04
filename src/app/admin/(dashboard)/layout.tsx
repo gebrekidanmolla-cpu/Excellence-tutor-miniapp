@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation";
-
-import { getCurrentAdmin } from "@/lib/admin-session";
+import { requireAdmin } from "@/lib/admin-context";
 import { AdminShell } from "@/components/layout/AdminShell";
 
 export default async function AdminDashboardLayout({
@@ -8,14 +6,18 @@ export default async function AdminDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const admin = await getCurrentAdmin();
-
-  if (!admin) {
-    redirect("/admin/login");
-  }
+  // One statement: the admin plus the nav's counts (see `getAdminContext`).
+  // Pages call `requireAdmin()` too; on a full load that is memoized.
+  const { admin, counts } = await requireAdmin();
 
   return (
-    <AdminShell admin={{ fullName: admin.fullName, email: admin.email }}>
+    <AdminShell
+      admin={{ fullName: admin.fullName, email: admin.email }}
+      counts={{
+        pendingApplications: counts.pendingApplications,
+        openJobs: counts.openJobs,
+      }}
+    >
       {children}
     </AdminShell>
   );

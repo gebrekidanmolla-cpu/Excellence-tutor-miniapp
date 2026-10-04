@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Link, { useLinkStatus } from "next/link";
-import { usePathname } from "next/navigation";
+import Link from "next/link";
 import {
   BriefcaseBusiness,
   ExternalLink,
@@ -22,11 +21,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import LogoutButton from "@/components/LogoutButton";
-import {
-  SidebarNav,
-  isNavItemActive,
-  type NavItem,
-} from "@/components/layout/SidebarNav";
+import { SidebarNav, type NavItem } from "@/components/layout/SidebarNav";
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { cn } from "@/lib/utils";
 
@@ -46,12 +42,28 @@ const NAV_ITEMS: readonly NavItem[] = [
   {
     href: "/tutor",
     label: "Dashboard",
+    shortLabel: "Home",
     icon: <LayoutDashboard />,
     exact: true,
   },
-  { href: "/jobs", label: "Available Jobs", icon: <BriefcaseBusiness /> },
-  { href: "/tutor/applications", label: "My Applications", icon: <FileText /> },
-  { href: "/tutor/profile", label: "My Profile", icon: <UserRound /> },
+  {
+    href: "/jobs",
+    label: "Available Jobs",
+    shortLabel: "Jobs",
+    icon: <BriefcaseBusiness />,
+  },
+  {
+    href: "/tutor/applications",
+    label: "My Applications",
+    shortLabel: "Applied",
+    icon: <FileText />,
+  },
+  {
+    href: "/tutor/profile",
+    label: "My Profile",
+    shortLabel: "Profile",
+    icon: <UserRound />,
+  },
 ];
 
 function initialsOf(fullName: string) {
@@ -62,73 +74,6 @@ function initialsOf(fullName: string) {
     .map((name) => name[0])
     .join("")
     .toUpperCase();
-}
-
-const TAB_LABELS: Record<string, string> = {
-  "/tutor": "Home",
-  "/jobs": "Jobs",
-  "/tutor/applications": "Applied",
-  "/tutor/profile": "Profile",
-};
-
-/**
- * The tab's icon pill. It lights up while the tapped page loads, since the
- * tabs don't prefetch (see `NavPendingDot`). Must render inside the `<Link>`.
- */
-function TabIcon({
-  active,
-  children,
-}: {
-  active: boolean;
-  children: React.ReactNode;
-}) {
-  const { pending } = useLinkStatus();
-
-  return (
-    <span
-      className={cn(
-        "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
-        (active || pending) && "bg-primary/10",
-        pending && "animate-pulse"
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
-function MobileTabBar() {
-  const pathname = usePathname();
-
-  return (
-    <nav
-      aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
-    >
-      <ul className="mx-auto grid max-w-md grid-cols-4">
-        {NAV_ITEMS.map((item) => {
-          const active = isNavItemActive(pathname, item);
-
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                prefetch={false}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex flex-col items-center gap-1 py-2.5 text-[0.7rem] font-medium transition-colors focus-visible:outline-none [&_svg]:size-5",
-                  active ? "text-primary" : "text-muted-foreground"
-                )}
-              >
-                <TabIcon active={active}>{item.icon}</TabIcon>
-                {TAB_LABELS[item.href] ?? item.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
-  );
 }
 
 type PortalTutor = {
@@ -292,7 +237,7 @@ export function PortalShell({
           </div>
         </main>
 
-        <MobileTabBar />
+        <MobileTabBar items={NAV_ITEMS} />
       </div>
     </div>
   );
