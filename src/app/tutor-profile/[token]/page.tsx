@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   Briefcase,
@@ -33,17 +32,6 @@ interface PageProps {
     token: string;
   }>;
 }
-
-/* Reachable by anyone holding the link, so keep it out of search engines
-   and keep the token out of the Referer sent to other hosts. */
-export const metadata: Metadata = {
-  title: "Tutor profile",
-  robots: {
-    index: false,
-    follow: false,
-  },
-  referrer: "no-referrer",
-};
 
 /**
  * The profile an admin sends to parents (see `src/lib/tutor-profile.ts`).
