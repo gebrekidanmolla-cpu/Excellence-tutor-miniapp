@@ -84,7 +84,7 @@ function DetailPanel({ applicant }: { applicant: JobApplicant }) {
         <dd className="mt-0.5">
           <Link
             href={`/admin/tutors/${tutor.id}`} prefetch={false}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-primary tap-target underline-offset-4 hover:underline"
           >
             Open profile
           </Link>
@@ -150,7 +150,7 @@ export default function JobApplicants({
         <div className="min-w-0">
           <Link
             href={`/admin/applications/${applicant.id}`} prefetch={false}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-primary tap-target underline-offset-4 hover:underline"
           >
             {applicant.tutor.fullName}
           </Link>
@@ -210,7 +210,7 @@ export default function JobApplicants({
             <div className="min-w-0">
               <Link
                 href={`/admin/applications/${applicant.id}`} prefetch={false}
-                className="font-medium text-primary underline-offset-4 hover:underline"
+                className="font-medium text-primary tap-target underline-offset-4 hover:underline"
               >
                 {applicant.tutor.fullName}
               </Link>

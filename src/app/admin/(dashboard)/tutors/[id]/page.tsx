@@ -112,19 +112,24 @@ export default async function TutorDetailsPage({ params }: PageProps) {
         </Link>
       ),
     },
+    /* Free-text columns wrap: kept on one line, a long subject or place
+       pushed the table past every screen it is shown on. */
     {
       id: "subject",
       header: "Subject",
+      cellClassName: "min-w-32 whitespace-normal",
       cell: (application) => application.job.subject,
     },
     {
       id: "grade",
       header: "Grade",
+      cellClassName: "min-w-20 whitespace-normal",
       cell: (application) => application.job.grade,
     },
     {
       id: "place",
       header: "Place",
+      cellClassName: "min-w-32 whitespace-normal",
       cell: (application) => application.job.place || "—",
     },
     {
@@ -402,6 +407,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
             columns={applicationColumns}
             getRowKey={(application) => application.id}
             caption="Application history"
+            breakpoint="xl"
             empty={
               <EmptyState
                 icon={<FileText />}

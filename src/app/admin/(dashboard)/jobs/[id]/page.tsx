@@ -221,7 +221,7 @@ export default async function JobDetailsPage({
             value={
               <Link
                 href="#applicants" prefetch={false}
-                className="text-primary underline-offset-4 hover:underline"
+                className="text-primary tap-target underline-offset-4 hover:underline"
               >
                 {applicantCount}
               </Link>
@@ -239,7 +239,7 @@ export default async function JobDetailsPage({
               job.assignedTutor ? (
                 <Link
                   href={`/admin/tutors/${job.assignedTutor.id}`} prefetch={false}
-                  className="text-primary underline-offset-4 hover:underline"
+                  className="text-primary tap-target underline-offset-4 hover:underline"
                 >
                   {job.assignedTutor.fullName}
                 </Link>

@@ -71,7 +71,9 @@ export function ListToolbar({
   ).length;
 
   return (
-    <div className="sticky top-14 z-30 -mx-4 space-y-3 bg-[color-mix(in_srgb,var(--muted)_30%,var(--background))] px-4 py-3 shadow-[0_1px_0_var(--border)] sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-8 lg:px-8">
+    // Not sticky on a short screen: with the header and tab bar it covered
+    // all but ~80px of a phone held sideways.
+    <div className="sticky top-14 z-30 -mx-4 space-y-3 bg-[color-mix(in_srgb,var(--muted)_30%,var(--background))] px-4 py-3 shadow-[0_1px_0_var(--border)] short:static sm:-mx-6 sm:px-6 lg:top-0 lg:-mx-8 lg:px-8">
       <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
         <div className="flex min-w-0 gap-2 md:min-w-64 md:flex-1">
           <div className="relative min-w-0 flex-1">
@@ -98,7 +100,8 @@ export function ListToolbar({
               type="button"
               variant="outline"
               size="xl"
-              className="xl:hidden"
+              /* Matches the search field, which drops to 36px from md. */
+              className="md:h-9 md:text-sm xl:hidden"
               onClick={() => setSheetOpen(true)}
               aria-haspopup="dialog"
             >
@@ -183,7 +186,9 @@ export function ListToolbar({
 
 /**
  * Equal-width segments that always fit one row: on a phone the count sits
- * under the label, so five statuses share 340px without wrapping.
+ * under the label, so five statuses share 340px without wrapping. Below
+ * 375px equal widths cut "Reviewed" to "Revie…", so each segment takes its
+ * own width instead ("All" needs far less than the rest).
  */
 function SegmentedGroup({
   group,
@@ -198,7 +203,7 @@ function SegmentedGroup({
     <div
       role="radiogroup"
       aria-label={group.label}
-      className="grid auto-cols-fr grid-flow-col gap-1 rounded-xl bg-muted p-1 md:inline-grid md:auto-cols-auto"
+      className="grid auto-cols-fr grid-flow-col gap-1 rounded-xl bg-muted p-1 max-[374px]:auto-cols-auto md:inline-grid md:auto-cols-auto"
     >
       {group.options.map((option) => (
         <label
@@ -223,7 +228,7 @@ function SegmentedGroup({
           <span className="max-w-full truncate">{option.label}</span>
 
           {option.count !== undefined ? (
-            <span className="text-[0.7rem] text-muted-foreground tabular-nums md:text-xs">
+            <span className="text-xs text-muted-foreground tabular-nums">
               {option.count.toLocaleString("en-US")}
             </span>
           ) : null}

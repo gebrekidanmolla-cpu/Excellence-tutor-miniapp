@@ -321,9 +321,9 @@ export default function JobsPage() {
       ) : null}
 
       {hasJobs && visibleJobs.length > 0 ? (
-        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visibleJobs.map((job) => (
-            <li key={job.id} className="flex">
+            <li key={job.id} className="flex min-w-0">
               <JobCard job={job} />
             </li>
           ))}
@@ -412,7 +412,7 @@ function JobCard({ job }: { job: Job }) {
 
           <p
             className={cn(
-              "line-clamp-3 flex-1 text-sm font-medium text-pretty",
+              "line-clamp-3 min-w-0 flex-1 text-sm font-medium text-pretty wrap-break-word",
               isOpen ? "text-highlight-foreground" : "text-muted-foreground"
             )}
           >

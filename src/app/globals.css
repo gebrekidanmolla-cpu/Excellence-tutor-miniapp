@@ -4,6 +4,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* A phone on its side (or any window under 480px tall), where sticky
+   chrome would otherwise cover most of the screen. */
+@custom-variant short (@media (max-height: 30rem));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -164,6 +168,30 @@
   font-family: var(--font-fraunces), ui-serif, Georgia, serif;
   font-variation-settings: "opsz" 144, "SOFT" 50;
   letter-spacing: -0.028em;
+}
+
+/*
+  Grows a small text link's tap area to at least 28px on touch screens
+  without moving anything: the link stays where it is and an invisible box
+  centred on it takes the taps. For names, codes and counts inside cards,
+  which are far below a comfortable target as plain text. A parent with
+  `overflow: hidden` (e.g. `truncate`) clips the box, so it gains nothing
+  there.
+*/
+@utility tap-target {
+  @media (pointer: coarse) {
+    position: relative;
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 1.75rem);
+      height: max(100%, 1.75rem);
+      translate: -50% -50%;
+    }
+  }
 }
 
 @layer base {

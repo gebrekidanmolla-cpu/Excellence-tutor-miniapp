@@ -50,7 +50,7 @@ export function MobileTabBar({ items }: { items: readonly NavItem[] }) {
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
     >
       <ul
-        className="mx-auto grid max-w-md"
+        className="mx-auto grid max-w-md short:max-w-2xl"
         style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
       >
         {items.map((item) => {
@@ -63,7 +63,10 @@ export function MobileTabBar({ items }: { items: readonly NavItem[] }) {
                 prefetch={false}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-1 py-2.5 text-[0.7rem] font-medium transition-colors focus-visible:outline-none [&_svg]:size-5",
+                  "flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors focus-visible:outline-none [&_svg]:size-5",
+                  // Sideways phone: label beside the icon, half the height.
+                  // The row is wider there, and the badge moves off the label.
+                  "short:flex-row short:justify-center short:gap-3 short:py-1.5",
                   active ? "text-primary" : "text-muted-foreground"
                 )}
               >
@@ -71,7 +74,7 @@ export function MobileTabBar({ items }: { items: readonly NavItem[] }) {
                   {item.icon}
                   <NavCount
                     badge={item.badge}
-                    className="absolute -top-1.5 left-1/2 ml-1.5 ring-2 ring-background"
+                    className="absolute -top-1.5 left-1/2 ml-1.5 ring-2 ring-background short:-right-3 short:left-auto short:ml-0"
                   />
                 </TabIcon>
                 {item.shortLabel ?? item.label}

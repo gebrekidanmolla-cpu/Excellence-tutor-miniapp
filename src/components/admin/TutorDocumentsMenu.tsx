@@ -3,6 +3,7 @@
 import { ChevronDown, FileText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,7 @@ export function TutorDocumentsMenu({
   documents,
   compact = false,
   className,
+  labelClassName,
 }: {
   tutorId: string;
   tutorName: string;
@@ -35,6 +37,8 @@ export function TutorDocumentsMenu({
   /** Icon-only, for table rows. */
   compact?: boolean;
   className?: string;
+  /** Lets a narrow card hide the word "Docs", leaving the icon. */
+  labelClassName?: string;
 }) {
   if (documents.length === 0) {
     return (
@@ -47,7 +51,7 @@ export function TutorDocumentsMenu({
         className={className}
       >
         <FileText data-icon="inline-start" aria-hidden="true" />
-        {compact ? null : "Docs"}
+        {compact ? null : <span className={labelClassName}>Docs</span>}
       </Button>
     );
   }
@@ -67,10 +71,12 @@ export function TutorDocumentsMenu({
       >
         <FileText data-icon="inline-start" aria-hidden="true" />
         {compact ? null : (
-          <>
+          <span
+            className={cn("inline-flex items-center gap-1.5", labelClassName)}
+          >
             Docs
             <ChevronDown data-icon="inline-end" aria-hidden="true" />
-          </>
+          </span>
         )}
       </DropdownMenuTrigger>
 

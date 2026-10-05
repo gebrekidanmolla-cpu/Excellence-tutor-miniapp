@@ -80,7 +80,9 @@ export function ConfirmDialog({
       <DialogTrigger render={trigger as React.ReactElement} />
 
       <DialogContent showCloseButton={!pending}>
-        <DialogHeader>
+        {/* Clear of the close button: a long title ("Delete <full name>?")
+            otherwise runs under it. */}
+        <DialogHeader className="pr-6">
           <DialogTitle>{title}</DialogTitle>
 
           {description ? (

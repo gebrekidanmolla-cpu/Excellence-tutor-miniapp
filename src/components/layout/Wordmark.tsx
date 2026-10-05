@@ -30,7 +30,7 @@ export function Wordmark({
       </span>
 
       <span className="min-w-0">
-        <span className="block font-heading text-[0.9375rem] leading-tight font-semibold tracking-tight">
+        <span className="block font-heading text-[0.9375rem] leading-tight font-semibold tracking-tight whitespace-nowrap">
           Excellence Tutor
         </span>
 

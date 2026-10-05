@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Menu } from "lucide-react";
+import { LayoutDashboard, Menu } from "lucide-react";
 
 import {
   Sheet,
@@ -63,8 +63,15 @@ export function PublicHeader({
 
         <div className="flex items-center gap-2">
           {tutor ? (
-            <Button render={<Link href="/tutor" prefetch={false} />} size="lg">
-              Go to portal
+            /* Below 360px the label would push the wordmark onto two lines,
+               so the button keeps only its icon (the drawer has the label). */
+            <Button
+              render={<Link href="/tutor" prefetch={false} />}
+              size="lg"
+              className="max-[359px]:size-9 max-[359px]:px-0"
+            >
+              <LayoutDashboard aria-hidden="true" className="min-[360px]:hidden" />
+              <span className="max-[359px]:sr-only">Go to portal</span>
             </Button>
           ) : (
             <>
