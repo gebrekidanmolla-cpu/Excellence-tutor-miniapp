@@ -155,7 +155,9 @@ export function ProfilePhotoEditor({
         onConfirm={handleCropped}
       />
 
-      <div className="min-w-0 flex-1 space-y-3">
+      {/* The basis wraps this column under the photo on a narrow phone,
+          rather than leaving the name a few words wide beside it. */}
+      <div className="min-w-0 flex-1 basis-48 space-y-3">
         {children}
 
         {shown ? null : (

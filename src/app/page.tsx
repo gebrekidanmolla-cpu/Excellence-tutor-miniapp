@@ -298,20 +298,22 @@ function JobBoard({ jobs, openCount }: { jobs: LiveJob[]; openCount: number }) {
       />
 
       <div className="relative overflow-hidden rounded-lg border bg-card shadow-[0_30px_60px_-30px_color-mix(in_oklch,var(--color-foreground)_28%,transparent)]">
-        <div className="flex items-center justify-between gap-4 border-b bg-paper/60 px-5 py-4">
-          <div>
+        <div className="flex items-center justify-between gap-4 border-b bg-paper/60 px-4 py-4 sm:px-5">
+          <div className="min-w-0">
             <p className="font-display text-lg leading-tight font-normal">Open positions</p>
             <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
               <span className="relative flex size-1.5">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60 motion-reduce:animate-none" />
                 <span className="relative inline-flex size-1.5 rounded-full bg-success" />
               </span>
-              <span className="tabular-nums">{openCount}</span> open · refreshed every minute
+              <span>
+                <span className="tabular-nums">{openCount}</span> open · refreshed every minute
+              </span>
             </p>
           </div>
           <Link
             href="/jobs" prefetch={false}
-            className="group inline-flex items-center gap-1 rounded-sm text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="group -my-2 inline-flex shrink-0 items-center gap-1 rounded-sm py-2 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground"
           >
             View all
             <ArrowUpRight
@@ -339,7 +341,7 @@ function JobBoard({ jobs, openCount }: { jobs: LiveJob[]; openCount: number }) {
                   href={`/apply/${job.jobCode}`} prefetch={false}
                   className={cn(
                     styles.row,
-                    "group grid grid-cols-[4.25rem_minmax(0,1fr)_auto] items-center gap-x-4 px-5 py-3.5 transition-colors duration-300 hover:bg-paper focus-visible:bg-paper focus-visible:outline-none"
+                    "group grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3.5 transition-colors duration-300 hover:bg-paper focus-visible:bg-paper focus-visible:outline-none sm:grid-cols-[4.25rem_minmax(0,1fr)_auto] sm:gap-x-4 sm:px-5"
                   )}
                 >
                   <span className="truncate font-mono text-xs text-muted-foreground">
@@ -582,7 +584,7 @@ function HowItWorks() {
                 </p>
               </div>
               <dl className="col-start-2 mt-5 flex items-baseline gap-3 sm:col-start-3 sm:mt-1 sm:block sm:text-right">
-                <dt className="text-[0.6875rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                <dt className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
                   {step.label}
                 </dt>
                 <dd className="font-display text-base leading-snug font-normal whitespace-nowrap italic sm:mt-1.5 sm:text-[1.0625rem]">

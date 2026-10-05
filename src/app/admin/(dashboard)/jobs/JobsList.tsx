@@ -28,6 +28,7 @@ import {
 import type { JobRow } from "@/lib/admin-rows";
 import { formatDate, formatSalary } from "@/lib/format";
 import { useListFilters } from "@/lib/use-list-filters";
+import { cn } from "@/lib/utils";
 
 /** Each filter's values; the first is the default and stays out of the URL. */
 const FILTERS = {
@@ -59,7 +60,7 @@ const SORTS: Record<
 };
 
 /** The applicant count, with the unreviewed ones called out. */
-function Applicants({ job }: { job: JobRow }) {
+function Applicants({ job, className }: { job: JobRow; className?: string }) {
   if (job.applicationCount === 0) {
     return <span className="text-muted-foreground">No applicants</span>;
   }
@@ -68,7 +69,10 @@ function Applicants({ job }: { job: JobRow }) {
     <Link
       href={`/admin/jobs/${job.id}#applicants`}
       prefetch={false}
-      className="inline-flex items-center gap-2 rounded-md underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className={cn(
+        "inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md tap-target underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+        className
+      )}
     >
       <span className="tabular-nums">
         {plural(job.applicationCount, "applicant")}
@@ -84,13 +88,13 @@ function Applicants({ job }: { job: JobRow }) {
 }
 
 /** Only failures are worth a glance from the list; the job page has the rest. */
-function SyncWarnings({ job }: { job: JobRow }) {
+function SyncWarnings({ job, className }: { job: JobRow; className?: string }) {
   if (job.telegramPostStatus !== "FAILED" && job.sheetSyncStatus !== "FAILED") {
     return null;
   }
 
   return (
-    <span className="flex flex-wrap gap-1">
+    <span className={cn("flex flex-wrap gap-1", className)}>
       {job.telegramPostStatus === "FAILED" ? (
         <StatusBadge status="FAILED" label="Post failed" />
       ) : null}
@@ -266,11 +270,11 @@ export default function JobsList({
           <Link
             href={`/admin/jobs/${job.id}`}
             prefetch={false}
-            className="font-mono font-medium text-primary underline-offset-4 hover:underline"
+            className="font-mono font-medium text-primary tap-target underline-offset-4 hover:underline"
           >
             {job.jobCode}
           </Link>
-          <p className="mt-0.5 max-w-56 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 max-w-44 truncate text-xs text-muted-foreground 2xl:max-w-56">
             {job.subject} · {job.grade}
             {job.place ? ` · ${job.place}` : ""}
           </p>
@@ -283,7 +287,7 @@ export default function JobsList({
       cellClassName: "whitespace-normal",
       cell: (job) => (
         <div className="min-w-0">
-          <p className="max-w-40 truncate">{job.parentName || "—"}</p>
+          <p className="max-w-36 truncate 2xl:max-w-40">{job.parentName || "—"}</p>
           <ParentPhone job={job} />
         </div>
       ),
@@ -291,7 +295,10 @@ export default function JobsList({
     {
       id: "applicants",
       header: "Applicants",
-      cell: (job) => <Applicants job={job} />,
+      /* Below 2xl the "new" pill wraps under the count, which with the caps
+         on the job, parent and tutor columns keeps the table inside a
+         1280px screen instead of scrolling sideways. */
+      cell: (job) => <Applicants job={job} className="xl:max-w-28 2xl:max-w-none" />,
     },
     {
       id: "tutor",
@@ -302,7 +309,7 @@ export default function JobsList({
           <Link
             href={`/admin/tutors/${job.assignedTutor.id}`}
             prefetch={false}
-            className="block max-w-36 truncate underline-offset-4 hover:underline"
+            className="block max-w-32 truncate underline-offset-4 hover:underline 2xl:max-w-36"
           >
             {job.assignedTutor.fullName}
           </Link>
@@ -379,7 +386,7 @@ export default function JobsList({
                 <Link
                   href={`/admin/jobs/${job.id}`}
                   prefetch={false}
-                  className="font-mono font-medium text-primary underline-offset-4 hover:underline"
+                  className="font-mono font-medium text-primary tap-target underline-offset-4 hover:underline"
                 >
                   {job.jobCode}
                 </Link>
@@ -389,9 +396,11 @@ export default function JobsList({
                 </p>
               </div>
 
-              <div className="flex shrink-0 flex-col items-end gap-1">
+              {/* Capped so two failure badges stack instead of squeezing
+                  the summary beside them into a one-word column. */}
+              <div className="flex max-w-[45%] shrink-0 flex-col items-end gap-1">
                 <StatusBadge status={job.status} />
-                <SyncWarnings job={job} />
+                <SyncWarnings job={job} className="justify-end" />
               </div>
             </div>
 
@@ -402,18 +411,18 @@ export default function JobsList({
               </dd>
 
               <dt className="text-muted-foreground">Parent</dt>
-              <dd className="min-w-0 truncate">
-                {job.parentName || "—"}
+              {/* Wraps rather than truncates: one truncated line cut the
+                  phone to "+251920…" on a phone. On a narrow card the number
+                  drops under the name, so neither is lost. */}
+              <dd className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                <span className="min-w-0 break-words">{job.parentName || "—"}</span>
                 {job.parentPhone ? (
-                  <>
-                    {" · "}
-                    <a
-                      href={`tel:${job.parentPhone}`}
-                      className="text-primary tabular-nums underline-offset-4 hover:underline"
-                    >
-                      {job.parentPhone}
-                    </a>
-                  </>
+                  <a
+                    href={`tel:${job.parentPhone}`}
+                    className="tap-target shrink-0 text-primary tabular-nums underline-offset-4 hover:underline"
+                  >
+                    {job.parentPhone}
+                  </a>
                 ) : null}
               </dd>
 

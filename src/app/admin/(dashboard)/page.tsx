@@ -159,7 +159,7 @@ export default async function AdminDashboard() {
                       <Link
                         href={`/admin/applications/${application.id}`}
                         prefetch={false}
-                        className="font-medium text-primary underline-offset-4 hover:underline"
+                        className="font-medium text-primary tap-target underline-offset-4 hover:underline"
                       >
                         {application.tutor.fullName}
                       </Link>
@@ -168,7 +168,7 @@ export default async function AdminDashboard() {
                         <Link
                           href={`/admin/jobs/${application.job.id}`}
                           prefetch={false}
-                          className="font-mono font-medium text-foreground underline-offset-4 hover:underline"
+                          className="font-mono font-medium text-foreground tap-target underline-offset-4 hover:underline"
                         >
                           {application.job.jobCode}
                         </Link>

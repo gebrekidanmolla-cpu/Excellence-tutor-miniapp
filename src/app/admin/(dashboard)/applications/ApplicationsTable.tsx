@@ -224,7 +224,7 @@ export default function ApplicationsTable({
         type="button"
         onClick={() => showTutor(tutor.phone)}
         title={`Show all ${count} applications by ${tutor.fullName}`}
-        className="rounded-md font-medium text-primary tabular-nums underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="rounded-md font-medium text-primary tabular-nums tap-target underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
       >
         {count}
         <span className="sr-only">
@@ -364,7 +364,7 @@ export default function ApplicationsTable({
           <Link
             href={`/admin/applications/${application.id}`}
             prefetch={false}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-primary tap-target underline-offset-4 hover:underline"
           >
             {application.tutor.fullName}
           </Link>
@@ -384,7 +384,7 @@ export default function ApplicationsTable({
           <Link
             href={`/admin/jobs/${application.job.id}`}
             prefetch={false}
-            className="font-mono text-sm font-medium underline-offset-4 hover:underline"
+            className="font-mono text-sm font-medium tap-target underline-offset-4 hover:underline"
           >
             {application.job.jobCode}
           </Link>
@@ -481,7 +481,7 @@ export default function ApplicationsTable({
                 <Link
                   href={`/admin/applications/${application.id}`}
                   prefetch={false}
-                  className="font-medium text-primary underline-offset-4 hover:underline"
+                  className="font-medium text-primary tap-target underline-offset-4 hover:underline"
                 >
                   {application.tutor.fullName}
                 </Link>
@@ -489,7 +489,7 @@ export default function ApplicationsTable({
                   <Link
                     href={`/admin/jobs/${application.job.id}`}
                     prefetch={false}
-                    className="font-mono font-medium text-foreground underline-offset-4 hover:underline"
+                    className="font-mono font-medium text-foreground tap-target underline-offset-4 hover:underline"
                   >
                     {application.job.jobCode}
                   </Link>{" "}

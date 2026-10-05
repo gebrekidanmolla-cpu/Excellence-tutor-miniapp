@@ -493,7 +493,7 @@ export default async function TutorDashboard() {
                   className="group flex h-full flex-col rounded-[1.5rem] border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-muted px-2.5 py-1 font-mono text-[0.7rem] text-muted-foreground">
+                    <span className="rounded-full bg-muted px-2.5 py-1 font-mono text-xs text-muted-foreground">
                       {job.jobCode}
                     </span>
                     <span className="flex size-8 items-center justify-center rounded-full border bg-background text-muted-foreground transition-colors group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground">

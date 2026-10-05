@@ -109,7 +109,7 @@ export function DocumentUpload({
       {required ? (
         <span className="sr-only">(required)</span>
       ) : (
-        <span className="rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-medium text-muted-foreground">
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
           Optional
         </span>
       )}

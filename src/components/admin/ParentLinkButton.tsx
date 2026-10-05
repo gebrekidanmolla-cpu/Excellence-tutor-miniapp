@@ -6,6 +6,7 @@ import { Check, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { PROFILE_LINK_LIFETIME_DAYS } from "@/lib/tutor-profile";
 
 /**
@@ -25,6 +26,7 @@ export function ParentLinkButton({
   linkBase,
   compact = false,
   className,
+  iconClassName,
 }: {
   tutorId: string;
   tutorName: string;
@@ -35,6 +37,8 @@ export function ParentLinkButton({
   /** Icon-only, for table rows. */
   compact?: boolean;
   className?: string;
+  /** Lets a narrow card drop the icon so the label still fits. */
+  iconClassName?: string;
 }) {
   const router = useRouter();
 
@@ -100,14 +104,22 @@ export function ParentLinkButton({
     >
       {state === "working" ? (
         <Loader2
-          className="animate-spin"
+          className={cn("animate-spin", iconClassName)}
           data-icon="inline-start"
           aria-hidden="true"
         />
       ) : state === "copied" ? (
-        <Check data-icon="inline-start" aria-hidden="true" />
+        <Check
+          data-icon="inline-start"
+          aria-hidden="true"
+          className={iconClassName}
+        />
       ) : (
-        <Link2 data-icon="inline-start" aria-hidden="true" />
+        <Link2
+          data-icon="inline-start"
+          aria-hidden="true"
+          className={iconClassName}
+        />
       )}
 
       {compact ? null : label}

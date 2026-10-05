@@ -44,7 +44,7 @@ export function NavCount({
   return (
     <span
       className={cn(
-        "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.7rem] font-semibold tabular-nums",
+        "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums",
         badge.tone === "muted"
           ? "bg-muted text-muted-foreground"
           : "bg-highlight text-highlight-foreground",

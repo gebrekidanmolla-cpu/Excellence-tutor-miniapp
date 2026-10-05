@@ -25,7 +25,9 @@ export function StatCard({
   const body = (
     <CardContent className="flex items-start justify-between gap-3">
       <div className="min-w-0 space-y-1">
-        <p className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        {/* Two lines before clipping: on a 320px phone "No applicants yet"
+            truncated to "NO APPLICANTS…", which lost the point of it. */}
+        <p className="line-clamp-2 text-xs font-medium tracking-wide break-words text-muted-foreground uppercase">
           {label}
         </p>
 

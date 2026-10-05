@@ -80,9 +80,12 @@ function TutorRowActions({
   compact: boolean;
 }) {
   /* A phone card gets 40px controls; a table row keeps them small. */
-  const cardControl = compact ? undefined : "h-10 flex-1";
+  const cardControl = compact ? undefined : "h-10 min-w-0 flex-1";
 
-  return (
+  /* In a card narrower than 19rem (a 320px phone) both labels cannot fit,
+     so "Docs" drops to its icon and stops stretching. Container queries,
+     because the same card sits in a phone column and a two-up grid. */
+  const actions = (
     <div
       className={cn(
         "flex items-center gap-1.5",
@@ -96,6 +99,7 @@ function TutorRowActions({
         linkBase={linkBase}
         compact={compact}
         className={cardControl}
+        iconClassName={compact ? undefined : "@max-[14rem]:hidden"}
       />
 
       <TutorDocumentsMenu
@@ -103,7 +107,8 @@ function TutorRowActions({
         tutorName={tutor.fullName}
         documents={tutor.documents}
         compact={compact}
-        className={cardControl}
+        className={cn(cardControl, !compact && "@max-[19rem]:flex-none")}
+        labelClassName={compact ? undefined : "@max-[19rem]:hidden"}
       />
 
       <DropdownMenu>
@@ -145,6 +150,10 @@ function TutorRowActions({
       </DropdownMenu>
     </div>
   );
+
+  /* No container in a table row: an inline-size container takes no width
+     from its content, so it would collapse inside an auto-sized cell. */
+  return compact ? actions : <div className="@container">{actions}</div>;
 }
 
 function Assignments({ tutor }: { tutor: TutorRow }) {
@@ -285,12 +294,15 @@ export default function TutorsList({
       id: "name",
       header: "Name",
       mobileTitle: true,
+      /* A long name wraps rather than widening the table past a laptop.
+         The cap is `xl:` only: below that this cell is the card's title. */
+      cellClassName: "whitespace-normal",
       cell: (tutor) => (
-        <div className="min-w-0">
+        <div className="min-w-0 break-words xl:max-w-56">
           <Link
             href={`/admin/tutors/${tutor.id}`}
             prefetch={false}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-primary tap-target underline-offset-4 hover:underline"
           >
             {tutor.fullName}
           </Link>
@@ -394,14 +406,14 @@ export default function TutorsList({
               <Link
                 href={`/admin/tutors/${tutor.id}`}
                 prefetch={false}
-                className="font-medium text-primary underline-offset-4 hover:underline"
+                className="font-medium text-primary tap-target underline-offset-4 hover:underline"
               >
                 {tutor.fullName}
               </Link>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 <a
                   href={`tel:${tutor.phone}`}
-                  className="text-primary tabular-nums underline-offset-4 hover:underline"
+                  className="text-primary tabular-nums tap-target underline-offset-4 hover:underline"
                 >
                   {tutor.phone}
                 </a>

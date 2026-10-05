@@ -177,6 +177,9 @@ export default function ApplicationRowActions({
    * In a card, Assign takes the first row and the rest share the second
    * evenly — until the card is wide enough (a container query, since the
    * same card sits in a phone column and a two-up tablet grid) for one row.
+   * Below 19rem the two labelled buttons cannot both fit, so "Docs" drops to
+   * its icon and the link button takes the slack; below 14rem (a 320px phone
+   * inside the job page's card) the link button sheds its icon too.
    */
   return (
     <div className={compact ? undefined : "@container"}>
@@ -184,7 +187,7 @@ export default function ApplicationRowActions({
         className={
           compact
             ? "flex items-center justify-end gap-1.5"
-            : "grid grid-cols-[1fr_1fr_auto] gap-2 @sm:flex @sm:items-center"
+            : "grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 @[19rem]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] @[26rem]:flex @[26rem]:items-center"
         }
       >
         {/* The assign dialog sits outside the menu: a Base UI menu closes on
@@ -198,7 +201,7 @@ export default function ApplicationRowActions({
                 aria-label={`Assign ${tutor.fullName} to ${jobCode}`}
                 className={cn(
                   cardControl,
-                  !compact && "col-span-3 @sm:min-w-28"
+                  !compact && "col-span-3 @[26rem]:min-w-28"
                 )}
               >
                 {refreshing ? (
@@ -237,6 +240,7 @@ export default function ApplicationRowActions({
           linkBase={linkBase}
           compact={compact}
           className={cardControl}
+          iconClassName={compact ? undefined : "@max-[14rem]:hidden"}
         />
 
         <TutorDocumentsMenu
@@ -245,6 +249,7 @@ export default function ApplicationRowActions({
           documents={tutor.documents}
           compact={compact}
           className={cardControl}
+          labelClassName={compact ? undefined : "@max-[19rem]:hidden"}
         />
 
         <DropdownMenu>

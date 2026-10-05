@@ -175,12 +175,16 @@ function Meta({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span aria-hidden="true" className="[&>svg]:size-3.5">
+    // Top-aligned, so a place long enough to wrap keeps its icon and label
+    // on the first line instead of floating them beside the middle.
+    <div className="flex min-w-0 items-start gap-1.5">
+      <span aria-hidden="true" className="mt-[3px] flex shrink-0 [&>svg]:size-3.5">
         {icon}
       </span>
-      <dt className="text-muted-foreground">{label}:</dt>
-      <dd className="font-medium text-foreground">{value}</dd>
+      <dt className="shrink-0 text-muted-foreground">{label}:</dt>
+      <dd className="min-w-0 font-medium text-foreground break-words">
+        {value}
+      </dd>
     </div>
   );
 }
