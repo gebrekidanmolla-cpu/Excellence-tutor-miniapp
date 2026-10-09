@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { SidebarNav, type NavItem } from "@/components/layout/SidebarNav";
+import { ThemeSegmented } from "@/components/layout/ThemeToggle";
 import { Wordmark } from "@/components/layout/Wordmark";
 
 /** The counts the nav shows, from `getAdminContext`. */
@@ -126,7 +127,8 @@ export function AdminShell({
           <SidebarNav items={items} />
         </div>
 
-        <div className="p-3">
+        <div className="space-y-3 p-3">
+          <ThemeSegmented />
           <AdminCard admin={admin} />
         </div>
       </aside>
@@ -160,7 +162,8 @@ export function AdminShell({
                 />
               </div>
 
-              <div className="border-t p-3">
+              <div className="space-y-3 border-t p-3">
+                <ThemeSegmented />
                 <AdminCard admin={admin} />
               </div>
             </SheetContent>

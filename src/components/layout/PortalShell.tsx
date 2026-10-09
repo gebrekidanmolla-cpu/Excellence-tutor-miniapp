@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import LogoutButton from "@/components/LogoutButton";
 import { SidebarNav, type NavItem } from "@/components/layout/SidebarNav";
 import { MobileTabBar } from "@/components/layout/MobileTabBar";
+import { ThemeSegmented } from "@/components/layout/ThemeToggle";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { cn } from "@/lib/utils";
 import { IntentLink } from "@/components/shared/IntentLink";
@@ -170,7 +171,8 @@ export function PortalShell({
           </IntentLink>
         </div>
 
-        <div className="p-3">
+        <div className="space-y-3 p-3">
+          <ThemeSegmented />
           <TutorCard tutor={tutor} />
         </div>
       </aside>
@@ -215,7 +217,8 @@ export function PortalShell({
                 </IntentLink>
               </div>
 
-              <div className="border-t p-3">
+              <div className="space-y-3 border-t p-3">
+                <ThemeSegmented />
                 <TutorCard tutor={tutor} />
               </div>
             </SheetContent>
