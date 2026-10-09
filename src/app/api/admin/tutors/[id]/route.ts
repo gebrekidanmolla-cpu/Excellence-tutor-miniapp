@@ -86,6 +86,7 @@ export async function PATCH(
       email,
       phone,
       aboutMe,
+      tutorStatus,
 
       university,
       department,
@@ -176,6 +177,24 @@ export async function PATCH(
     ) {
       return NextResponse.json(
         { error: "Invalid gender." },
+        { status: 400 }
+      );
+    }
+
+    // Switching type keeps the other type's fields as they are: every page
+    // reads only the current type's, so switching back restores them. A
+    // form loaded before the type was editable sends none — keep it.
+    const nextTutorStatus =
+      tutorStatus === undefined
+        ? existingTutor.tutorStatus
+        : tutorStatus;
+
+    if (
+      nextTutorStatus !== "STUDENT" &&
+      nextTutorStatus !== "GRADUATE"
+    ) {
+      return NextResponse.json(
+        { error: "Invalid tutor type." },
         { status: 400 }
       );
     }
@@ -379,6 +398,8 @@ export async function PATCH(
             String(aboutMe).trim() === ""
               ? null
               : String(aboutMe).trim(),
+
+          tutorStatus: nextTutorStatus,
 
           university:
             university === null ||

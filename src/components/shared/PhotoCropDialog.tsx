@@ -23,12 +23,16 @@ const MAX_ZOOM = 3;
  * Square crop for the profile photo: drag to position, pinch / slider to
  * zoom, rotate in 90° steps for a sideways phone photo. The result is drawn
  * to a canvas at most `PHOTO_MAX_DIMENSION` wide and handed back as a File,
- * so what gets uploaded is exactly what the tutor framed.
+ * so what gets uploaded is exactly what was framed. The tutor uses it on
+ * their own profile and an admin on the tutor's edit page, hence the
+ * overridable wording.
  */
 export function PhotoCropDialog({
   imageUrl,
   onCancel,
   onConfirm,
+  title = "Crop your photo",
+  description = "Drag to position your face in the square, and zoom to fit.",
 }: {
   /**
    * Object URL of the picked image; the dialog is open while it is set. The
@@ -38,6 +42,8 @@ export function PhotoCropDialog({
   imageUrl: string | null;
   onCancel: () => void;
   onConfirm: (cropped: File) => Promise<void>;
+  title?: string;
+  description?: string;
 }) {
   const [crop, setCrop] = React.useState({ x: 0, y: 0 });
   const [zoom, setZoom] = React.useState(1);
@@ -91,9 +97,9 @@ export function PhotoCropDialog({
         showCloseButton={!saving}
       >
         <DialogHeader className="pr-8">
-          <DialogTitle>Crop your photo</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="[@media(max-height:560px)]:hidden">
-            Drag to position your face in the square, and zoom to fit.
+            {description}
           </DialogDescription>
         </DialogHeader>
 

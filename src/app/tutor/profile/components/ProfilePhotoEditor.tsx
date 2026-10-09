@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 import { ALLOWED_DOCUMENT_TYPES, PHOTO_ACCEPT } from "@/lib/document-rules";
 import { PHOTO_MAX_DIMENSION } from "@/lib/compress-image";
-import { PhotoCropDialog } from "./PhotoCropDialog";
+import { PhotoCropDialog } from "@/components/shared/PhotoCropDialog";
 import { useTutorFile } from "./useTutorFile";
 
 /** Past this, decoding for the cropper could stall a cheap phone. */

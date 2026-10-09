@@ -5,32 +5,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { compressImage } from "@/lib/compress-image";
-import { documentRules, formatMegabytes } from "@/lib/document-rules";
+import { pickedFileProblem } from "@/lib/document-rules";
 import {
   EDITABLE_TUTOR_FILES,
   type EditableTutorFileKind,
 } from "@/lib/tutor-files";
-
-/** Mirrors the server's checks, so an obvious mistake fails before uploading. */
-function validate(kind: EditableTutorFileKind, file: File): string {
-  const { maxSize, allowedTypes, typeLabel } = documentRules(
-    EDITABLE_TUTOR_FILES[kind].rules
-  );
-
-  if (file.size <= 0) {
-    return "The selected file is empty.";
-  }
-
-  if (!allowedTypes.includes(file.type)) {
-    return `Please choose ${typeLabel}.`;
-  }
-
-  if (file.size > maxSize) {
-    return `File must be ${formatMegabytes(maxSize, 0)} or smaller.`;
-  }
-
-  return "";
-}
 
 async function readMessage(response: Response, fallback: string) {
   const body = (await response.json().catch(() => null)) as {
@@ -60,7 +39,7 @@ export function useTutorFile(
 
       try {
         const file = await compressImage(picked, { maxDimension });
-        const problem = validate(kind, file);
+        const problem = pickedFileProblem(file, EDITABLE_TUTOR_FILES[kind].rules);
 
         if (problem) {
           toast.error(problem);
