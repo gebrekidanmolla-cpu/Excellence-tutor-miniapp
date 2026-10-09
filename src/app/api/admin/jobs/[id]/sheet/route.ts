@@ -4,8 +4,6 @@ import { getCurrentAdmin } from "@/lib/admin-session";
 import { isSheetSyncConfigured } from "@/lib/google-sheets";
 import { syncJobSheetRow } from "@/lib/job-sheet-sync";
 
-export const maxDuration = 30;
-
 interface RouteContext {
   params: Promise<{
     id: string;

@@ -3,8 +3,6 @@ import { getCurrentAdmin } from "@/lib/admin-session";
 import { isSheetSyncConfigured } from "@/lib/google-sheets";
 import { syncAllJobSheetRows } from "@/lib/job-sheet-sync";
 
-export const maxDuration = 60;
-
 /**
  * Writes every job into the Google Sheet — the backfill for jobs that
  * predate sheet mirroring, and the repair for any that failed since.

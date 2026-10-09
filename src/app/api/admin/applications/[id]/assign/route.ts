@@ -6,9 +6,6 @@ import { sendApplicationAcceptedEmail } from "@/lib/email";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
 import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
 
-/* Assigning waits on the email and a Telegram edit. */
-export const maxDuration = 30;
-
 interface RouteContext {
   params: Promise<{
     id: string;

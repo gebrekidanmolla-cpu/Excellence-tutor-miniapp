@@ -12,9 +12,6 @@ import {
   isTelegramConfigured,
 } from "@/lib/telegram";
 
-/* Editing a job waits on a Telegram edit round-trip. */
-export const maxDuration = 30;
-
 interface RouteContext {
   params: Promise<{
     id: string;
