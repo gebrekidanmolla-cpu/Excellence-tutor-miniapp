@@ -149,6 +149,20 @@ The admin lists (applications, jobs, tutors) load every row in one Prisma call (
 
 Forms are not uniform. The register wizard (`src/app/register/**`) uses `react-hook-form` + `@hookform/resolvers` against `src/app/register/schema.ts`; the admin forms (`CreateJobForm`, `EditJobForm`) are plain `useState` + `fetch`, and the job API routes hand-roll their validation rather than using Zod.
 
+**Dark mode.** The site supports Light, Dark and System (the default). The preference lives in `localStorage` only. A cookie would mean reading the request, which would make every prerendered page dynamic.
+- **Applying it.** `THEME_INIT_SCRIPT` (`src/lib/theme.ts`) is inlined in the root layout's `<head>`. It sets the `dark` class and `color-scheme` on `<html>` before the body is parsed, so there is no flash, and `<html>` carries `suppressHydrationWarning`.
+- **Keeping it applied.** `ThemeSync` (`src/components/layout/ThemeSync.tsx`, mounted once in the root layout) re-applies the theme after Strict Mode's dev remount, which clears the class. It also follows the OS while on System, and follows other tabs.
+- **Toggles.** `ThemeMenu` and `ThemeSegmented` (`ThemeToggle.tsx`) read the preference through `useSyncExternalStore` (`src/lib/use-theme.ts`). They render a neutral state until hydration.
+- **theme-color.** There is one `theme-color` meta per scheme. A hand-picked theme switches between them by `media`, never by `content`: React matches a hoisted `<meta>` to its server element by `content`, so changing it duplicates the tag.
+- **Tokens.** Every color comes from a token in `globals.css`. A raw `white`, `black` or `oklch(…)` in a component renders wrong in one theme, and a `dark:` class is a last resort. The shadcn primitives keep their upstream `dark:` classes, which rely on `--input` being translucent white.
+- **Token pairs that are easy to confuse:**
+  - `*-foreground` is text on the *solid* fill.
+  - `*-strong` is the tone as small text on its own tint or on a card.
+  - `brand-surface` and `brand-surface-foreground` are the deep indigo panels with white text, the same in both themes. Never build one from `--primary`, which turns light with dark text at night.
+  - `ink` is the contrast slab (the landing's closing band, the phone mockup). It stays dark at night, while `bg-foreground text-background` buttons invert on purpose.
+  - `glow` and `shade` are shadow colors, which all but disappear at night, where depth comes from surface lightness.
+  - `overlay` is the dialog and sheet scrim.
+
 ### Registration
 
 `POST /api/auth/register` parses its multipart body with the wizard's own `registerSchema`, so a rule changed in `schema.ts` changes on both sides. Keep that module free of browser-only and server-only imports. Error responses carry `field` (and `code: "EMAIL_NOT_VERIFIED"` for a lapsed verification), which the wizard maps back to the owning step via `stepOfField`. The tutor row is created in one `$transaction` with consuming the `EmailVerification` row. The uploaded R2 files are deleted only if that transaction fails. A successful registration signs the tutor in (`createTutorSession`), and the wizard lands them on `/tutor`.
