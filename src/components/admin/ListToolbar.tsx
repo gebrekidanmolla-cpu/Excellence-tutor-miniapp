@@ -211,7 +211,7 @@ function SegmentedGroup({
           className={cn(
             "flex min-h-11 min-w-0 cursor-pointer flex-col items-center justify-center rounded-lg px-1 text-xs font-medium text-muted-foreground transition-colors select-none",
             "hover:text-foreground",
-            "has-[:checked]:bg-background has-[:checked]:text-foreground has-[:checked]:shadow-sm",
+            "has-[:checked]:bg-popover has-[:checked]:text-foreground has-[:checked]:shadow-sm has-[:checked]:inset-ring has-[:checked]:inset-ring-foreground/10",
             "has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50",
             "md:min-h-8 md:flex-row md:gap-1.5 md:px-3 md:text-sm"
           )}
@@ -271,7 +271,7 @@ function ChipGroup({
         <label
           key={option.value}
           className={cn(
-            "inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background font-medium transition-colors select-none",
+            "inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-card font-medium transition-colors select-none",
             "hover:border-primary/40 hover:bg-primary/[0.03]",
             "has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:text-primary",
             "has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50",

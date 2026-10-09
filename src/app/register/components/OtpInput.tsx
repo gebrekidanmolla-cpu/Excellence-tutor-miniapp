@@ -89,7 +89,7 @@ export function OtpInput({
             <div
               key={index}
               className={cn(
-                "flex aspect-square items-center justify-center rounded-lg border bg-background font-heading text-xl font-semibold tabular-nums transition-[border-color,box-shadow]",
+                "flex aspect-square items-center justify-center rounded-lg border bg-card font-heading text-xl font-semibold tabular-nums transition-[border-color,box-shadow]",
                 digit ? "border-primary/40" : "border-input",
                 active && "border-ring ring-3 ring-ring/40",
                 invalid && "border-destructive/60",

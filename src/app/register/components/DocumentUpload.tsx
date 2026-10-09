@@ -226,7 +226,7 @@ export function DocumentUpload({
 
           <span
             aria-hidden="true"
-            className="hidden shrink-0 rounded-lg border bg-background px-3 py-1.5 text-xs font-medium shadow-xs sm:inline-block"
+            className="hidden shrink-0 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium shadow-xs sm:inline-block"
           >
             {dragging ? "Drop file" : "Browse"}
           </span>

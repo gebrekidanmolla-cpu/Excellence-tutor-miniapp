@@ -199,8 +199,9 @@
   --muted-foreground: oklch(0.71 0.018 264);
   --accent: oklch(0.31 0.024 265);
   --accent-foreground: oklch(0.94 0.006 264);
-  /* A slightly warm, slightly raised band rather than a bright stripe. */
-  --paper: oklch(0.2 0.012 75);
+  /* A slightly warm, slightly raised band rather than a bright stripe.
+     Any more chroma than this reads as brown beside the indigo black. */
+  --paper: oklch(0.205 0.006 75);
   --highlight: oklch(0.8 0.145 75);
   --highlight-foreground: oklch(0.24 0.05 70);
   --success: oklch(0.72 0.14 155);

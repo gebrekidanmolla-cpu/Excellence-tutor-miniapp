@@ -95,7 +95,7 @@ export function ProfileStrengthCard({
               <div className="flex h-full items-start gap-3 rounded-lg border border-transparent bg-muted/40 p-3">
                 <span
                   aria-hidden="true"
-                  className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-white"
+                  className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground"
                 >
                   <Check className="size-3" strokeWidth={3} />
                 </span>
@@ -161,7 +161,7 @@ export function ProfileStrengthNudge({
           className="group flex items-center gap-2 rounded-lg bg-highlight/10 px-3 py-2 text-xs font-medium transition-colors hover:bg-highlight/20 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
         >
           <Sparkles
-            className="size-3.5 shrink-0 text-[color-mix(in_oklch,var(--highlight),var(--foreground)_30%)]"
+            className="size-3.5 shrink-0 text-highlight-strong"
             aria-hidden="true"
           />
           <span className="min-w-0 flex-1 truncate">

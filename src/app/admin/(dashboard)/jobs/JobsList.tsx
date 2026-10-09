@@ -80,7 +80,7 @@ function Applicants({ job, className }: { job: JobRow; className?: string }) {
       </span>
 
       {job.pendingCount > 0 ? (
-        <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-[color-mix(in_oklch,var(--warning),var(--foreground)_40%)] tabular-nums">
+        <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning-strong tabular-nums">
           {job.pendingCount} new
         </span>
       ) : null}

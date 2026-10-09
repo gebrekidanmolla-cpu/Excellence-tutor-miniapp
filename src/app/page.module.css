@@ -197,7 +197,8 @@
   line-height: 1;
   white-space: nowrap;
   color: transparent;
-  -webkit-text-stroke: 1px color-mix(in oklch, var(--color-background) 14%, transparent);
+  /* The band is `ink`, so the outline takes its foreground. */
+  -webkit-text-stroke: 1px color-mix(in oklch, var(--color-ink-foreground) 14%, transparent);
 }
 
 /* ---------------------------------------------------------

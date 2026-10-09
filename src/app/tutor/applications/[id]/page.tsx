@@ -190,10 +190,10 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
 
                 <div className="flex gap-3 rounded-lg border-l-4 border-highlight bg-highlight/10 p-4">
                   <Clock
-                    className="mt-0.5 size-4 shrink-0 text-highlight-foreground"
+                    className="mt-0.5 size-4 shrink-0 text-highlight-strong"
                     aria-hidden="true"
                   />
-                  <div className="text-sm text-highlight-foreground">
+                  <div className="text-sm text-foreground">
                     <p className="font-semibold">Next step: call the parent</p>
                     <p className="mt-1 leading-relaxed text-pretty">
                       Please call the parent to introduce yourself and arrange

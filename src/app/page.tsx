@@ -251,7 +251,7 @@ function Hero({ jobs, openCount }: { jobs: LiveJob[]; openCount: number }) {
           >
             <IntentLink
               href="/register"
-              className="group relative inline-flex h-13 items-center justify-center gap-3 overflow-hidden rounded-md bg-foreground px-7 text-[0.9375rem] font-medium text-background shadow-[0_10px_30px_-12px_color-mix(in_oklch,var(--color-foreground)_60%,transparent)] transition-[background-color,box-shadow] duration-300 hover:bg-primary hover:shadow-[0_14px_36px_-12px_color-mix(in_oklch,var(--color-primary)_70%,transparent)] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              className="group relative inline-flex h-13 items-center justify-center gap-3 overflow-hidden rounded-md bg-foreground px-7 text-[0.9375rem] font-medium text-background shadow-[0_10px_30px_-12px_color-mix(in_oklch,var(--shade)_60%,transparent)] transition-[background-color,box-shadow] duration-300 hover:bg-primary hover:shadow-[0_14px_36px_-12px_color-mix(in_oklch,var(--glow)_70%,transparent)] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               Create your tutor profile
               <Arrow />
@@ -297,7 +297,7 @@ function JobBoard({ jobs, openCount }: { jobs: LiveJob[]; openCount: number }) {
         className="absolute inset-x-5 -bottom-2.5 h-full rounded-lg border bg-paper"
       />
 
-      <div className="relative overflow-hidden rounded-lg border bg-card shadow-[0_30px_60px_-30px_color-mix(in_oklch,var(--color-foreground)_28%,transparent)]">
+      <div className="relative overflow-hidden rounded-lg border bg-card shadow-[0_30px_60px_-30px_color-mix(in_oklch,var(--shade)_28%,transparent)]">
         <div className="flex items-center justify-between gap-4 border-b bg-paper/60 px-4 py-4 sm:px-5">
           <div className="min-w-0">
             <p className="font-display text-lg leading-tight font-normal">Open positions</p>
@@ -698,11 +698,14 @@ function Phone({ text }: { text: string }) {
         className="absolute -inset-16 -z-10 bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--color-info)_14%,transparent),transparent)]"
       />
 
-      <div className="rounded-[2.75rem] bg-foreground p-2.5 shadow-[0_50px_100px_-40px_color-mix(in_oklch,var(--color-foreground)_60%,transparent)] ring-1 ring-foreground/10">
-        <div aria-hidden="true" className="overflow-hidden rounded-[2.2rem] bg-[oklch(0.9_0.035_160)]">
+      {/* The handset is `ink`, so it stays a dark device at night instead of
+          inverting into a white slab. The chat wallpaper is Telegram's mint by
+          day and a deep teal at night (mixed in Oklab, so the hue holds). */}
+      <div className="rounded-[2.75rem] bg-ink p-2.5 shadow-[0_50px_100px_-40px_color-mix(in_oklch,var(--shade)_60%,transparent)] ring-1 ring-foreground/10">
+        <div aria-hidden="true" className="overflow-hidden rounded-[2.2rem] bg-[color-mix(in_oklab,var(--success)_25%,var(--background))]">
           {/* Status bar + channel header */}
-          <div className="bg-background px-5 pt-2.5 pb-3">
-            <div className="mx-auto mb-3 h-5 w-24 rounded-full bg-foreground" />
+          <div className="bg-card px-5 pt-2.5 pb-3">
+            <div className="mx-auto mb-3 h-5 w-24 rounded-full bg-ink" />
             <div className="flex items-center gap-3">
               <span className="flex size-9 items-center justify-center rounded-full bg-primary font-display text-base text-primary-foreground italic">
                 E
@@ -716,7 +719,7 @@ function Phone({ text }: { text: string }) {
 
           {/* The message */}
           <div className="px-3 pt-5 pb-6">
-            <div className="rounded-2xl rounded-bl-md bg-background px-3.5 pt-3 pb-2 shadow-sm">
+            <div className="rounded-2xl rounded-bl-md bg-card px-3.5 pt-3 pb-2 shadow-sm">
               <p className="text-[0.72rem] leading-[1.4] whitespace-pre-wrap">
                 {text.replace(/\n{3,}/g, "\n\n")}
               </p>
@@ -724,7 +727,7 @@ function Phone({ text }: { text: string }) {
                 just now
               </p>
             </div>
-            <div className="mt-1 rounded-xl bg-background/75 py-2 text-center text-[0.75rem] font-medium text-info">
+            <div className="mt-1 rounded-xl bg-card/75 py-2 text-center text-[0.75rem] font-medium text-info">
               Apply Now
             </div>
           </div>
@@ -963,14 +966,14 @@ function Faq() {
 
 function Closing() {
   return (
-    <section className="relative isolate overflow-hidden bg-foreground text-background">
+    <section className="relative isolate overflow-hidden bg-ink text-ink-foreground">
       <span aria-hidden="true" className={cn(styles.watermark, "font-display font-light italic")}>
         Excellence
       </span>
 
       <div className={cn(container, "relative z-10 grid gap-12 py-24 sm:py-32 lg:grid-cols-12 lg:items-end lg:py-44")}>
         <div className={cn(styles.inView, "lg:col-span-8")}>
-          <p className="flex items-center gap-3 text-[0.8125rem] font-medium text-background/60">
+          <p className="flex items-center gap-3 text-[0.8125rem] font-medium text-ink-foreground/60">
             <span aria-hidden="true" className="h-px w-8 bg-highlight" />
             Join Excellence Tutor
           </p>
@@ -983,16 +986,16 @@ function Closing() {
         <div className={cn(styles.inView, "flex flex-col gap-5 lg:col-span-4 lg:items-end")}>
           <IntentLink
             href="/register"
-            className="group inline-flex h-13 items-center justify-center gap-3 rounded-md bg-background px-7 text-[0.9375rem] font-medium text-foreground transition-colors duration-300 hover:bg-highlight hover:text-highlight-foreground focus-visible:ring-3 focus-visible:ring-highlight/50 focus-visible:outline-none"
+            className="group inline-flex h-13 items-center justify-center gap-3 rounded-md bg-ink-foreground px-7 text-[0.9375rem] font-medium text-ink transition-colors duration-300 hover:bg-highlight hover:text-highlight-foreground focus-visible:ring-3 focus-visible:ring-highlight/50 focus-visible:outline-none"
           >
             Create your tutor profile
             <Arrow />
           </IntentLink>
-          <p className="text-sm text-background/60">
+          <p className="text-sm text-ink-foreground/60">
             Already registered?{" "}
             <IntentLink
               href="/login"
-              className="font-medium text-background underline decoration-background/30 underline-offset-4 transition-colors hover:decoration-background"
+              className="font-medium text-ink-foreground underline decoration-ink-foreground/30 underline-offset-4 transition-colors hover:decoration-ink-foreground"
             >
               Sign in
             </IntentLink>

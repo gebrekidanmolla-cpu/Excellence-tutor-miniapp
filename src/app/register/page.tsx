@@ -1285,7 +1285,7 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
           <form
             onSubmit={form.handleSubmit(onSubmit, onInvalid)}
             noValidate
-            className="relative mt-6 sm:rounded-3xl sm:border sm:bg-card sm:shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_40px_-12px_rgb(30_41_110/0.18)] lg:mt-5"
+            className="relative mt-6 sm:rounded-3xl sm:border sm:bg-card sm:shadow-[0_1px_2px_color-mix(in_oklch,var(--shade)_4%,transparent),0_12px_40px_-12px_color-mix(in_oklch,color-mix(in_oklch,var(--shade),var(--glow)_45%)_18%,transparent)] lg:mt-5"
           >
             {/* Progress along the card's top edge; `MobileProgress` does this job below `lg`. */}
             <div
@@ -1293,7 +1293,7 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
               className="absolute inset-x-0 top-0 hidden h-1 overflow-hidden rounded-t-3xl bg-muted lg:block"
             >
               <div
-                className="h-full bg-[linear-gradient(90deg,var(--color-primary),oklch(0.64_0.15_250))] transition-[width] duration-500 ease-out motion-reduce:transition-none"
+                className="h-full bg-linear-to-r from-primary to-chart-2 transition-[width] duration-500 ease-out motion-reduce:transition-none"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>

@@ -116,16 +116,16 @@ export function JobApplyView({
               {job.additionalDetails ? (
                 <div className="flex items-start gap-3 rounded-lg bg-highlight/10 p-3 ring-1 ring-highlight/25">
                   <Megaphone
-                    className="mt-0.5 size-4 shrink-0 text-highlight-foreground"
+                    className="mt-0.5 size-4 shrink-0 text-highlight-strong"
                     aria-hidden="true"
                   />
 
-                  <p className="flex-1 text-sm font-semibold text-pretty whitespace-pre-line text-highlight-foreground">
+                  <p className="flex-1 text-sm font-semibold text-pretty whitespace-pre-line text-foreground">
                     {job.additionalDetails}
                   </p>
 
                   <ArrowRight
-                    className="mt-0.5 size-4 shrink-0 text-highlight-foreground"
+                    className="mt-0.5 size-4 shrink-0 text-highlight-strong"
                     aria-hidden="true"
                   />
                 </div>

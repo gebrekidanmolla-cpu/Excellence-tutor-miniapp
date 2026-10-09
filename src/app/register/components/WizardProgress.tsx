@@ -55,13 +55,13 @@ export function WizardAside({
   const percent = Math.round(((step - 1) / (STEPS.length - 1)) * 100);
 
   return (
-    <aside className="relative hidden overflow-hidden text-primary-foreground lg:block">
+    <aside className="relative hidden overflow-hidden text-brand-surface-foreground lg:block">
       <BrandBackdrop />
 
       {/* A soft light edge where the panel meets the form, instead of a hard seam. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 right-0 w-px bg-linear-to-b from-primary-foreground/0 via-primary-foreground/25 to-primary-foreground/0"
+        className="pointer-events-none absolute inset-y-0 right-0 w-px bg-linear-to-b from-brand-surface-foreground/0 via-brand-surface-foreground/25 to-brand-surface-foreground/0"
       />
 
       {/* Fixed to the viewport and never scrolls: spacing tightens and the
@@ -81,16 +81,16 @@ export function WizardAside({
         {/* Overall progress */}
         <div className="mt-9 [@media(max-height:50rem)]:mt-6">
           <div className="flex items-baseline justify-between text-xs">
-            <span className="font-medium text-primary-foreground/80">
+            <span className="font-medium text-brand-surface-foreground/80">
               Step {step} of {STEPS.length}
             </span>
-            <span className="font-semibold tabular-nums text-primary-foreground">
+            <span className="font-semibold tabular-nums text-brand-surface-foreground">
               {percent}%
             </span>
           </div>
-          <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-primary-foreground/12">
+          <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-brand-surface-foreground/12">
             <div
-              className="h-full rounded-full bg-linear-to-r from-highlight to-[oklch(0.85_0.13_85)] shadow-[0_0_12px_var(--color-highlight)] transition-[width] duration-700 ease-out motion-reduce:transition-none"
+              className="h-full rounded-full bg-linear-to-r from-highlight to-[color-mix(in_oklab,var(--highlight),var(--brand-surface-foreground)_40%)] shadow-[0_0_12px_var(--color-highlight)] transition-[width] duration-700 ease-out motion-reduce:transition-none"
               style={{ width: `${Math.max(percent, 4)}%` }}
             />
           </div>
@@ -113,10 +113,10 @@ export function WizardAside({
                     "relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-all duration-300",
                     done && "bg-highlight text-highlight-foreground",
                     current &&
-                      "bg-primary-foreground text-primary shadow-[0_0_0_5px_rgb(255_255_255/0.12),0_8px_24px_-6px_rgb(0_0_0/0.45)]",
+                      "bg-brand-surface-foreground text-brand-surface ring-5 ring-brand-surface-foreground/12 shadow-[0_8px_24px_-6px_color-mix(in_oklch,var(--shade)_55%,transparent)]",
                     !done &&
                       !current &&
-                      "text-primary-foreground/50 ring-1 ring-primary-foreground/20 ring-inset",
+                      "text-brand-surface-foreground/50 ring-1 ring-brand-surface-foreground/20 ring-inset",
                   )}
                 >
                   {done ? (
@@ -132,8 +132,8 @@ export function WizardAside({
                   <span
                     className={cn(
                       "block text-sm font-semibold transition-colors",
-                      done && "text-primary-foreground/85",
-                      !done && !current && "text-primary-foreground/55",
+                      done && "text-brand-surface-foreground/85",
+                      !done && !current && "text-brand-surface-foreground/55",
                     )}
                   >
                     {item.label}
@@ -142,8 +142,8 @@ export function WizardAside({
                     className={cn(
                       "block text-xs transition-colors",
                       current
-                        ? "mt-0.5 text-primary-foreground/70"
-                        : "mt-0.5 text-primary-foreground/40",
+                        ? "mt-0.5 text-brand-surface-foreground/70"
+                        : "mt-0.5 text-brand-surface-foreground/40",
                     )}
                   >
                     {item.description}
@@ -154,7 +154,7 @@ export function WizardAside({
               const row = cn(
                 "relative flex w-full items-center gap-4 rounded-xl px-3 py-2.5 text-left transition-colors",
                 current &&
-                  "bg-linear-to-r from-primary-foreground/12 via-primary-foreground/5 to-transparent",
+                  "bg-linear-to-r from-brand-surface-foreground/12 via-brand-surface-foreground/5 to-transparent",
               );
 
               return (
@@ -167,7 +167,7 @@ export function WizardAside({
                   {!last ? (
                     <span
                       aria-hidden="true"
-                      className="absolute top-[2.875rem] -bottom-[0.875rem] left-[calc(1.875rem-1px)] w-0.5 overflow-hidden rounded-full bg-primary-foreground/12"
+                      className="absolute top-[2.875rem] -bottom-[0.875rem] left-[calc(1.875rem-1px)] w-0.5 overflow-hidden rounded-full bg-brand-surface-foreground/12"
                     >
                       <span
                         className={cn(
@@ -185,7 +185,7 @@ export function WizardAside({
                       disabled={disabled}
                       className={cn(
                         row,
-                        "group outline-none hover:bg-primary-foreground/[0.06] focus-visible:ring-3 focus-visible:ring-primary-foreground/40",
+                        "group outline-none hover:bg-brand-surface-foreground/[0.06] focus-visible:ring-3 focus-visible:ring-brand-surface-foreground/40",
                       )}
                     >
                       {marker}
@@ -213,21 +213,21 @@ export function WizardAside({
         </nav>
 
         <div className="mt-auto pt-10 [@media(max-height:50rem)]:pt-6">
-          <div className="h-px bg-linear-to-r from-primary-foreground/25 via-primary-foreground/10 to-transparent" />
+          <div className="h-px bg-linear-to-r from-brand-surface-foreground/25 via-brand-surface-foreground/10 to-transparent" />
 
           <div className="[@media(max-height:45rem)]:hidden">
-            <p className="mt-6 flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-primary-foreground/70 uppercase [@media(max-height:50rem)]:mt-5">
+            <p className="mt-6 flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-brand-surface-foreground/70 uppercase [@media(max-height:50rem)]:mt-5">
               <FileCheck2
                 className="size-3.5 text-highlight"
                 aria-hidden="true"
               />
               Have these ready
             </p>
-            <ul className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5 text-[0.8125rem] leading-snug text-primary-foreground/80">
+            <ul className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5 text-[0.8125rem] leading-snug text-brand-surface-foreground/80">
               {CHECKLIST.map((item) => (
                 <li key={item} className="flex gap-2">
                   <CircleCheck
-                    className="mt-px size-3.5 shrink-0 text-primary-foreground/40"
+                    className="mt-px size-3.5 shrink-0 text-brand-surface-foreground/40"
                     aria-hidden="true"
                   />
                   {item}
@@ -236,7 +236,7 @@ export function WizardAside({
             </ul>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-primary-foreground/55">
+          <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-brand-surface-foreground/55">
             <span className="flex items-center gap-1.5">
               <Clock className="size-3.5" aria-hidden="true" />
               About 10 minutes

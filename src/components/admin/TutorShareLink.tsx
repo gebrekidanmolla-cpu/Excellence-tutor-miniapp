@@ -115,10 +115,10 @@ export default function TutorShareLink({
         {token && expired ? (
           <div className="flex items-start gap-3 rounded-lg bg-warning/10 p-3 ring-1 ring-warning/25">
             <TimerOff
-              className="mt-0.5 size-4 shrink-0 text-warning-foreground"
+              className="mt-0.5 size-4 shrink-0 text-warning-strong"
               aria-hidden="true"
             />
-            <p className="text-sm text-pretty text-warning-foreground">
+            <p className="text-sm text-pretty text-foreground">
               The last link expired
               {expiresAt ? ` on ${formatDate(expiresAt)}` : ""}. Parents who
               open it see that it is no longer available.

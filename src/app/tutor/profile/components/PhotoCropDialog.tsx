@@ -97,7 +97,7 @@ export function PhotoCropDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="relative mx-auto aspect-square w-full max-w-[max(11rem,calc(100dvh-18rem))] touch-none overflow-hidden rounded-lg bg-foreground">
+        <div className="relative mx-auto aspect-square w-full max-w-[max(11rem,calc(100dvh-18rem))] touch-none overflow-hidden rounded-lg bg-ink">
           {imageUrl ? (
             <Cropper
               image={imageUrl}

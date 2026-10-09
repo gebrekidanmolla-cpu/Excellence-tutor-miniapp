@@ -161,7 +161,7 @@ function Assignments({ tutor }: { tutor: TutorRow }) {
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 tabular-nums">
       {plural(tutor.applicationCount, "application")}
       {tutor.assignedJobCount > 0 ? (
-        <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-[color-mix(in_oklch,var(--success),var(--foreground)_35%)]">
+        <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success-strong">
           {tutor.assignedJobCount === 1
             ? "Assigned"
             : `${tutor.assignedJobCount} jobs`}

@@ -103,7 +103,7 @@ export function ThemeSegmented({ className }: { className?: string }) {
           className={cn(
             "flex min-h-9 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-1 text-xs font-medium text-muted-foreground transition-colors select-none pointer-coarse:min-h-11",
             "hover:text-foreground",
-            "has-[:checked]:bg-popover has-[:checked]:text-foreground has-[:checked]:shadow-sm",
+            "has-[:checked]:bg-popover has-[:checked]:text-foreground has-[:checked]:shadow-sm has-[:checked]:inset-ring has-[:checked]:inset-ring-foreground/10",
             "has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50"
           )}
         >

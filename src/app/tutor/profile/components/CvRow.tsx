@@ -27,7 +27,7 @@ export function CvRow({ href }: { href: string | null }) {
           "flex size-9 shrink-0 items-center justify-center rounded-lg [&>svg]:size-4",
           present
             ? "bg-success/10 text-success"
-            : "bg-highlight/15 text-[color-mix(in_oklch,var(--highlight),var(--foreground)_35%)]"
+            : "bg-highlight/15 text-highlight-strong"
         )}
       >
         <FileText />
