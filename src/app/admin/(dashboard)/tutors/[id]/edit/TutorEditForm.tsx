@@ -62,6 +62,7 @@ type TutorData = {
   secondAddress: Address | null;
   aboutMe: string;
   tutorStatus: "STUDENT" | "GRADUATE";
+  hasGraduationDocument: boolean;
 
   university: string;
   department: string;
@@ -82,6 +83,11 @@ type TutorData = {
 const GENDER_OPTIONS = [
   { value: "MALE", label: "Male" },
   { value: "FEMALE", label: "Female" },
+];
+
+const TUTOR_STATUS_OPTIONS = [
+  { value: "STUDENT", label: "Student" },
+  { value: "GRADUATE", label: "Graduate" },
 ];
 
 const CURRENT_YEAR_OPTIONS = [
@@ -113,6 +119,7 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
     email: tutor.email,
     phone: tutor.phone,
     aboutMe: tutor.aboutMe,
+    tutorStatus: tutor.tutorStatus,
 
     university: tutor.university,
     department: tutor.department,
@@ -150,7 +157,10 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const isStudent = tutor.tutorStatus === "STUDENT";
+  /* Switching type shows the other set of education fields. The hidden set
+     stays saved, since every page reads only the current type's fields, so
+     switching back restores it. */
+  const isStudent = form.tutorStatus === "STUDENT";
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({
@@ -186,6 +196,7 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
           address2Subcity: secondAddress.subcity,
           address2ExactPlace: secondAddress.exactPlace,
           aboutMe: form.aboutMe,
+          tutorStatus: form.tutorStatus,
 
           university: form.university,
           department: form.department,
@@ -334,6 +345,21 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
         />
 
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <SelectField
+            id="tutorStatus"
+            label="Tutor type"
+            required
+            className="sm:col-span-2"
+            options={TUTOR_STATUS_OPTIONS}
+            value={form.tutorStatus}
+            onValueChange={(value) => updateField("tutorStatus", value)}
+            hint={
+              form.tutorStatus === "GRADUATE" && !tutor.hasGraduationDocument
+                ? "Graduate tutors also need a graduation document — upload it under Photo & documents."
+                : undefined
+            }
+          />
+
           {isStudent ? (
             <>
               <TextField

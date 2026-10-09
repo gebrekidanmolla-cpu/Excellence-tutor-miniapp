@@ -4,8 +4,11 @@ import { Info } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-context";
 import { secondAddressOf } from "@/lib/address";
+import { TUTOR_DOCUMENTS, adminDocumentHref } from "@/lib/admin-documents";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { SectionHeading } from "@/components/shared/FormFields";
+import TutorDocumentsEditor from "@/components/admin/TutorDocumentsEditor";
 import TutorEditForm from "./TutorEditForm";
 
 interface PageProps {
@@ -29,6 +32,14 @@ export default async function EditTutorPage({ params }: PageProps) {
     notFound();
   }
 
+  const documentHrefs = Object.fromEntries(
+    TUTOR_DOCUMENTS.flatMap(({ kind, column }) =>
+      tutor[column]
+        ? [[kind, adminDocumentHref(tutor.id, kind, tutor[column])]]
+        : []
+    )
+  );
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
@@ -42,10 +53,30 @@ export default async function EditTutorPage({ params }: PageProps) {
         <Info aria-hidden="true" />
         <AlertTitle>Admin-only tutor management</AlertTitle>
         <AlertDescription>
-          Changes made here update the tutor&apos;s registered profile. Tutors
-          cannot edit their information from their account.
+          Changes made here update the tutor&apos;s profile, including what
+          parents see on a shared profile link. Tutors can change only their
+          phone, address, About me, year or employment, photo and CV
+          themselves — everything else, documents included, is changed here.
         </AlertDescription>
       </Alert>
+
+      <section
+        id="documents"
+        className="scroll-mt-20 rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6"
+      >
+        <SectionHeading
+          title="Photo & documents"
+          description="Each upload or removal is saved straight away, separately from Save changes below. Replacing a file deletes the old one."
+        />
+
+        <div className="mt-5">
+          <TutorDocumentsEditor
+            tutorId={tutor.id}
+            tutorStatus={tutor.tutorStatus}
+            hrefs={documentHrefs}
+          />
+        </div>
+      </section>
 
       <TutorEditForm
         tutor={{
@@ -63,6 +94,7 @@ export default async function EditTutorPage({ params }: PageProps) {
           secondAddress: secondAddressOf(tutor),
           aboutMe: tutor.aboutMe ?? "",
           tutorStatus: tutor.tutorStatus,
+          hasGraduationDocument: Boolean(tutor.graduationDocumentUrl),
           university: tutor.university ?? "",
           department: tutor.department ?? "",
           currentYear: tutor.currentYear ?? "",
