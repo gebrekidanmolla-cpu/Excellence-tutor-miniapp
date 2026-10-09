@@ -4,9 +4,6 @@ import { getCurrentAdmin } from "@/lib/admin-session";
 import { isTelegramConfigured } from "@/lib/telegram";
 import { syncJobTelegramPost } from "@/lib/telegram-job-post";
 
-/* No page load is blocked on this one, so it gets the full budget. */
-export const maxDuration = 30;
-
 interface RouteContext {
   params: Promise<{
     id: string;

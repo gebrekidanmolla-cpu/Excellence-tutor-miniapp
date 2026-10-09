@@ -4,9 +4,6 @@ import { getCurrentAdmin } from "@/lib/admin-session";
 import { refreshPublicJobPages } from "@/lib/public-job-pages";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
 
-/* Closing or re-opening a job waits on a Telegram edit. */
-export const maxDuration = 30;
-
 interface RouteContext {
   params: Promise<{
     id: string;
