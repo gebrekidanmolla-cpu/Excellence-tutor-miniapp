@@ -139,21 +139,21 @@ export default async function TutorDashboard() {
           HERO + PIPELINE
       ----------------------------------------------------- */}
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-        <section className="relative isolate overflow-hidden rounded-[1.75rem] bg-[color-mix(in_oklch,var(--primary),black_22%)] p-6 text-primary-foreground shadow-xl shadow-primary/20 sm:p-8 lg:col-span-2">
+        <section className="relative isolate overflow-hidden rounded-[1.75rem] bg-brand-surface p-6 text-brand-surface-foreground shadow-xl shadow-glow/20 sm:p-8 lg:col-span-2">
           <div
             aria-hidden="true"
             className="absolute -top-24 -right-16 -z-10 size-80 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--highlight)_45%,transparent),transparent)] blur-2xl"
           />
           <div
             aria-hidden="true"
-            className="absolute -bottom-32 -left-20 -z-10 size-96 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--primary)_90%,white_10%),transparent)] blur-2xl"
+            className="absolute -bottom-32 -left-20 -z-10 size-96 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,var(--brand-surface),var(--brand-glow)_35%),transparent)] blur-2xl"
           />
           <div
             aria-hidden="true"
-            className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,rgb(255_255_255/0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgb(255_255_255/0.06)_1px,transparent_1px)] bg-size-[2.5rem_2.5rem] mask-[linear-gradient(to_left,black,transparent_70%)]"
+            className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,color-mix(in_oklch,var(--brand-surface-foreground)_6%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklch,var(--brand-surface-foreground)_6%,transparent)_1px,transparent_1px)] bg-size-[2.5rem_2.5rem] mask-[linear-gradient(to_left,black,transparent_70%)]"
           />
 
-          <p className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
+          <p className="inline-flex items-center gap-1.5 rounded-full border border-brand-surface-foreground/15 bg-brand-surface-foreground/10 px-3 py-1 text-xs font-medium backdrop-blur">
             <Sparkles className="size-3.5 text-highlight" aria-hidden="true" />
             Tutor workspace
           </p>
@@ -165,11 +165,11 @@ export default async function TutorDashboard() {
             </span>
           </h1>
 
-          <p className="mt-3 max-w-lg text-sm leading-6 text-primary-foreground/75 sm:text-base sm:leading-7">
+          <p className="mt-3 max-w-lg text-sm leading-6 text-brand-surface-foreground/75 sm:text-base sm:leading-7">
             {availableJobs > 0 ? (
               <>
                 There {availableJobs === 1 ? "is" : "are"}{" "}
-                <span className="font-semibold text-primary-foreground">
+                <span className="font-semibold text-brand-surface-foreground">
                   {availableJobs} open {availableJobs === 1 ? "job" : "jobs"}
                 </span>{" "}
                 right now. Find one that fits your subjects and schedule.
@@ -183,7 +183,7 @@ export default async function TutorDashboard() {
             <Button
               render={<Link href="/jobs" prefetch={false} />}
               size="xl"
-              className="group rounded-full bg-background px-5 text-foreground shadow-lg hover:bg-background/90"
+              className="group rounded-full bg-brand-surface-foreground px-5 text-brand-surface shadow-lg hover:bg-brand-surface-foreground/90"
             >
               <BriefcaseBusiness data-icon="inline-start" aria-hidden="true" />
               Explore jobs
@@ -198,7 +198,7 @@ export default async function TutorDashboard() {
               render={<Link href="/tutor/profile" prefetch={false} />}
               variant="outline"
               size="xl"
-              className="rounded-full border-white/25 bg-white/5 px-5 text-primary-foreground hover:bg-white/15 hover:text-primary-foreground"
+              className="rounded-full border-brand-surface-foreground/25 bg-brand-surface-foreground/5 px-5 text-brand-surface-foreground hover:bg-brand-surface-foreground/15 hover:text-brand-surface-foreground"
             >
               <UserRound data-icon="inline-start" aria-hidden="true" />
               View profile
@@ -404,10 +404,10 @@ export default async function TutorDashboard() {
                 <img
                   src={photoHref}
                   alt=""
-                  className="size-20 rounded-3xl border-4 border-card object-cover shadow-lg shadow-primary/20"
+                  className="size-20 rounded-3xl border-4 border-card object-cover shadow-lg shadow-glow/20"
                 />
               ) : (
-                <span className="flex size-20 items-center justify-center rounded-3xl border-4 border-card bg-linear-to-br from-primary to-[color-mix(in_oklch,var(--primary),var(--highlight)_40%)] font-heading text-2xl font-semibold text-primary-foreground shadow-lg shadow-primary/20">
+                <span className="flex size-20 items-center justify-center rounded-3xl border-4 border-card bg-linear-to-br from-primary to-[color-mix(in_oklch,var(--primary),var(--highlight)_40%)] font-heading text-2xl font-semibold text-primary-foreground shadow-lg shadow-glow/20">
                   {initials}
                 </span>
               )}
@@ -490,13 +490,13 @@ export default async function TutorDashboard() {
               <li key={job.id}>
                 <Link
                   href={`/apply/${job.jobCode}`} prefetch={false}
-                  className="group flex h-full flex-col rounded-[1.5rem] border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  className="group flex h-full flex-col rounded-[1.5rem] border bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-xl hover:shadow-glow/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="rounded-full bg-muted px-2.5 py-1 font-mono text-xs text-muted-foreground">
                       {job.jobCode}
                     </span>
-                    <span className="flex size-8 items-center justify-center rounded-full border bg-background text-muted-foreground transition-colors group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground">
+                    <span className="flex size-8 items-center justify-center rounded-full border bg-card text-muted-foreground transition-colors group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground">
                       <ArrowUpRight className="size-4" aria-hidden="true" />
                     </span>
                   </div>
@@ -536,7 +536,7 @@ const METRIC_TONES = {
   primary: "bg-primary/10 text-primary",
   info: "bg-info/10 text-info",
   warning:
-    "bg-warning/15 text-[color-mix(in_oklch,var(--warning),var(--foreground)_35%)]",
+    "bg-warning/15 text-warning-strong",
   success: "bg-success/10 text-success",
 } as const;
 
@@ -595,7 +595,7 @@ function Metric({
       prefetch={false}
       className={cn(
         className,
-        "transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        "transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg hover:shadow-glow/10 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
       )}
     >
       {body}

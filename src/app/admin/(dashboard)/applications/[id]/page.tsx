@@ -547,7 +547,7 @@ export default async function ApplicationDetailsPage({
                 className={cn(
                   "font-normal",
                   document.required &&
-                    "border-destructive/30 bg-destructive/5 text-[color-mix(in_oklch,var(--destructive),var(--foreground)_30%)]"
+                    "border-destructive/30 bg-destructive/5 text-destructive-strong"
                 )}
               >
                 {documentLabel(document.kind)}

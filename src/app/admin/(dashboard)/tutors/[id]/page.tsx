@@ -188,7 +188,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
             {tutor.emailVerified ? (
               <Badge
                 variant="outline"
-                className="gap-1 border-transparent bg-success/10 text-[color-mix(in_oklch,var(--success),var(--foreground)_35%)]"
+                className="gap-1 border-transparent bg-success/10 text-success-strong"
               >
                 <BadgeCheck className="size-3" aria-hidden="true" />
                 Email verified

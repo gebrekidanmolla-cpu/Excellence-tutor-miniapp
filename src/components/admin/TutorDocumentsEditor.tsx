@@ -238,7 +238,7 @@ function DocumentRow({
             present
               ? "bg-success/10 text-success"
               : missingRequired
-                ? "bg-highlight/15 text-[color-mix(in_oklch,var(--highlight),var(--foreground)_35%)]"
+                ? "bg-highlight/15 text-highlight-strong"
                 : "bg-muted text-muted-foreground"
           )}
         >

@@ -77,7 +77,7 @@ export function ChoiceGroup({
             <label
               key={option.value}
               className={cn(
-                "group relative flex cursor-pointer items-center border bg-background transition-[color,background-color,border-color,box-shadow] outline-none select-none",
+                "group relative flex cursor-pointer items-center border bg-card transition-[color,background-color,border-color,box-shadow] outline-none select-none",
                 "hover:border-primary/40 hover:bg-primary/[0.03]",
                 "has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:ring-1 has-[:checked]:ring-primary",
                 "has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50",

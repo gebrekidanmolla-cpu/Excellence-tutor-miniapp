@@ -80,7 +80,7 @@ export function DocumentGallery({
                     images.findIndex((image) => image.id === document.id)
                   )
                 }
-                className="group block w-full overflow-hidden rounded-2xl bg-card text-left ring-1 ring-foreground/10 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none"
+                className="group block w-full overflow-hidden rounded-2xl bg-card text-left ring-1 ring-foreground/10 transition-all duration-300 hover:shadow-lg hover:shadow-glow/10 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none"
               >
                 <CardLabel
                   document={document}
@@ -109,7 +109,7 @@ export function DocumentGallery({
                 href={document.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group block overflow-hidden rounded-2xl bg-gradient-to-br from-primary/[0.07] via-card to-highlight/10 ring-1 ring-foreground/10 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none"
+                className="group block overflow-hidden rounded-2xl bg-gradient-to-br from-primary/[0.07] via-card to-highlight/10 ring-1 ring-foreground/10 transition-all duration-300 hover:shadow-lg hover:shadow-glow/10 hover:ring-primary/30 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none motion-reduce:transition-none"
               >
                 <CardLabel
                   document={document}

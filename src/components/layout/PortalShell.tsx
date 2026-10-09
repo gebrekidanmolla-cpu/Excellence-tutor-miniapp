@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import LogoutButton from "@/components/LogoutButton";
 import { SidebarNav, type NavItem } from "@/components/layout/SidebarNav";
 import { MobileTabBar } from "@/components/layout/MobileTabBar";
+import { ThemeSegmented } from "@/components/layout/ThemeToggle";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { cn } from "@/lib/utils";
 import { IntentLink } from "@/components/shared/IntentLink";
@@ -117,7 +118,7 @@ function TutorAvatar({
 
 function TutorCard({ tutor }: { tutor: PortalTutor }) {
   return (
-    <div className="rounded-2xl border bg-background p-3 shadow-sm">
+    <div className="rounded-2xl border bg-card p-3 shadow-sm">
       <div className="flex items-center gap-3">
         <TutorAvatar tutor={tutor} className="size-9" />
         <div className="min-w-0">
@@ -170,7 +171,8 @@ export function PortalShell({
           </IntentLink>
         </div>
 
-        <div className="p-3">
+        <div className="space-y-3 p-3">
+          <ThemeSegmented />
           <TutorCard tutor={tutor} />
         </div>
       </aside>
@@ -215,7 +217,8 @@ export function PortalShell({
                 </IntentLink>
               </div>
 
-              <div className="border-t p-3">
+              <div className="space-y-3 border-t p-3">
+                <ThemeSegmented />
                 <TutorCard tutor={tutor} />
               </div>
             </SheetContent>

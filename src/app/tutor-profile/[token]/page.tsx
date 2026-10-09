@@ -163,20 +163,20 @@ export default async function TutorProfilePage({ params }: PageProps) {
     <div
       className={cn(
         fraunces.variable,
-        "flex min-h-svh flex-col bg-[oklch(0.985_0.004_264)]"
+        "flex min-h-svh flex-col bg-muted/30"
       )}
     >
       {/* -----------------------------------------------------
           HEADER
       ----------------------------------------------------- */}
-      <header className="relative z-10 border-b border-white/10 bg-primary text-primary-foreground">
+      <header className="relative z-10 border-b border-brand-surface-foreground/10 bg-brand-surface text-brand-surface-foreground">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
           <Wordmark
             href={null}
-            className="[&>span:first-child]:bg-white [&>span:first-child]:text-primary"
+            className="[&>span:first-child]:bg-brand-surface-foreground [&>span:first-child]:text-brand-surface"
           />
 
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium ring-1 ring-white/15 backdrop-blur-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-surface-foreground/10 px-3 py-1 text-xs font-medium ring-1 ring-brand-surface-foreground/15 backdrop-blur-sm">
             <ShieldCheck className="size-3.5" aria-hidden="true" />
             <span className="hidden sm:inline">Shared privately</span>
             <span className="sm:hidden">Private</span>
@@ -190,22 +190,22 @@ export default async function TutorProfilePage({ params }: PageProps) {
       <section className="relative">
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-64 overflow-hidden bg-primary sm:h-72"
+          className="absolute inset-x-0 top-0 h-64 overflow-hidden bg-brand-surface sm:h-72"
         >
           <div className="absolute -top-24 -right-16 size-80 rounded-full bg-highlight/45 blur-3xl" />
-          <div className="absolute -bottom-32 -left-24 size-96 rounded-full bg-chart-5/60 blur-3xl" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle,oklch(1_0_0/0.14)_1px,transparent_1px)] [background-size:22px_22px]" />
-          <p className="absolute -right-4 bottom-2 font-serif text-[6.5rem] leading-none text-white/[0.06] italic select-none sm:text-[10rem]">
+          <div className="absolute -bottom-32 -left-24 size-96 rounded-full bg-brand-glow/60 blur-3xl" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle,color-mix(in_oklch,var(--brand-surface-foreground)_14%,transparent)_1px,transparent_1px)] [background-size:22px_22px]" />
+          <p className="absolute -right-4 bottom-2 font-serif text-[6.5rem] leading-none text-brand-surface-foreground/[0.06] italic select-none sm:text-[10rem]">
             Excellence
           </p>
         </div>
 
         <div className="relative mx-auto max-w-5xl px-4 pt-10 sm:px-6 sm:pt-14">
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 fill-mode-both motion-reduce:animate-none">
-            <p className="text-xs font-medium tracking-[0.2em] text-white/70 uppercase">
+            <p className="text-xs font-medium tracking-[0.2em] text-brand-surface-foreground/70 uppercase">
               Tutor profile
             </p>
-            <h1 className="mt-2 font-heading text-3xl font-semibold tracking-tight text-balance text-white sm:text-4xl">
+            <h1 className="mt-2 font-heading text-3xl font-semibold tracking-tight text-balance text-brand-surface-foreground sm:text-4xl">
               Meet{" "}
               <span className="font-serif font-normal text-highlight italic">
                 {firstName}
@@ -215,7 +215,7 @@ export default async function TutorProfilePage({ params }: PageProps) {
           </div>
 
           {/* Identity card, overlapping the band. */}
-          <div className="mt-8 rounded-3xl bg-card p-6 shadow-xl ring-1 shadow-primary/10 ring-foreground/5 animate-in fade-in slide-in-from-bottom-4 delay-100 duration-700 fill-mode-both motion-reduce:animate-none sm:p-8">
+          <div className="mt-8 rounded-3xl bg-card p-6 shadow-xl ring-1 shadow-glow/10 ring-foreground/5 animate-in fade-in slide-in-from-bottom-4 delay-100 duration-700 fill-mode-both motion-reduce:animate-none sm:p-8">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
               <div className="relative w-fit shrink-0">
                 {tutor.profilePhotoUrl ? (
@@ -223,10 +223,10 @@ export default async function TutorProfilePage({ params }: PageProps) {
                   <img
                     src={profileDocumentPath(token, "profilePhoto")}
                     alt={`Photo of ${tutor.fullName}`}
-                    className="size-24 rounded-2xl object-cover shadow-lg shadow-primary/25 sm:size-28"
+                    className="size-24 rounded-2xl object-cover shadow-lg shadow-glow/25 sm:size-28"
                   />
                 ) : (
-                  <div className="flex size-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-chart-5 text-white shadow-lg shadow-primary/25 sm:size-28">
+                  <div className="flex size-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-chart-5 text-primary-foreground shadow-lg shadow-glow/25 sm:size-28">
                     <UserRound className="size-11 sm:size-12" aria-hidden="true" />
                   </div>
                 )}
@@ -519,7 +519,7 @@ function StatCard({
   return (
     <div
       className={cn(
-        "min-w-0 rounded-3xl bg-card p-5 ring-1 sm:p-6 ring-foreground/5 transition-shadow hover:shadow-lg hover:shadow-primary/5 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both motion-reduce:animate-none",
+        "min-w-0 rounded-3xl bg-card p-5 ring-1 sm:p-6 ring-foreground/5 transition-shadow hover:shadow-lg hover:shadow-glow/5 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both motion-reduce:animate-none",
         delay,
         className
       )}

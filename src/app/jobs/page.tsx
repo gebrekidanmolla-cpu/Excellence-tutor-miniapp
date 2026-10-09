@@ -341,7 +341,7 @@ function JobCard({ job }: { job: Job }) {
       className={cn(
         "group relative flex w-full flex-col rounded-2xl bg-card p-5 ring-1 ring-foreground/10 transition-all has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50",
         isOpen
-          ? "hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/5 hover:ring-primary/25 motion-reduce:hover:translate-y-0"
+          ? "hover:-translate-y-0.5 hover:shadow-xl hover:shadow-glow/5 hover:ring-primary/25 motion-reduce:hover:translate-y-0"
           : "bg-muted/30"
       )}
     >
@@ -405,7 +405,7 @@ function JobCard({ job }: { job: Job }) {
           <Megaphone
             className={cn(
               "mt-0.5 size-4 shrink-0",
-              isOpen ? "text-highlight-foreground" : "text-muted-foreground"
+              isOpen ? "text-highlight-strong" : "text-muted-foreground"
             )}
             aria-hidden="true"
           />
@@ -413,7 +413,7 @@ function JobCard({ job }: { job: Job }) {
           <p
             className={cn(
               "line-clamp-3 min-w-0 flex-1 text-sm font-medium text-pretty wrap-break-word",
-              isOpen ? "text-highlight-foreground" : "text-muted-foreground"
+              isOpen ? "text-foreground" : "text-muted-foreground"
             )}
           >
             {job.additionalDetails}
@@ -447,7 +447,7 @@ function JobCard({ job }: { job: Job }) {
             "flex h-9 shrink-0 items-center gap-1 rounded-lg px-3 text-sm font-medium transition-colors",
             isOpen
               ? "bg-primary text-primary-foreground group-hover:bg-primary/90"
-              : "bg-background text-muted-foreground ring-1 ring-foreground/10 group-hover:text-foreground"
+              : "bg-card text-muted-foreground ring-1 ring-foreground/10 group-hover:text-foreground"
           )}
         >
           {isOpen ? "Apply" : "View"}
@@ -463,7 +463,8 @@ function JobCard({ job }: { job: Job }) {
 /**
  * Solid rather than tinted, unlike the shared `StatusBadge`: on this page the
  * state decides whether a tutor can act, so it has to win against the card.
- * The green is darkened so white text clears AA on it.
+ * It uses the strong green, on which `success-foreground` clears AA in both
+ * themes (the plain `--success` is too light for white text).
  */
 function JobStatusPill({ isOpen }: { isOpen: boolean }) {
   return (
@@ -471,14 +472,14 @@ function JobStatusPill({ isOpen }: { isOpen: boolean }) {
       className={cn(
         "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold tracking-wide uppercase",
         isOpen
-          ? "bg-[color-mix(in_oklch,var(--success),var(--foreground)_30%)] text-white shadow-sm shadow-success/30"
+          ? "bg-success-strong text-success-foreground shadow-sm shadow-success/30"
           : "bg-foreground/10 text-foreground/70"
       )}
     >
       {isOpen ? (
         <span aria-hidden="true" className="relative flex size-2">
-          <span className="absolute inset-0 animate-ping rounded-full bg-white/70 motion-reduce:hidden" />
-          <span className="relative size-2 rounded-full bg-white" />
+          <span className="absolute inset-0 animate-ping rounded-full bg-success-foreground/70 motion-reduce:hidden" />
+          <span className="relative size-2 rounded-full bg-success-foreground" />
         </span>
       ) : (
         <Lock className="size-3" aria-hidden="true" />

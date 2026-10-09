@@ -119,10 +119,10 @@ export function DocumentsStep({
       >
         <div className="flex gap-3 rounded-xl bg-highlight/10 p-4 text-sm">
           <Lightbulb
-            className="mt-0.5 size-4 shrink-0 text-highlight-foreground"
+            className="mt-0.5 size-4 shrink-0 text-highlight-strong"
             aria-hidden="true"
           />
-          <p className="text-pretty text-highlight-foreground">
+          <p className="text-pretty text-foreground">
             Take each photo in good light, with all four corners in frame and
             the text sharp enough to read.
           </p>

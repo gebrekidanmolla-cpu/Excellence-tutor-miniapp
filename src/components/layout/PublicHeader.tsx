@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ThemeMenu, ThemeSegmented } from "@/components/layout/ThemeToggle";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { IntentLink } from "@/components/shared/IntentLink";
 
@@ -62,6 +63,10 @@ export function PublicHeader({
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Below `md` the theme picker lives in the drawer, so a phone
+              header never has to fit a fourth control. */}
+          <ThemeMenu className="hidden md:inline-flex" />
+
           {tutor ? (
             /* Below 360px the label would push the wordmark onto two lines,
                so the button keeps only its icon (the drawer has the label). */
@@ -133,6 +138,8 @@ export function PublicHeader({
               </nav>
 
               <div className="grid gap-2 border-t p-3">
+                <ThemeSegmented className="mb-1" />
+
                 {tutor ? (
                   <Button
                     render={<Link href="/tutor" prefetch={false} onClick={closeDrawer} />}

@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 const LEVELS = [
   { label: "Too short", tone: "bg-destructive", text: "text-destructive" },
   { label: "Weak", tone: "bg-destructive", text: "text-destructive" },
-  { label: "Fair", tone: "bg-warning", text: "text-warning-foreground" },
+  { label: "Fair", tone: "bg-warning", text: "text-warning-strong" },
   { label: "Good", tone: "bg-success", text: "text-success" },
   { label: "Strong", tone: "bg-success", text: "text-success" },
 ] as const;

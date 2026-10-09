@@ -398,7 +398,7 @@ export default async function JobDetailsPage({
         </InfoGrid>
 
         {telegramConfigured && !showsApplyButton ? (
-          <p className="mt-5 rounded-lg bg-warning/15 px-4 py-3 text-sm text-[color-mix(in_oklch,var(--warning),var(--foreground)_40%)]">
+          <p className="mt-5 rounded-lg bg-warning/15 px-4 py-3 text-sm text-warning-strong">
             Posts are going out without their <b>Apply Now</b> button:{" "}
             <code>NEXT_PUBLIC_APP_URL</code> is not a publicly reachable
             address, so the link would be dead for everyone reading the
@@ -407,7 +407,7 @@ export default async function JobDetailsPage({
         ) : null}
 
         {job.telegramPostStatus === "FAILED" && job.telegramPostError ? (
-          <p className="mt-5 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-[color-mix(in_oklch,var(--destructive),var(--foreground)_30%)]">
+          <p className="mt-5 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
             {job.telegramPostError}
           </p>
         ) : null}
@@ -456,7 +456,7 @@ export default async function JobDetailsPage({
         </InfoGrid>
 
         {job.sheetSyncStatus === "FAILED" && job.sheetSyncError ? (
-          <p className="mt-5 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-[color-mix(in_oklch,var(--destructive),var(--foreground)_30%)]">
+          <p className="mt-5 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
             {job.sheetSyncError}
           </p>
         ) : null}
