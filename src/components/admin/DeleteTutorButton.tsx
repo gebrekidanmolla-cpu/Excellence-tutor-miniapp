@@ -79,7 +79,9 @@ export default function DeleteTutorButton({
                 {assignedJobCodes.join(", ")}
               </strong>
               . {assignedJobCodes.length === 1 ? "That job is" : "Those jobs are"}{" "}
-              left closed with no assigned tutor — re-open{" "}
+              left closed with no assigned tutor, so{" "}
+              {assignedJobCodes.length === 1 ? "it counts" : "they count"} as
+              failed — re-open{" "}
               {assignedJobCodes.length === 1 ? "it" : "them"} if the vacancy
               is still live.
             </p>

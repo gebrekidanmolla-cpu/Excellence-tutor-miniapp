@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { JobStatusBadge, StatusBadge } from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
 import { AddressInfo } from "@/components/shared/AddressInfo";
 import { CopyButton } from "@/components/shared/CopyButton";
@@ -285,7 +285,10 @@ export default async function ApplicationDetailsPage({
               Job{" "}
               <span className="font-mono">{job.jobCode}</span>
             </h2>
-            <StatusBadge status={job.status} />
+            <JobStatusBadge
+              status={job.status}
+              hasAssignedTutor={hasAssignedTutor}
+            />
           </div>
 
           <Button

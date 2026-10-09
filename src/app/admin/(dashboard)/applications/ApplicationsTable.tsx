@@ -5,7 +5,7 @@ import Link from "next/link";
 import { FileText, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { JobStatusBadge, StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
@@ -139,7 +139,10 @@ function DetailPanel({ application }: { application: ApplicationRow }) {
       <div className="min-w-0">
         <dt className="text-xs text-muted-foreground">Job status</dt>
         <dd className="mt-0.5">
-          <StatusBadge status={job.status} />
+          <JobStatusBadge
+            status={job.status}
+            hasAssignedTutor={Boolean(job.assignedTutorId)}
+          />
         </dd>
       </div>
 

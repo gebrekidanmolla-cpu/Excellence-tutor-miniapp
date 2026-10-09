@@ -26,6 +26,7 @@ import {
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import {
+  CloseJobDescription,
   ReopenJobDescription,
   closeJob,
   reopenJob,
@@ -64,9 +65,7 @@ export function JobRowActions({
   const closable = status === "OPEN" && !assignedTutorName;
 
   async function close() {
-    await closeJob(jobId);
-
-    toast.success(`${jobCode} closed.`);
+    toast.success(await closeJob(jobId));
 
     startRefresh(() => router.refresh());
   }
@@ -119,7 +118,9 @@ export function JobRowActions({
             </Button>
           }
           title={`Close ${jobCode}?`}
-          description="The job will stop accepting new applications. Existing applications are not changed."
+          description={
+            <CloseJobDescription applicationCount={applicationCount} />
+          }
           confirmLabel="Close job"
           variant="destructive"
           onConfirm={close}

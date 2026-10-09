@@ -51,6 +51,11 @@ export default async function AdminDashboard() {
       ? Math.round((counts.acceptedApplications / counts.applications) * 100)
       : 0;
 
+  const closedJobs = counts.successfulJobs + counts.failedJobs;
+
+  const successRate =
+    closedJobs > 0 ? Math.round((counts.successfulJobs / closedJobs) * 100) : 0;
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -267,6 +272,39 @@ export default async function AdminDashboard() {
                 total={counts.jobs}
                 tone="bg-muted-foreground"
                 href="/admin/jobs?status=closed"
+              />
+            </div>
+          </section>
+
+          {/* How the closed jobs ended — see `getJobOutcome`. */}
+          <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="font-heading font-medium">Closed jobs</h2>
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {closedJobs}
+                {closedJobs > 0 ? ` · ${successRate}% successful` : null}
+              </span>
+            </div>
+
+            <p className="mt-1 text-sm text-muted-foreground text-pretty">
+              Successful jobs closed with a tutor assigned. Failed ones closed
+              without one.
+            </p>
+
+            <div className="mt-3 space-y-1">
+              <Breakdown
+                label="Successful"
+                value={counts.successfulJobs}
+                total={closedJobs}
+                tone="bg-success"
+                href="/admin/jobs?status=closed&outcome=successful"
+              />
+              <Breakdown
+                label="Failed"
+                value={counts.failedJobs}
+                total={closedJobs}
+                tone="bg-destructive"
+                href="/admin/jobs?status=closed&outcome=failed"
               />
             </div>
           </section>

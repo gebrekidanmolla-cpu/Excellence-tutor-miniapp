@@ -25,7 +25,7 @@ import { getProfileShareLinkBase } from "@/lib/tutor-profile-server";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { JobStatusBadge, StatusBadge } from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
 import JobActions from "@/components/admin/JobActions";
 import TelegramPostActions from "@/components/admin/TelegramPostActions";
@@ -136,7 +136,11 @@ export default async function JobDetailsPage({
         description={`Created ${formatDate(job.createdAt)}`}
         actions={
           <>
-            <StatusBadge status={job.status} size="lg" />
+            <JobStatusBadge
+              status={job.status}
+              hasAssignedTutor={Boolean(job.assignedTutorId)}
+              size="lg"
+            />
 
             <Button
               render={<Link href={`/admin/jobs/${job.id}/edit`} prefetch={false} />}
@@ -315,8 +319,9 @@ export default async function JobDetailsPage({
           </p>
         ) : job.status === "CLOSED" ? (
           <p className="mt-4 rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground text-pretty">
-            This job is closed, so its applications cannot be changed. Re-open
-            it below to pick a tutor from this pool.
+            This job closed without a tutor, so it is marked as failed and
+            its applicants were rejected. Re-open it below to put them back
+            to pending and pick a tutor from this pool.
           </p>
         ) : null}
 
@@ -476,7 +481,8 @@ export default async function JobDetailsPage({
         <h2 className="font-heading font-medium">Job status</h2>
 
         <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
-          Closing a job prevents it from accepting new applications.
+          Closing a job without assigning a tutor marks it as failed: it
+          stops accepting applications and every applicant is rejected.
           Re-opening clears the assigned tutor, puts every application back to
           pending and opens the job again — so you can still pick from the
           tutors who already applied, and new ones can apply too.
