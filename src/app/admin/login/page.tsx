@@ -2,13 +2,13 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormError } from "@/components/shared/ErrorState";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -154,13 +154,13 @@ export default function AdminLoginPage() {
         </div>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          <Link
+          <IntentLink
             href="/"
             className="inline-flex items-center gap-1.5 hover:text-foreground"
           >
             <ArrowLeft className="size-4" aria-hidden="true" />
             Back to website
-          </Link>
+          </IntentLink>
         </p>
       </div>
     </main>

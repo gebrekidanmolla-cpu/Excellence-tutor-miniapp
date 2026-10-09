@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -17,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormError } from "@/components/shared/ErrorState";
 import { AuthHeading, AuthLayout } from "@/components/layout/AuthLayout";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -142,7 +142,7 @@ function ForgotPasswordFlow({ defaultEmail }: { defaultEmail: string }) {
           <Button
             size="xl"
             className="w-full"
-            render={<Link href="/login" />}
+            render={<IntentLink href="/login" />}
           >
             Back to sign in
           </Button>
@@ -229,13 +229,13 @@ function ForgotPasswordFlow({ defaultEmail }: { defaultEmail: string }) {
       </form>
 
       <p className="mt-8 text-center text-sm">
-        <Link
+        <IntentLink
           href="/login"
           className="inline-flex items-center gap-1.5 rounded-sm font-medium text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
           Back to sign in
-        </Link>
+        </IntentLink>
       </p>
     </>
   );

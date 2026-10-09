@@ -25,6 +25,7 @@ import { SidebarNav, type NavItem } from "@/components/layout/SidebarNav";
 import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { Wordmark } from "@/components/layout/Wordmark";
 import { cn } from "@/lib/utils";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 /**
  * The shell for everything a signed-in tutor sees.
@@ -160,13 +161,13 @@ export function PortalShell({
 
           <Separator className="my-3" />
 
-          <Link
+          <IntentLink
             href="/"
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <ExternalLink className="size-4.5 shrink-0" />
             Back to website
-          </Link>
+          </IntentLink>
         </div>
 
         <div className="p-3">
@@ -204,14 +205,14 @@ export function PortalShell({
 
                 <Separator className="my-3" />
 
-                <Link
+                <IntentLink
                   href="/"
                   onClick={closeDrawer}
                   className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <ExternalLink className="size-4.5 shrink-0" />
                   Back to website
-                </Link>
+                </IntentLink>
               </div>
 
               <div className="border-t p-3">

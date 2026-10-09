@@ -76,7 +76,7 @@ export function PublicHeader({
           ) : (
             <>
               <Button
-                render={<Link href="/login" />}
+                render={<IntentLink href="/login" />}
                 variant="ghost"
                 size="lg"
                 className="hidden sm:inline-flex"
@@ -143,7 +143,7 @@ export function PublicHeader({
                 ) : (
                   <>
                     <Button
-                      render={<Link href="/login" onClick={closeDrawer} />}
+                      render={<IntentLink href="/login" onClick={closeDrawer} />}
                       variant="outline"
                       size="xl"
                     >
@@ -151,7 +151,7 @@ export function PublicHeader({
                     </Button>
 
                     <Button
-                      render={<Link href="/register" onClick={closeDrawer} />}
+                      render={<IntentLink href="/register" onClick={closeDrawer} />}
                       size="xl"
                     >
                       Register

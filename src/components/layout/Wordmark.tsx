@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 
+import { IntentLink } from "@/components/shared/IntentLink";
 import { cn } from "@/lib/utils";
 
 /**
@@ -51,17 +52,25 @@ export function Wordmark({
     );
   }
 
+  const linkClassName = cn(
+    "flex items-center gap-2.5 rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+    className
+  );
+
+  // Never prefetched on sight. `/` is prerendered, but this wordmark is on
+  // every public page, and each prefetch is a CDN request against Hobby's
+  // monthly allowance. The portal and admin homes are dynamic, where each
+  // prefetch is two function invocations.
+  if (href === "/") {
+    return (
+      <IntentLink href="/" className={linkClassName}>
+        {content}
+      </IntentLink>
+    );
+  }
+
   return (
-    <Link
-      href={href}
-      // `/` is prerendered, so prefetching it is a CDN hit; the portal and
-      // admin homes are dynamic, where each prefetch is two invocations.
-      prefetch={href === "/" ? undefined : false}
-      className={cn(
-        "flex items-center gap-2.5 rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
-        className
-      )}
-    >
+    <Link href={href} prefetch={false} className={linkClassName}>
       {content}
     </Link>
   );

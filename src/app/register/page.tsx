@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -46,6 +45,7 @@ import {
 } from "@/app/register/schema";
 import { compressImage } from "@/lib/compress-image";
 import { nextPathFromLocation } from "@/lib/safe-redirect";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 /** The heading each step opens with. Education depends on the tutor's status. */
 function stepHeading(
@@ -1246,12 +1246,12 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
         --------------------------------------------------- */}
         <header className="relative flex items-center justify-between gap-4 px-4 pt-5 sm:px-8 lg:hidden">
           <Wordmark />
-          <Link
+          <IntentLink
             href="/login"
             className="rounded-md text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             Sign in
-          </Link>
+          </IntentLink>
         </header>
 
         <div className="relative mx-auto w-full max-w-3xl flex-1 pt-6 pb-8 sm:px-8 sm:pb-12 lg:px-12 lg:pt-10 xl:pt-12">
@@ -1273,12 +1273,12 @@ function RegisterWizard({ draft }: { draft: RegisterDraft | null }) {
             </p>
             <p className="text-sm text-muted-foreground">
               Already registered?{" "}
-              <Link
+              <IntentLink
                 href="/login"
                 className="rounded-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 Sign in
-              </Link>
+              </IntentLink>
             </p>
           </div>
 

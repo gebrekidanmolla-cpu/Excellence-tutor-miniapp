@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 
 import { Wordmark } from "@/components/layout/Wordmark";
 import { cn } from "@/lib/utils";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 /**
  * The layered indigo backdrop behind every auth screen's brand panel: a deep
@@ -23,7 +23,7 @@ export function BrandBackdrop() {
 /** The wordmark as it sits on the dark brand panel. */
 export function BrandPanelWordmark() {
   return (
-    <Link
+    <IntentLink
       href="/"
       className="flex w-fit items-center gap-2.5 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-primary-foreground/40"
     >
@@ -36,7 +36,7 @@ export function BrandPanelWordmark() {
       <span className="font-heading text-base font-semibold tracking-tight">
         Excellence Tutor
       </span>
-    </Link>
+    </IntentLink>
   );
 }
 

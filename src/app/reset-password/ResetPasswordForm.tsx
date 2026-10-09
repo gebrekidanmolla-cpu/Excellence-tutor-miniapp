@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -11,6 +10,7 @@ import { FormError } from "@/components/shared/ErrorState";
 import { PasswordField } from "@/components/shared/FormFields";
 import { PasswordStrength } from "@/app/register/components/PasswordStrength";
 import { passwordSchema } from "@/app/register/schema";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 type FieldErrors = { password?: string; confirmPassword?: string };
 
@@ -103,7 +103,7 @@ export function ResetPasswordForm({
         <Button
           size="xl"
           className="mt-4 w-full"
-          render={<Link href="/forgot-password" />}
+          render={<IntentLink href="/forgot-password" />}
         >
           Request a new link
         </Button>

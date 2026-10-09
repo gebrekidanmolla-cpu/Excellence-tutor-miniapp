@@ -990,12 +990,12 @@ function Closing() {
           </IntentLink>
           <p className="text-sm text-background/60">
             Already registered?{" "}
-            <Link
+            <IntentLink
               href="/login"
               className="font-medium text-background underline decoration-background/30 underline-offset-4 transition-colors hover:decoration-background"
             >
               Sign in
-            </Link>
+            </IntentLink>
           </p>
         </div>
       </div>

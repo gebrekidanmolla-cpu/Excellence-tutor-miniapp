@@ -22,6 +22,27 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
       },
+
+      /*
+       * Every page links these, and Next serves them with `max-age=0`, so a
+       * browser asked for them again on each page view. That made the
+       * manifest the second most-requested path, and each ask is a CDN
+       * request against Hobby's monthly allowance. The icon links carry a
+       * content hash (`/icon.svg?icon.<hash>.svg`), so a changed icon is a
+       * new URL anyway. The manifest's URL has no hash, so it gets a day.
+       */
+      {
+        source: "/:file(favicon\\.ico|icon\\.svg|apple-icon\\.png)",
+        headers: [{ key: "Cache-Control", value: "public, max-age=604800" }],
+      },
+      {
+        source: "/icons/:file*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=604800" }],
+      },
+      {
+        source: "/manifest.webmanifest",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400" }],
+      },
     ];
   },
 

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { KeyRound, LockKeyhole, ShieldCheck, TimerOff, UserCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AuthHeading, AuthLayout } from "@/components/layout/AuthLayout";
 import { findTutorByResetToken } from "@/lib/password-reset";
 import { ResetPasswordForm } from "@/app/reset-password/ResetPasswordForm";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 export const metadata: Metadata = {
   title: "Choose a new password",
@@ -70,7 +70,7 @@ export default async function ResetPasswordPage({
             <Button
               size="xl"
               className="w-full"
-              render={<Link href="/forgot-password" />}
+              render={<IntentLink href="/forgot-password" />}
             >
               Request a new link
             </Button>
@@ -78,7 +78,7 @@ export default async function ResetPasswordPage({
               variant="outline"
               size="xl"
               className="w-full"
-              render={<Link href="/login" />}
+              render={<IntentLink href="/login" />}
             >
               Back to sign in
             </Button>

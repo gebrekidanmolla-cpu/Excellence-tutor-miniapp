@@ -197,7 +197,7 @@ export function JobApplyView({
 
                   <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
                     <Button
-                      render={<Link href={`/login?next=${returnTo}`} />}
+                      render={<IntentLink href={`/login?next=${returnTo}`} />}
                       size="xl"
                     >
                       Log in

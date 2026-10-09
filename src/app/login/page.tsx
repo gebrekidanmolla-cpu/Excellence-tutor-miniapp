@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -21,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FormError } from "@/components/shared/ErrorState";
 import { AuthHeading, AuthLayout } from "@/components/layout/AuthLayout";
 import { nextPathFromLocation, safeNextPath } from "@/lib/safe-redirect";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 const HIGHLIGHTS = [
   { icon: BriefcaseBusiness, text: "Browse tutoring jobs near you" },
@@ -60,12 +60,12 @@ export default function LoginPage() {
 
 function RegisterLink({ href }: { href: string }) {
   return (
-    <Link
+    <IntentLink
       href={href}
       className="font-medium text-primary underline-offset-4 hover:underline"
     >
       Create one
-    </Link>
+    </IntentLink>
   );
 }
 
@@ -174,7 +174,7 @@ function LoginForm() {
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="password">Password</Label>
 
-            <Link
+            <IntentLink
               href={
                 email.trim()
                   ? `/forgot-password?email=${encodeURIComponent(email.trim())}`
@@ -183,7 +183,7 @@ function LoginForm() {
               className="rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               Forgot password?
-            </Link>
+            </IntentLink>
           </div>
 
           <div className="relative">

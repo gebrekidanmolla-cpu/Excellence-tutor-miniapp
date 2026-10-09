@@ -1,12 +1,13 @@
 import { revalidatePath } from "next/cache";
 
 /**
- * Two cached pages show a job: the landing page lists open jobs, and
+ * Three cached responses show a job: the landing page lists open jobs,
  * `/apply/<jobCode>` is served to signed-out visitors from a cached copy
- * (`src/app/apply/[jobCode]/guest`). Both stay cached until a job changes —
- * their `revalidate` values are only backstops. Every route that commits a
- * write to a job — create, edit, delete, status, reopen, assign — calls this
- * afterwards, so both update on the next visit.
+ * (`src/app/apply/[jobCode]/guest`), and `/api/jobs` feeds the `/jobs` list.
+ * All stay cached until a job changes — their `revalidate` values are only
+ * backstops. Every route that commits a write to a job — create, edit,
+ * delete, status, reopen, assign — calls this afterwards, so all three
+ * update on the next visit.
  *
  * The guest page is revalidated by its rewrite destination, not the
  * `/apply/<jobCode>` URL visitors see: that is where the cache entry lives.
@@ -16,4 +17,5 @@ import { revalidatePath } from "next/cache";
 export function refreshPublicJobPages(jobCode: string) {
   revalidatePath("/");
   revalidatePath(`/apply/${jobCode}/guest`);
+  revalidatePath("/api/jobs");
 }
