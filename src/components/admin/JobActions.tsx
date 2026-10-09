@@ -25,6 +25,10 @@ interface JobActionsProps {
 /**
  * Two actions: close, and re-open.
  *
+ * Close is only offered while nobody is assigned (an assigned job is already
+ * closed), so closing always marks the job failed and rejects its
+ * applicants — see `PATCH .../status`.
+ *
  * Re-opening never goes through `PATCH .../status`. That only flips `status`
  * and leaves `assignedTutorId` set — the job would take new applications that
  * could never be assigned, because both the assign route and the application
@@ -52,9 +56,7 @@ export default function JobActions({
   async function close() {
     setError("");
 
-    await closeJob(jobId);
-
-    toast.success("Job closed.");
+    toast.success(await closeJob(jobId));
 
     router.refresh();
   }
@@ -149,7 +151,9 @@ export default function JobActions({
               </Button>
             }
             title="Close this job?"
-            description="The job will stop accepting new applications. Existing applications are not changed."
+            description={
+              <CloseJobDescription applicationCount={applicationCount} />
+            }
             confirmLabel="Close job"
             variant="destructive"
             onConfirm={close}
@@ -201,8 +205,11 @@ export default function JobActions({
 // The jobs list offers the same close / re-open on each row, so the requests
 // and the re-open explanation live here once rather than in two copies.
 
-/** Throws with the API's message, so `ConfirmDialog` can show it in place. */
-export async function closeJob(jobId: string) {
+/**
+ * Resolves to the API's confirmation message. Throws with the API's message,
+ * so `ConfirmDialog` can show it in place.
+ */
+export async function closeJob(jobId: string): Promise<string> {
   const response = await fetch(`/api/admin/jobs/${jobId}/status`, {
     method: "PATCH",
     headers: {
@@ -215,9 +222,11 @@ export async function closeJob(jobId: string) {
 
   const result = await response.json();
 
-  if (!response.ok) {
+  if (!response.ok || !result.success) {
     throw new Error(result.message || "Failed to update job status.");
   }
+
+  return result.message;
 }
 
 /** Resolves to the API's confirmation message. */
@@ -233,6 +242,37 @@ export async function reopenJob(jobId: string): Promise<string> {
   }
 
   return result.message;
+}
+
+/** Closing is only offered with no tutor assigned, so it always fails the job. */
+export function CloseJobDescription({
+  applicationCount,
+}: {
+  applicationCount: number;
+}) {
+  return (
+    <>
+      No tutor is assigned, so the job will be marked as{" "}
+      <strong>failed</strong>. It stops accepting applications
+      {applicationCount > 0 ? (
+        <>
+          , and{" "}
+          <strong>
+            {applicationCount === 1
+              ? "its 1 applicant is"
+              : `all ${applicationCount} applicants are`}{" "}
+            rejected
+          </strong>
+          . They are not emailed.
+        </>
+      ) : (
+        "."
+      )}
+      <p className="mt-3">
+        Re-opening the job later puts every applicant back to pending.
+      </p>
+    </>
+  );
 }
 
 export function ReopenJobDescription({

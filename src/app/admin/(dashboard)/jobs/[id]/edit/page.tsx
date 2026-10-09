@@ -49,7 +49,6 @@ export default async function EditJobPage({ params }: EditJobPageProps) {
           daysPerWeek: job.daysPerWeek,
           hoursPerDay: job.hoursPerDay,
           additionalDetails: job.additionalDetails,
-          status: job.status,
         }}
       />
     </div>

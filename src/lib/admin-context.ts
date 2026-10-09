@@ -22,6 +22,10 @@ export type AdminCounts = {
   /** Open jobs with at least one pending application. */
   openJobsWithNew: number;
   openJobsWithoutApplicants: number;
+  /** Closed with a tutor assigned — see `getJobOutcome`. */
+  successfulJobs: number;
+  /** Closed with no tutor assigned. */
+  failedJobs: number;
   tutors: number;
   /** Registered in the last 7 days. */
   tutorsThisWeek: number;
@@ -85,7 +89,13 @@ export const getAdminContext = cache(async () => {
           WHERE j."status" = 'OPEN' AND NOT EXISTS (
             SELECT 1 FROM "public"."Application" x WHERE x."jobId" = j."id"
           )
-        )::int AS "openJobsWithoutApplicants"
+        )::int AS "openJobsWithoutApplicants",
+        count(*) FILTER (
+          WHERE j."status" = 'CLOSED' AND j."assignedTutorId" IS NOT NULL
+        )::int AS "successfulJobs",
+        count(*) FILTER (
+          WHERE j."status" = 'CLOSED' AND j."assignedTutorId" IS NULL
+        )::int AS "failedJobs"
       FROM "public"."Job" j
     ) job
     CROSS JOIN (

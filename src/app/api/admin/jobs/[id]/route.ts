@@ -30,11 +30,6 @@ const allowedGenders = [
   "ANY",
 ] as const;
 
-const allowedStatuses = [
-  "OPEN",
-  "CLOSED",
-] as const;
-
 export async function GET(
   request: Request,
   { params }: RouteContext
@@ -127,8 +122,13 @@ export async function PATCH(
       daysPerWeek,
       hoursPerDay,
       additionalDetails,
-      status,
     } = body;
+
+    // No `status` here: closing and re-opening each have their own
+    // route, because each changes the job's applications too. Closing
+    // without a tutor rejects the pool (`.../status`); re-opening puts
+    // it back to pending and clears any assignment (`.../reopen`).
+    // A flip from this form would skip both.
 
     const existingJob =
       await prisma.job.findUnique({
@@ -249,38 +249,6 @@ export async function PATCH(
       );
     }
 
-    if (
-      !allowedStatuses.includes(
-        status
-      )
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Invalid job status.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // The edit form carries `status` too, so it is a second
-    // route into the half-reopened state. Same guard as
-    // `.../status`: clearing an assignment is `.../reopen`.
-    if (
-      status === "OPEN" &&
-      existingJob.assignedTutorId
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "This job still has an assigned tutor. Use Re-open job to clear the assignment and start a new application round.",
-        },
-        { status: 409 }
-      );
-    }
-
     const parsedSalary =
       Number(salary);
 
@@ -376,7 +344,6 @@ export async function PATCH(
           hoursPerDay: parsedHoursPerDay,
           additionalDetails:
             normalizedAdditionalDetails || null,
-          status,
         },
       });
 

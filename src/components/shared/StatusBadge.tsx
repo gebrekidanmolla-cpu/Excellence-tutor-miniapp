@@ -1,6 +1,11 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { getStatusLabel, type Status } from "@/lib/format";
+import {
+  getJobOutcome,
+  getStatusLabel,
+  type JobStatus,
+  type Status,
+} from "@/lib/format";
 
 /**
  * The single source of truth for application and job status.
@@ -76,4 +81,47 @@ export function StatusBadge({
       {label ?? getStatusLabel(status)}
     </Badge>
   );
+}
+
+/**
+ * A job's status for admins: a closed job shows how it ended — Successful
+ * or Failed (see `getJobOutcome`) — instead of a bare "Closed". The tones
+ * borrow the application statuses that mean the same thing.
+ */
+export function JobStatusBadge({
+  status,
+  hasAssignedTutor,
+  size,
+  className,
+}: {
+  status: JobStatus;
+  hasAssignedTutor: boolean;
+  size?: "default" | "lg";
+  className?: string;
+}) {
+  const outcome = getJobOutcome(status, hasAssignedTutor);
+
+  if (outcome === "SUCCESSFUL") {
+    return (
+      <StatusBadge
+        status="ACCEPTED"
+        label="Successful"
+        size={size}
+        className={className}
+      />
+    );
+  }
+
+  if (outcome === "FAILED") {
+    return (
+      <StatusBadge
+        status="REJECTED"
+        label="Failed"
+        size={size}
+        className={className}
+      />
+    );
+  }
+
+  return <StatusBadge status={status} size={size} className={className} />;
 }

@@ -28,7 +28,6 @@ interface EditJobFormProps {
     daysPerWeek: number;
     hoursPerDay: number;
     additionalDetails: string | null;
-    status: "OPEN" | "CLOSED";
   };
 }
 
@@ -36,11 +35,6 @@ const GENDER_OPTIONS = [
   { value: "FEMALE", label: "Female tutor" },
   { value: "MALE", label: "Male tutor" },
   { value: "ANY", label: "Any tutor" },
-];
-
-const STATUS_OPTIONS = [
-  { value: "OPEN", label: "Open" },
-  { value: "CLOSED", label: "Closed" },
 ];
 
 export default function EditJobForm({ job }: EditJobFormProps) {
@@ -58,7 +52,6 @@ export default function EditJobForm({ job }: EditJobFormProps) {
   const [additionalDetails, setAdditionalDetails] = useState(
     job.additionalDetails ?? ""
   );
-  const [status, setStatus] = useState<string>(job.status);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -86,7 +79,6 @@ export default function EditJobForm({ job }: EditJobFormProps) {
           daysPerWeek,
           hoursPerDay,
           additionalDetails,
-          status,
         }),
       });
 
@@ -123,15 +115,6 @@ export default function EditJobForm({ job }: EditJobFormProps) {
             options={GENDER_OPTIONS}
             value={gender}
             onValueChange={setGender}
-          />
-
-          <SelectField
-            id="status"
-            label="Status"
-            required
-            options={STATUS_OPTIONS}
-            value={status}
-            onValueChange={setStatus}
           />
 
           <TextField

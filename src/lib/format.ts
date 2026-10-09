@@ -15,6 +15,29 @@ export type ApplicationStatus =
 export type JobStatus = "OPEN" | "CLOSED";
 
 /**
+ * How a closed job ended: `SUCCESSFUL` when it closed with a tutor
+ * assigned, `FAILED` when it closed without one. Derived, never stored —
+ * the assign transaction is the only way a job closes with a tutor, and
+ * closing without one rejects its applicants (`PATCH .../status`). An open
+ * job has no outcome yet. Admin-only: tutors and the channel see "Closed".
+ *
+ * Deleting a tutor unassigns them and leaves the job closed, so a job they
+ * had filled reads as failed from then on.
+ */
+export type JobOutcome = "SUCCESSFUL" | "FAILED";
+
+export function getJobOutcome(
+  status: JobStatus,
+  hasAssignedTutor: boolean
+): JobOutcome | null {
+  if (status !== "CLOSED") {
+    return null;
+  }
+
+  return hasAssignedTutor ? "SUCCESSFUL" : "FAILED";
+}
+
+/**
  * Whether a job's Telegram channel post is live. `PENDING` is shared
  * with `ApplicationStatus` and reads correctly for both: the post has
  * not gone out yet.

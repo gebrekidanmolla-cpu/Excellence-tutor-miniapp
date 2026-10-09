@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BriefcaseBusiness, Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { JobStatusBadge, StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
@@ -26,13 +26,14 @@ import {
   plural,
 } from "@/lib/admin-list";
 import type { JobRow } from "@/lib/admin-rows";
-import { formatDate, formatSalary } from "@/lib/format";
+import { formatDate, formatSalary, getJobOutcome } from "@/lib/format";
 import { useListFilters } from "@/lib/use-list-filters";
 import { cn } from "@/lib/utils";
 
 /** Each filter's values; the first is the default and stays out of the URL. */
 const FILTERS = {
   status: ["all", "open", "closed"],
+  outcome: ["any", "successful", "failed"],
   assigned: ["any", "no", "yes"],
   applicants: ["any", "new", "none"],
   date: DATE_RANGES,
@@ -172,6 +173,9 @@ export default function JobsList({
       ({ job, index }) =>
         matchesSearch(index, deferredQuery) &&
         isWithinRange(job.createdAt, filters.date, loadedAt) &&
+        (filters.outcome === "any" ||
+          getJobOutcome(job.status, Boolean(job.assignedTutor)) ===
+            filters.outcome.toUpperCase()) &&
         (filters.assigned === "any" ||
           (filters.assigned === "yes") === Boolean(job.assignedTutor)) &&
         (filters.applicants === "any" ||
@@ -205,6 +209,18 @@ export default function JobsList({
   };
 
   const groups: FilterGroup[] = [
+    {
+      /* How a closed job ended; an open job has no outcome, so either
+         choice leaves only closed jobs. */
+      id: "outcome",
+      label: "Outcome",
+      value: filters.outcome,
+      options: [
+        { value: "any", label: "Any" },
+        { value: "successful", label: "Successful" },
+        { value: "failed", label: "Failed" },
+      ],
+    },
     {
       id: "assigned",
       label: "Tutor",
@@ -335,7 +351,10 @@ export default function JobsList({
       header: "Status",
       cell: (job) => (
         <div className="flex flex-col items-start gap-1">
-          <StatusBadge status={job.status} />
+          <JobStatusBadge
+            status={job.status}
+            hasAssignedTutor={Boolean(job.assignedTutor)}
+          />
           <SyncWarnings job={job} />
         </div>
       ),
@@ -399,7 +418,10 @@ export default function JobsList({
               {/* Capped so two failure badges stack instead of squeezing
                   the summary beside them into a one-word column. */}
               <div className="flex max-w-[45%] shrink-0 flex-col items-end gap-1">
-                <StatusBadge status={job.status} />
+                <JobStatusBadge
+                  status={job.status}
+                  hasAssignedTutor={Boolean(job.assignedTutor)}
+                />
                 <SyncWarnings job={job} className="justify-end" />
               </div>
             </div>
