@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import { ThemeSync } from "@/components/layout/ThemeSync";
 import { Toaster } from "@/components/ui/sonner";
 import {
   OPEN_GRAPH_DEFAULTS,
@@ -9,6 +10,7 @@ import {
   SITE_NAME,
   SITE_URL,
 } from "@/lib/site";
+import { SCHEME_QUERIES, THEME_COLORS, THEME_INIT_SCRIPT } from "@/lib/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -66,13 +68,26 @@ export const metadata: Metadata = {
   },
 };
 
+/*
+ * The browser chrome follows the OS theme by default. A theme picked by hand
+ * re-points the two tags' `media` (`THEME_INIT_SCRIPT`, then `applyTheme`).
+ */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#ffffff",
+  colorScheme: "light dark",
+  themeColor: [
+    { media: SCHEME_QUERIES.light, color: THEME_COLORS.light },
+    { media: SCHEME_QUERIES.dark, color: THEME_COLORS.dark },
+  ],
 };
 
+/*
+ * The theme is applied by a blocking inline script rather than by reading a
+ * cookie here, which would make every page dynamic. The script adds the
+ * `dark` class before React hydrates, hence `suppressHydrationWarning`.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -81,9 +96,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col">
+        <ThemeSync />
         {children}
 
         <Toaster position="top-center" richColors closeButton />
