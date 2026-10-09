@@ -9,6 +9,7 @@ import {
   Pencil,
   Phone,
   Send,
+  Upload,
   UserRound,
   X,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import DeleteTutorButton from "@/components/admin/DeleteTutorButton";
 import TutorShareLink from "@/components/admin/TutorShareLink";
+import { adminDocumentHref } from "@/lib/admin-documents";
 import {
   getProfileShareLinkBase,
   isProfileShareExpired,
@@ -95,6 +97,10 @@ export default async function TutorDetailsPage({ params }: PageProps) {
   }
 
   const isStudent = tutor.tutorStatus === "STUDENT";
+
+  const photoHref = tutor.profilePhotoUrl
+    ? adminDocumentHref(tutor.id, "profilePhoto", tutor.profilePhotoUrl)
+    : null;
 
   const linkBase = await getProfileShareLinkBase();
 
@@ -268,16 +274,16 @@ export default async function TutorDetailsPage({ params }: PageProps) {
         <div className="flex items-center justify-between gap-4">
           <h2 className="font-heading font-medium">Account information</h2>
 
-          {tutor.profilePhotoUrl ? (
+          {photoHref ? (
             <a
-              href={`/api/admin/tutors/${tutor.id}/documents/profilePhoto`}
+              href={photoHref}
               target="_blank"
               rel="noopener noreferrer"
               className="shrink-0 rounded-full focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- a 302 to a presigned R2 URL */}
               <img
-                src={`/api/admin/tutors/${tutor.id}/documents/profilePhoto`}
+                src={photoHref}
                 alt={`Profile photo of ${tutor.fullName}`}
                 className="size-14 rounded-full object-cover ring-1 ring-foreground/10"
               />
@@ -423,11 +429,29 @@ export default async function TutorDetailsPage({ params }: PageProps) {
           DOCUMENTS
       ----------------------------------------------------- */}
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
-        <h2 className="font-heading font-medium">Documents</h2>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-heading font-medium">Documents</h2>
 
-        <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
-          Each link opens through a short-lived signed URL.
-        </p>
+            <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
+              Each link opens through a short-lived signed URL.
+            </p>
+          </div>
+
+          <Button
+            render={
+              <Link
+                href={`/admin/tutors/${tutor.id}/edit#documents`}
+                prefetch={false}
+              />
+            }
+            variant="outline"
+            size="lg"
+          >
+            <Upload data-icon="inline-start" aria-hidden="true" />
+            Manage documents
+          </Button>
+        </div>
 
         <ul className="mt-5 space-y-3">
           <DocumentRow

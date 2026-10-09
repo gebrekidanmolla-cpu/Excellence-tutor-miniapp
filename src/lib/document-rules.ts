@@ -61,6 +61,32 @@ export function documentRules(kind: DocumentKind) {
       };
 }
 
+/**
+ * The browser's mirror of the server's checks in `prepareDocument`, so an
+ * obvious mistake fails before uploading. It trusts `file.type`; the server
+ * re-judges the type from the file's bytes. Empty string when acceptable.
+ */
+export function pickedFileProblem(
+  file: { size: number; type: string },
+  kind: DocumentKind
+): string {
+  const { maxSize, allowedTypes, typeLabel } = documentRules(kind);
+
+  if (file.size <= 0) {
+    return "The selected file is empty.";
+  }
+
+  if (!allowedTypes.includes(file.type)) {
+    return `Please choose ${typeLabel}.`;
+  }
+
+  if (file.size > maxSize) {
+    return `File must be ${formatMegabytes(maxSize, 0)} or smaller.`;
+  }
+
+  return "";
+}
+
 export function formatMegabytes(bytes: number, digits = 1): string {
   return `${(bytes / (1024 * 1024)).toFixed(digits)} MB`;
 }
