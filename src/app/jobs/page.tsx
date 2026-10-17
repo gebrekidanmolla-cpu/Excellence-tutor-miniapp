@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowUpRight,
+  ArrowRight,
   BriefcaseBusiness,
-  CalendarDays,
-  GraduationCap,
+  Clock,
   LayoutDashboard,
   Lock,
   MapPin,
@@ -35,28 +34,63 @@ type Job = {
   subject: string;
   place: string;
   salary: number;
+  daysPerWeek: number;
+  hoursPerDay: number;
   status: "OPEN" | "CLOSED";
   additionalDetails: string | null;
   createdAt: string;
 };
 
-type Filter = "ALL" | "OPEN" | "CLOSED";
+type Filter = "OPEN" | "CLOSED";
 
 const FILTERS: { value: Filter; label: string }[] = [
-  { value: "ALL", label: "All" },
   { value: "OPEN", label: "Open" },
   { value: "CLOSED", label: "Closed" },
 ];
 
-/** `ANY` reads as "Male/Female" here rather than the raw enum. */
+/* =========================================================
+   WORDING — the admin form takes these as free text, and
+   the common values ("All", "8", "4 & 6") don't explain
+   themselves on a card.
+========================================================= */
+
+/** "All" (the most common value) means every subject. */
+function formatSubject(subject: string): string {
+  return subject.trim().replace(/^all\b(?!\s+subjects?\b)/i, "All subjects");
+}
+
+/** "8" or "4 & 6" become "Grade 8" / "Grades 4 & 6"; "Kg 3", "Adult level" stay as typed. */
+function formatGrade(grade: string): string {
+  const value = grade.trim();
+
+  if (!/^\d/.test(value)) {
+    return value;
+  }
+
+  return `${/[&,]/.test(value) ? "Grades" : "Grade"} ${value}`;
+}
+
+/** "3 days a week · 2 hours a day". */
+function formatSchedule(job: Job): string | null {
+  if (!job.daysPerWeek || !job.hoursPerDay) {
+    return null;
+  }
+
+  const hours = Number(job.hoursPerDay.toFixed(2));
+
+  return `${job.daysPerWeek} ${job.daysPerWeek === 1 ? "day" : "days"} a week · ${hours} ${
+    hours === 1 ? "hour" : "hours"
+  } a day`;
+}
+
 function formatTutorRequirement(gender: Job["gender"]): string {
   switch (gender) {
     case "MALE":
-      return "Male";
+      return "Male tutor only";
     case "FEMALE":
-      return "Female";
+      return "Female tutor only";
     default:
-      return "Male/Female";
+      return "Male or female tutor";
   }
 }
 
@@ -65,7 +99,9 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("ALL");
+
+  /* Open first: those are the jobs a tutor can act on. */
+  const [filter, setFilter] = useState<Filter>("OPEN");
 
   /* Bumping this re-runs the effect; the retry button drives it. */
   const [reloadKey, setReloadKey] = useState(0);
@@ -122,7 +158,9 @@ export default function JobsPage() {
     setReloadKey((key) => key + 1);
   }
 
-  /* Search narrows first, so each tab's count reflects the current search. */
+  /* Search narrows first, so each tab's count reflects the current search.
+     It matches what the card shows ("All subjects", "Grade 8") as well as
+     what was typed into the admin form. */
   const searchedJobs = useMemo(() => {
     const term = query.trim().toLowerCase();
 
@@ -131,7 +169,12 @@ export default function JobsPage() {
     }
 
     return jobs.filter((job) =>
-      [job.jobCode, job.subject, job.grade, job.place]
+      [
+        job.jobCode,
+        formatSubject(job.subject),
+        formatGrade(job.grade),
+        job.place,
+      ]
         .join(" ")
         .toLowerCase()
         .includes(term)
@@ -140,55 +183,43 @@ export default function JobsPage() {
 
   const counts = useMemo(
     () => ({
-      ALL: searchedJobs.length,
       OPEN: searchedJobs.filter((job) => job.status === "OPEN").length,
       CLOSED: searchedJobs.filter((job) => job.status === "CLOSED").length,
     }),
     [searchedJobs]
   );
 
-  /* Under "All", open jobs lead: they are the ones a tutor can act on. The
-     sort is stable, so each group keeps the API's newest-first order. */
-  const visibleJobs = useMemo(() => {
-    if (filter !== "ALL") {
-      return searchedJobs.filter((job) => job.status === filter);
-    }
+  /* The API's newest-first order is kept within each tab. */
+  const visibleJobs = useMemo(
+    () => searchedJobs.filter((job) => job.status === filter),
+    [searchedJobs, filter]
+  );
 
-    return [...searchedJobs].sort(
-      (a, b) => Number(b.status === "OPEN") - Number(a.status === "OPEN")
-    );
-  }, [searchedJobs, filter]);
-
+  const otherFilter: Filter = filter === "OPEN" ? "CLOSED" : "OPEN";
   const openTotal = jobs.filter((job) => job.status === "OPEN").length;
   const hasJobs = !loading && !error && jobs.length > 0;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Jobs"
+        title="Available jobs"
         description={
           loading ? (
-            "Loading opportunities…"
+            "Loading jobs…"
           ) : error ? (
-            "Browse tutoring opportunities from Excellence Tutor."
+            "Tutoring jobs from Excellence Tutor."
           ) : (
             <span className="inline-flex items-center gap-2">
               <span
                 aria-hidden="true"
-                className="relative flex size-2 shrink-0"
-              >
-                {openTotal > 0 ? (
-                  <span className="absolute inset-0 animate-ping rounded-full bg-success/60 motion-reduce:hidden" />
-                ) : null}
-                <span
-                  className={cn(
-                    "relative size-2 rounded-full",
-                    openTotal > 0 ? "bg-success" : "bg-muted-foreground/50"
-                  )}
-                />
-              </span>
-              {openTotal} {openTotal === 1 ? "job is" : "jobs are"} accepting
-              applications · {jobs.length} total
+                className={cn(
+                  "size-2 shrink-0 rounded-full",
+                  openTotal > 0 ? "bg-success" : "bg-muted-foreground/50"
+                )}
+              />
+              {openTotal === 0
+                ? "No jobs are open right now"
+                : `${openTotal} ${openTotal === 1 ? "job is" : "jobs are"} open for applications`}
             </span>
           )
         }
@@ -198,14 +229,14 @@ export default function JobsPage() {
         <div className="flex flex-col gap-3 rounded-2xl bg-card p-2 ring-1 ring-foreground/10 sm:flex-row sm:items-center sm:justify-between">
           <Tabs
             value={filter}
-            onValueChange={(value) => setFilter((value as Filter) ?? "ALL")}
+            onValueChange={(value) => setFilter((value as Filter) ?? "OPEN")}
           >
             <TabsList className="h-10! w-full sm:w-fit">
               {FILTERS.map((option) => (
                 <TabsTrigger
                   key={option.value}
                   value={option.value}
-                  className="px-3 sm:px-4"
+                  className="px-3 sm:px-5"
                 >
                   {option.label}
                   <span className="rounded-full bg-foreground/5 px-1.5 text-xs text-muted-foreground tabular-nums">
@@ -216,7 +247,8 @@ export default function JobsPage() {
             </TabsList>
           </Tabs>
 
-          <div className="relative w-full sm:max-w-xs">
+          {/* Wide enough on desktop for the whole placeholder. */}
+          <div className="relative w-full sm:max-w-sm">
             <Search
               className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
@@ -251,7 +283,7 @@ export default function JobsPage() {
           <Skeleton className="h-14 rounded-2xl" />
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-64 rounded-2xl" />
+              <Skeleton key={index} className="h-72 rounded-2xl" />
             ))}
           </div>
         </div>
@@ -274,7 +306,7 @@ export default function JobsPage() {
         <EmptyState
           icon={<BriefcaseBusiness />}
           title="No jobs yet"
-          description="There are no tutoring opportunities posted yet. Please check again later."
+          description="There are no tutoring jobs posted yet. Please check again later."
           action={
             <Button render={<Link href="/tutor" prefetch={false} />} size="lg">
               <LayoutDashboard data-icon="inline-start" aria-hidden="true" />
@@ -288,32 +320,46 @@ export default function JobsPage() {
         query.trim() ? (
           <EmptyState
             icon={<Search />}
-            title="No matching jobs"
-            description={`Nothing ${
-              filter === "ALL" ? "" : `${filter.toLowerCase()} `
-            }matches “${query}”. Try a different subject, grade or place.`}
+            title={`No ${filter.toLowerCase()} jobs match`}
+            description={
+              counts[otherFilter] > 0
+                ? `Nothing ${filter.toLowerCase()} matches “${query}”, but ${counts[otherFilter]} ${otherFilter.toLowerCase()} ${
+                    counts[otherFilter] === 1 ? "job does" : "jobs do"
+                  }.`
+                : `Nothing matches “${query}”. Try a different subject, grade or place.`
+            }
             action={
-              <Button variant="outline" size="lg" onClick={() => setQuery("")}>
-                Clear search
+              counts[otherFilter] > 0 ? (
+                <Button variant="outline" size="lg" onClick={() => setFilter(otherFilter)}>
+                  Show {otherFilter.toLowerCase()} jobs
+                </Button>
+              ) : (
+                <Button variant="outline" size="lg" onClick={() => setQuery("")}>
+                  Clear search
+                </Button>
+              )
+            }
+          />
+        ) : filter === "OPEN" ? (
+          <EmptyState
+            icon={<BriefcaseBusiness />}
+            title="No open jobs right now"
+            description="Nothing is accepting applications at the moment. New jobs are posted regularly, so check back soon."
+            action={
+              <Button render={<Link href="/tutor" prefetch={false} />} variant="outline" size="lg">
+                <LayoutDashboard data-icon="inline-start" aria-hidden="true" />
+                Back to dashboard
               </Button>
             }
           />
         ) : (
           <EmptyState
             icon={<BriefcaseBusiness />}
-            title={filter === "OPEN" ? "No open positions" : "No closed jobs"}
-            description={
-              filter === "OPEN"
-                ? "Nothing is accepting applications right now. New jobs are posted regularly — check back soon."
-                : "Every job listed is still accepting applications."
-            }
+            title="No closed jobs"
+            description="Every job listed is still accepting applications."
             action={
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => setFilter("ALL")}
-              >
-                Show all jobs
+              <Button variant="outline" size="lg" onClick={() => setFilter("OPEN")}>
+                Show open jobs
               </Button>
             }
           />
@@ -333,73 +379,92 @@ export default function JobsPage() {
   );
 }
 
+/**
+ * One job, laid out in the order a tutor decides on it: what they would
+ * teach, what it pays, where, when and for whom, anything extra the family
+ * asked for, and last the reference details. Open is the default tab, so
+ * only a closed job carries a status badge.
+ */
 function JobCard({ job }: { job: Job }) {
   const isOpen = job.status === "OPEN";
+  const schedule = formatSchedule(job);
 
   return (
     <article
       className={cn(
-        "group relative flex w-full flex-col rounded-2xl bg-card p-5 ring-1 ring-foreground/10 transition-all has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50",
+        "group relative flex w-full flex-col rounded-2xl p-5 ring-1 ring-foreground/10 transition-all has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50",
         isOpen
-          ? "hover:-translate-y-0.5 hover:shadow-xl hover:shadow-glow/5 hover:ring-primary/25 motion-reduce:hover:translate-y-0"
+          ? "bg-card hover:-translate-y-0.5 hover:shadow-xl hover:shadow-glow/5 hover:ring-primary/25 motion-reduce:hover:translate-y-0"
           : "bg-muted/30"
       )}
     >
-      {/* Status accent along the top edge, readable at a glance from across
-          the grid; the pill below carries the same state in words. */}
-      <span
-        aria-hidden="true"
-        className={cn(
-          "absolute inset-x-5 top-0 h-1 rounded-b-full",
-          isOpen ? "bg-success" : "bg-muted-foreground/40"
-        )}
-      />
-
+      {/* What they would teach */}
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-mono text-xs tracking-wide text-muted-foreground">
-            {job.jobCode}
-          </p>
-
-          <h2
-            className={cn(
-              "mt-1 line-clamp-2 font-heading text-lg leading-snug font-semibold text-balance",
-              !isOpen && "text-foreground/70"
-            )}
+        <h2
+          className={cn(
+            "line-clamp-2 font-heading text-lg leading-snug font-semibold text-balance",
+            !isOpen && "text-foreground/70"
+          )}
+        >
+          {/* Stretched link: the whole card is the click target, while the
+              accessible name stays the subject rather than the card text. */}
+          <Link
+            href={`/apply/${job.jobCode}`}
+            prefetch={false}
+            className="outline-none after:absolute after:inset-0 after:rounded-2xl"
           >
-            {/* Stretched link: the whole card is the click target, while the
-                accessible name stays the subject rather than the card text. */}
-            <Link
-              href={`/apply/${job.jobCode}`} prefetch={false}
-              className="outline-none after:absolute after:inset-0 after:rounded-2xl"
-            >
-              {job.subject}
-            </Link>
-          </h2>
-        </div>
+            {formatSubject(job.subject)}
+          </Link>
+        </h2>
 
-        <JobStatusPill isOpen={isOpen} />
+        {!isOpen ? (
+          <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-foreground/10 px-2.5 text-xs font-medium text-foreground/70">
+            <Lock className="size-3" aria-hidden="true" />
+            Closed
+          </span>
+        ) : null}
       </div>
 
-      <ul className="mt-4 flex flex-wrap gap-1.5 text-xs">
-        <Chip icon={<GraduationCap />} label="Grade">
-          {job.grade}
-        </Chip>
-        <Chip icon={<MapPin />} label="Place">
-          {job.place}
-        </Chip>
-        <Chip icon={<Users />} label="Gender">
-          {formatTutorRequirement(job.gender)}
-        </Chip>
-      </ul>
+      <p className="mt-0.5 text-sm font-medium text-muted-foreground">
+        {formatGrade(job.grade)}
+      </p>
 
-      {job.additionalDetails ? (
+      {/* What it pays */}
+      <p className="mt-4 flex flex-wrap items-baseline gap-x-1.5">
+        <span
+          className={cn(
+            "font-heading text-2xl font-semibold tabular-nums",
+            isOpen ? "text-primary" : "text-foreground/60"
+          )}
+        >
+          {formatSalary(job.salary)}
+        </span>
+        <span className="text-sm text-muted-foreground">per month</span>
+      </p>
+
+      {/* Where, when and for whom */}
+      <dl className="mt-4 space-y-2 text-sm">
+        {job.place.trim() ? (
+          <Fact icon={<MapPin />} label="Place">
+            {job.place}
+          </Fact>
+        ) : null}
+        {schedule ? (
+          <Fact icon={<Clock />} label="Schedule">
+            {schedule}
+          </Fact>
+        ) : null}
+        <Fact icon={<Users />} label="Tutor">
+          {formatTutorRequirement(job.gender)}
+        </Fact>
+      </dl>
+
+      {/* Anything extra the family asked for */}
+      {job.additionalDetails?.trim() ? (
         <div
           className={cn(
-            "mt-4 flex items-start gap-2 rounded-xl p-3 ring-1",
-            isOpen
-              ? "bg-highlight/10 ring-highlight/25"
-              : "bg-muted ring-transparent"
+            "mt-4 flex items-start gap-2 rounded-lg px-3 py-2",
+            isOpen ? "bg-highlight/10" : "bg-muted"
           )}
         >
           <Megaphone
@@ -409,37 +474,28 @@ function JobCard({ job }: { job: Job }) {
             )}
             aria-hidden="true"
           />
-
           <p
             className={cn(
-              "line-clamp-3 min-w-0 flex-1 text-sm font-medium text-pretty wrap-break-word",
+              "line-clamp-2 min-w-0 flex-1 text-sm whitespace-pre-line wrap-break-word",
               isOpen ? "text-foreground" : "text-muted-foreground"
             )}
           >
-            {job.additionalDetails}
+            {job.additionalDetails.trim()}
           </p>
         </div>
       ) : null}
 
-      {/* Pushes the footer down so salaries line up across a row of cards. */}
+      {/* Pushes the footer down so it lines up across a row of cards. */}
       <div aria-hidden="true" className="min-h-4 flex-1" />
 
-      <div className="flex items-end justify-between gap-3 border-t border-dashed pt-4">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">Monthly salary</p>
-          <p
-            className={cn(
-              "font-heading text-xl font-semibold tabular-nums",
-              isOpen ? "text-primary" : "text-foreground/60"
-            )}
-          >
-            {formatSalary(job.salary)}
-          </p>
-          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-            <CalendarDays className="size-3.5" aria-hidden="true" />
-            Posted {formatDate(job.createdAt)}
-          </p>
-        </div>
+      {/* Reference details */}
+      <div className="flex items-center justify-between gap-3 border-t pt-4">
+        <p className="min-w-0 truncate text-xs text-muted-foreground">
+          <span className="font-mono">{job.jobCode}</span>
+          <span aria-hidden="true"> · </span>
+          <span className="sr-only">, </span>
+          Posted {formatDate(job.createdAt)}
+        </p>
 
         <span
           aria-hidden="true"
@@ -451,45 +507,15 @@ function JobCard({ job }: { job: Job }) {
           )}
         >
           {isOpen ? "Apply" : "View"}
-          <ArrowUpRight
-            className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none"
-          />
+          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" />
         </span>
       </div>
     </article>
   );
 }
 
-/**
- * Solid rather than tinted, unlike the shared `StatusBadge`: on this page the
- * state decides whether a tutor can act, so it has to win against the card.
- * It uses the strong green, on which `success-foreground` clears AA in both
- * themes (the plain `--success` is too light for white text).
- */
-function JobStatusPill({ isOpen }: { isOpen: boolean }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold tracking-wide uppercase",
-        isOpen
-          ? "bg-success-strong text-success-foreground shadow-sm shadow-success/30"
-          : "bg-foreground/10 text-foreground/70"
-      )}
-    >
-      {isOpen ? (
-        <span aria-hidden="true" className="relative flex size-2">
-          <span className="absolute inset-0 animate-ping rounded-full bg-success-foreground/70 motion-reduce:hidden" />
-          <span className="relative size-2 rounded-full bg-success-foreground" />
-        </span>
-      ) : (
-        <Lock className="size-3" aria-hidden="true" />
-      )}
-      {isOpen ? "Open" : "Closed"}
-    </span>
-  );
-}
-
-function Chip({
+/** A label/value row: the icon carries the label visually, the `dt` for screen readers. */
+function Fact({
   icon,
   label,
   children,
@@ -499,12 +525,12 @@ function Chip({
   children: React.ReactNode;
 }) {
   return (
-    <li className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 [&>svg]:size-3.5 [&>svg]:shrink-0 [&>svg]:text-muted-foreground">
-      {icon}
-      <span className="truncate">
-        <span className="text-muted-foreground">{label}:</span>{" "}
-        <span className="font-semibold text-foreground/90">{children}</span>
-      </span>
-    </li>
+    <div className="flex items-start gap-2.5">
+      <dt className="flex h-5 shrink-0 items-center text-muted-foreground [&>svg]:size-4">
+        {icon}
+        <span className="sr-only">{label}</span>
+      </dt>
+      <dd className="min-w-0 wrap-break-word">{children}</dd>
+    </div>
   );
 }
