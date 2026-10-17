@@ -187,6 +187,109 @@ export function isTelegramConfigured(): boolean {
   return readConfig() !== null;
 }
 
+interface ChatInfo {
+  id: string;
+  username: string | null;
+}
+
+const NUMERIC_CHAT_ID = /^-?\d+$/;
+
+/**
+ * `getChat` results by chat reference (`@username` or numeric id),
+ * looked up once per server process. A failed lookup is forgotten, so
+ * a transient outage isn't remembered until the next deploy.
+ */
+const chatLookups = new Map<string, Promise<ChatInfo>>();
+
+function lookupChat(chatRef: string): Promise<ChatInfo> {
+  const cached = chatLookups.get(chatRef);
+
+  if (cached) {
+    return cached;
+  }
+
+  const lookup = callTelegram<{ id: number; username?: string }>(
+    "getChat",
+    { chat_id: chatRef },
+    { attempts: 1 }
+  ).then((chat) => ({
+    id: String(chat.id),
+    username: chat.username ?? null,
+  }));
+
+  chatLookups.set(chatRef, lookup);
+
+  lookup.catch(() => {
+    chatLookups.delete(chatRef);
+  });
+
+  return lookup;
+}
+
+async function resolveChatId(chatRef: string): Promise<string> {
+  return NUMERIC_CHAT_ID.test(chatRef)
+    ? chatRef
+    : (await lookupChat(chatRef)).id;
+}
+
+/** Usernames are case-insensitive; numeric ids compare exactly. */
+function isSameChatRef(a: string, b: string): boolean {
+  return (
+    a === b ||
+    (a.startsWith("@") &&
+      b.startsWith("@") &&
+      a.toLowerCase() === b.toLowerCase())
+  );
+}
+
+/**
+ * Whether a post recorded as sent to `postChatId` lives in the channel
+ * `TELEGRAM_CHANNEL_ID` names now — `null` when Telegram couldn't be
+ * asked. Never throws.
+ *
+ * A message id is only a number within one chat. In any other channel
+ * the same number is some unrelated post, and the Bot API has no way to
+ * read a post before editing or deleting it. So an edit or delete is
+ * only safe once this says `true`; otherwise a job's sync overwrites
+ * whichever old post happens to carry its number.
+ */
+export async function isInConfiguredChannel(
+  postChatId: string | null
+): Promise<boolean | null> {
+  const configured = process.env.TELEGRAM_CHANNEL_ID?.trim();
+
+  if (!configured || !postChatId) {
+    return false;
+  }
+
+  if (isSameChatRef(postChatId, configured)) {
+    return true;
+  }
+
+  // The same channel can be written as `@username` or `-100…`, so two
+  // different strings only mean two channels once both are resolved.
+  let configuredId: string;
+
+  try {
+    configuredId = await resolveChatId(configured);
+  } catch {
+    return null;
+  }
+
+  try {
+    return (await resolveChatId(postChatId)) === configuredId;
+  } catch (cause) {
+    // The bot can see the configured channel but not this one — a
+    // channel it was removed from, or a username that no longer
+    // exists — so it is a different chat.
+    if (cause instanceof TelegramApiError && !cause.retryable) {
+      return false;
+    }
+
+    return null;
+  }
+}
+
 /**
  * A public channel has a `t.me` permalink; a private one does not.
  *
@@ -194,12 +297,8 @@ export function isTelegramConfigured(): boolean {
  * the question by itself — or a numeric `-100…` id, which does not.
  * A numeric id is the more robust thing to configure (it survives a
  * rename), so rather than making people choose between robustness and
- * a working link, the username is looked up once per server process
- * and cached. A failed lookup is not cached, so a transient outage
- * doesn't disable the link until the next deploy.
+ * a working link, the username is looked up through `lookupChat`.
  */
-let channelUsername: Promise<string | null> | null = null;
-
 async function resolveChannelUsername(): Promise<string | null> {
   const chatId = process.env.TELEGRAM_CHANNEL_ID?.trim();
 
@@ -211,30 +310,28 @@ async function resolveChannelUsername(): Promise<string | null> {
     return chatId.slice(1);
   }
 
-  if (!channelUsername) {
-    channelUsername = callTelegram<{ username?: string }>(
-      "getChat",
-      {},
-      { attempts: 1 }
-    )
-      .then((chat) => chat.username ?? null)
-      .catch(() => {
-        channelUsername = null;
-
-        return null;
-      });
-  }
-
-  return channelUsername;
+  return lookupChat(chatId)
+    .then((chat) => chat.username)
+    .catch(() => null);
 }
 
-/** The public `t.me` permalink for a post, or `null` if there isn't one. */
+/**
+ * The public `t.me` permalink for a post, or `null` if there isn't one
+ * — including when the post was sent to a different channel than the
+ * configured one, where the same message id is someone else's post.
+ */
 export async function buildChannelMessageUrl(
-  messageId: number
+  messageId: number,
+  postChatId: string | null
 ): Promise<string | null> {
-  const username = await resolveChannelUsername();
+  const [username, inChannel] = await Promise.all([
+    resolveChannelUsername(),
+    isInConfiguredChannel(postChatId),
+  ]);
 
-  return username ? `https://t.me/${username}/${messageId}` : null;
+  return username && inChannel
+    ? `https://t.me/${username}/${messageId}`
+    : null;
 }
 
 // ==========================================
@@ -372,13 +469,10 @@ export async function sendChannelMessage(
   },
   options?: TelegramCallOptions
 ): Promise<SentMessage> {
-  const config = readConfig();
-
-  if (!config) {
-    throw new TelegramNotConfiguredError();
-  }
-
-  const result = await callTelegram<{ message_id: number }>(
+  const result = await callTelegram<{
+    message_id: number;
+    chat: { id: number };
+  }>(
     "sendMessage",
     {
       text: input.text,
@@ -392,8 +486,11 @@ export async function sendChannelMessage(
     options
   );
 
+  // The numeric id Telegram answers with, not `TELEGRAM_CHANNEL_ID` as
+  // written: it is what `isInConfiguredChannel` checks later, and it
+  // stays the same however the variable spells the channel.
   return {
-    chatId: config.chatId,
+    chatId: String(result.chat.id),
     messageId: result.message_id,
   };
 }
