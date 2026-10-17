@@ -39,8 +39,11 @@ const MIN_DETAILS_BUDGET = 40;
 const CLOSING_LINE =
   "📖We need highly committed, punctual and talented tutor";
 
-const OPEN_HEADER = "🚨OPEN";
+const OPEN_HEADER = "🟢 OPEN";
 const CLOSED_HEADER = "Closed 🔐🔐🔐";
+
+/** Starts the optional additional-details line. */
+const DETAILS_PREFIX = "🚨 ";
 
 export interface JobForChannelPost {
   jobCode: string;
@@ -245,10 +248,11 @@ export function renderJobChannelPost(
     const budget =
       TELEGRAM_TEXT_LIMIT -
       [...head, ...tail].join("\n").length -
+      DETAILS_PREFIX.length -
       SAFETY_MARGIN;
 
     if (budget >= MIN_DETAILS_BUDGET) {
-      head.push(`➡️${fit(details, budget)}`, "");
+      head.push(`${DETAILS_PREFIX}${fit(details, budget)}`, "");
     }
   }
 
