@@ -64,6 +64,20 @@ const nextConfig: NextConfig = {
         destination: `${apex.origin}/:path*`,
         permanent: true,
       },
+
+      /*
+       * `/legal` is signed-in-only, and every public page's footer links to
+       * it. Without a session cookie there is nothing to check, so the visit
+       * goes to sign in here, in the routing layer, rather than costing a
+       * function invocation. The page still checks the session itself, for
+       * a cookie that is present but no longer valid.
+       */
+      {
+        source: "/legal",
+        missing: [{ type: "cookie", key: TUTOR_SESSION_COOKIE }],
+        destination: "/login?next=/legal",
+        permanent: false,
+      },
     ];
   },
 
@@ -85,12 +99,14 @@ const nextConfig: NextConfig = {
   },
 
   /*
-   * The assignment email attaches this PDF, read from disk at send time —
-   * a path the file tracer can't follow on its own, so without this entry
-   * the file is left out of the deployed function.
+   * PDFs read from disk at request time — paths the file tracer can't
+   * follow on its own, so without these entries the files are left out of
+   * the deployed functions: the assignment email's attendance sheet, and
+   * the original certificates `/legal` links to.
    */
   outputFileTracingIncludes: {
     "/api/admin/applications/*/assign": ["src/assets/attendance-sheet.pdf"],
+    "/api/legal/*": ["src/assets/legal/*.pdf"],
   },
   images: {
     /*

@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ShieldCheck } from "lucide-react";
 
 import { Wordmark } from "@/components/layout/Wordmark";
 import { IntentLink } from "@/components/shared/IntentLink";
 
 /**
- * Links only to routes that actually exist; the app has no legal pages or
- * social accounts. The Telegram link appears only when
- * `NEXT_PUBLIC_TELEGRAM_CHANNEL_URL` is set.
+ * Links only to routes that actually exist; the app has no social accounts.
+ * The Telegram link appears only when `NEXT_PUBLIC_TELEGRAM_CHANNEL_URL` is
+ * set. "License & legality" (`/legal`) is signed-in-only, so a visitor
+ * without a session is sent to sign in first and lands on it afterwards.
  */
 const COLUMNS = [
   {
@@ -96,9 +97,20 @@ export function PublicFooter() {
           </nav>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-foreground/15 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-foreground/15 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Excellence Tutor. All rights reserved.</p>
-          <p>Home tutoring across Ethiopia.</p>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            {/* A dynamic, signed-in route: never prefetched (see CLAUDE.md). */}
+            <Link
+              href="/legal"
+              prefetch={false}
+              className="tap-target inline-flex items-center gap-1.5 font-medium text-foreground/80 transition-colors hover:text-foreground"
+            >
+              <ShieldCheck aria-hidden="true" className="size-3.5" />
+              License &amp; legality
+            </Link>
+            <p>Home tutoring across Ethiopia.</p>
+          </div>
         </div>
       </div>
     </footer>
