@@ -96,14 +96,15 @@ export default function ApplicationForm({ jobCode }: ApplicationFormProps) {
           />
 
           <span className="text-sm leading-relaxed text-pretty">
-            I have read the important note above and agree to its terms,
-            including the one-time 45% commission and the refund conditions.
+            I have read the information above and agree to these terms,
+            including the one-time commission of up to 45% of one month&rsquo;s
+            salary and the refund policy.
           </span>
         </label>
 
         {needsConfirmation ? (
           <p id="apply-confirmation-error" className="text-sm text-destructive">
-            Please confirm that you have read and agree to the note above.
+            Please confirm that you have read and agree to the terms above.
           </p>
         ) : null}
       </div>
