@@ -27,6 +27,8 @@ export async function GET() {
       subject: true,
       place: true,
       salary: true,
+      daysPerWeek: true,
+      hoursPerDay: true,
       status: true,
       additionalDetails: true,
       createdAt: true,
