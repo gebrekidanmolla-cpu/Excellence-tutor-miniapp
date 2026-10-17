@@ -1,14 +1,12 @@
 "use client";
 
+import { Lightbulb } from "lucide-react";
 import { Controller, useWatch, type UseFormReturn } from "react-hook-form";
 
-import { Separator } from "@/components/ui/separator";
-import {
-  FileUploadField,
-  SectionHeading,
-  SelectField,
-  TextField,
-} from "@/components/shared/FormFields";
+import { TextField } from "@/components/shared/FormFields";
+import { ChoiceGroup } from "@/app/register/components/ChoiceGroup";
+import { DocumentUpload } from "@/app/register/components/DocumentUpload";
+import { FormSection } from "@/app/register/components/FormSection";
 import {
   CV_ACCEPT,
   DOCUMENT_ACCEPT,
@@ -17,6 +15,12 @@ import {
   type FileState,
   type RegisterValues,
 } from "@/app/register/schema";
+import {
+  CV_MAX_SIZE,
+  DOCUMENT_MAX_SIZE,
+} from "@/lib/document-rules";
+
+const PHOTO_HINT = "JPG, PNG or WEBP. Large photos are shrunk automatically.";
 
 export function DocumentsStep({
   form,
@@ -34,111 +38,131 @@ export function DocumentsStep({
   const { register, control, formState } = form;
   const errors = formState.errors;
 
-  const isGraduate =
-    useWatch({ control, name: "tutorStatus" }) === "GRADUATE";
+  const tutorStatus = useWatch({ control, name: "tutorStatus" });
+  const entranceScore = useWatch({ control, name: "entranceScore" });
+  const entranceTotal = useWatch({ control, name: "entranceTotal" });
+  const isGraduate = tutorStatus === "GRADUATE";
+
+  const score = Number(entranceScore);
+  const total = Number(entranceTotal);
+  const percentage =
+    entranceScore?.trim() && Number.isInteger(score) && score >= 0 && score <= total
+      ? ((score / total) * 100).toFixed(1)
+      : null;
+
+  const upload = (
+    field: FileField,
+    props: {
+      label: string;
+      description?: string;
+      required?: boolean;
+      accept?: string;
+      hint?: string;
+    }
+  ) => (
+    <DocumentUpload
+      id={field}
+      label={props.label}
+      description={props.description}
+      required={props.required}
+      accept={props.accept ?? DOCUMENT_ACCEPT}
+      hint={props.hint ?? PHOTO_HINT}
+      maxSize={field === "cv" ? CV_MAX_SIZE : DOCUMENT_MAX_SIZE}
+      file={files[field]}
+      error={fileErrors[field]}
+      busy={filesBusy[field]}
+      onChange={(file) => onFileChange(field, file)}
+    />
+  );
 
   return (
-    <div className="space-y-6">
-      <SectionHeading
-        title="Entrance result & documents"
-        description="Enter your entrance result and upload the required documents."
-      />
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <TextField
-          id="entranceScore"
-          label="Score"
-          required
-          type="number"
-          min="0"
-          placeholder="e.g. 520"
-          error={errors.entranceScore?.message}
-          {...register("entranceScore")}
-        />
-
-        <Controller
-          control={control}
-          name="entranceTotal"
-          render={({ field }) => (
-            <SelectField
-              id="entranceTotal"
-              label="Out of"
-              required
-              options={ENTRANCE_TOTAL_OPTIONS}
-              value={field.value ?? ""}
-              onValueChange={field.onChange}
-              error={errors.entranceTotal?.message}
-            />
-          )}
-        />
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <h3 className="font-heading text-base font-medium">Documents</h3>
-
-        <FileUploadField
-          id="transcript"
-          label="Transcript"
-          required
-          accept={DOCUMENT_ACCEPT}
-          hint="JPG, JPEG, PNG or WEBP — large photos are shrunk automatically"
-          file={files.transcript}
-          error={fileErrors.transcript}
-          busy={filesBusy.transcript}
-          onChange={(file) => onFileChange("transcript", file)}
-        />
-
-        <FileUploadField
-          id="entranceResult"
-          label="Entrance Result"
-          required
-          accept={DOCUMENT_ACCEPT}
-          hint="JPG, JPEG, PNG or WEBP — large photos are shrunk automatically"
-          file={files.entranceResult}
-          error={fileErrors.entranceResult}
-          busy={filesBusy.entranceResult}
-          onChange={(file) => onFileChange("entranceResult", file)}
-        />
-
-        <FileUploadField
-          id="governmentId"
-          label="Government ID"
-          required
-          accept={DOCUMENT_ACCEPT}
-          hint="JPG, JPEG, PNG or WEBP — large photos are shrunk automatically"
-          file={files.governmentId}
-          error={fileErrors.governmentId}
-          busy={filesBusy.governmentId}
-          onChange={(file) => onFileChange("governmentId", file)}
-        />
-
-        {isGraduate ? (
-          <FileUploadField
-            id="graduationDocument"
-            label="Graduation Document"
+    <div className="space-y-10">
+      <FormSection
+        title="National entrance exam"
+        description="Your university entrance exam result."
+      >
+        <div className="grid items-start gap-5 sm:grid-cols-2">
+          <TextField
+            id="entranceScore"
+            label="Your score"
             required
-            accept={DOCUMENT_ACCEPT}
-            hint="Temporary or Original — JPG, JPEG, PNG or WEBP — shrunk automatically"
-            file={files.graduationDocument}
-            error={fileErrors.graduationDocument}
-            busy={filesBusy.graduationDocument}
-            onChange={(file) => onFileChange("graduationDocument", file)}
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="e.g. 520"
+            hint={percentage ? `That's ${percentage}%.` : undefined}
+            error={errors.entranceScore?.message}
+            {...register("entranceScore")}
           />
-        ) : null}
 
-        <FileUploadField
-          id="cv"
-          label="CV / Resume"
-          accept={CV_ACCEPT}
-          hint="Optional — JPG, JPEG, PNG, WEBP or PDF — PDF max 5MB"
-          file={files.cv}
-          error={fileErrors.cv}
-          busy={filesBusy.cv}
-          onChange={(file) => onFileChange("cv", file)}
-        />
-      </div>
+          <Controller
+            control={control}
+            name="entranceTotal"
+            render={({ field }) => (
+              <ChoiceGroup
+                name="entranceTotal"
+                legend="Out of"
+                required
+                options={ENTRANCE_TOTAL_OPTIONS}
+                value={field.value ?? ""}
+                inputRef={field.ref}
+                onChange={field.onChange}
+                error={errors.entranceTotal?.message}
+              />
+            )}
+          />
+        </div>
+      </FormSection>
+
+      <FormSection
+        title="Documents"
+        description="Clear phone photos are fine."
+      >
+        <div className="flex gap-3 rounded-xl bg-highlight/10 p-4 text-sm">
+          <Lightbulb
+            className="mt-0.5 size-4 shrink-0 text-highlight-strong"
+            aria-hidden="true"
+          />
+          <p className="text-pretty text-foreground">
+            Take each photo in good light, with all four corners in frame and
+            the text sharp enough to read.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {upload("governmentId", {
+            label: "Government ID",
+            description: "A clear photo of a government-issued ID.",
+            required: true,
+          })}
+
+          {upload("transcript", {
+            label: "Transcript",
+            description: "Your most recent academic transcript.",
+            required: true,
+          })}
+
+          {upload("entranceResult", {
+            label: "Entrance exam result",
+            description: "The result slip showing the score above.",
+            required: true,
+          })}
+
+          {isGraduate
+            ? upload("graduationDocument", {
+                label: "Graduation document",
+                description: "Temporary or original degree certificate.",
+                required: true,
+              })
+            : null}
+
+          {upload("cv", {
+            label: "CV / Resume",
+            description: "A photo or a PDF.",
+            accept: CV_ACCEPT,
+            hint: "JPG, PNG, WEBP or PDF.",
+          })}
+        </div>
+      </FormSection>
     </div>
   );
 }

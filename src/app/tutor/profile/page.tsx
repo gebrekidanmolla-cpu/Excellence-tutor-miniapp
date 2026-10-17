@@ -1,37 +1,46 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   BadgeCheck,
   Building2,
   Check,
+  ExternalLink,
   FileText,
   GraduationCap,
   Mail,
-  MapPin,
+  PenLine,
   Phone,
-  UserRound,
   X,
 } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentTutor } from "@/lib/session";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
+import { AddressInfo } from "@/components/shared/AddressInfo";
 import { formatDate, formatEnum } from "@/lib/format";
+import { profileStrength } from "@/lib/profile-strength";
+import { tutorFileHref, type TutorFileKind } from "@/lib/tutor-files";
 import { cn } from "@/lib/utils";
+import { ProfileStrengthCard } from "./components/ProfileStrengthCard";
+import { ProfilePhotoEditor } from "./components/ProfilePhotoEditor";
+import { CvRow } from "./components/CvRow";
 
 export const metadata = {
   title: "My profile",
 };
 
 /**
- * Read-only by design.
+ * The tutor's own profile. The photo and CV are managed right here; a short
+ * list of text fields (phone, address, "About me", year / employment) is
+ * edited on `/tutor/profile/edit`. Everything the documents vouch for stays
+ * read-only — see `src/lib/tutor-profile-edit.ts`.
  *
- * Documents show only whether they were submitted, with no link: the single
- * document route is `GET /api/admin/tutors/[id]/documents/[document]`, which
- * is admin-gated. A tutor-facing equivalent would be a new API route, which is
- * outside the scope of this redesign.
+ * Documents open through `/api/tutor/files/[kind]`, which checks the tutor's
+ * own session.
  */
 export default async function TutorProfilePage() {
   const tutor = await getCurrentTutor();
@@ -47,28 +56,41 @@ export default async function TutorProfilePage() {
   });
 
   const isStudent = tutor.tutorStatus === "STUDENT";
+  const strength = profileStrength(tutor);
+
+  const initials = tutor.fullName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((name) => name[0])
+    .join("")
+    .toUpperCase();
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title="My profile"
         description="The information Excellence Tutor holds for your tutor account."
+        actions={
+          <Button render={<Link href="/tutor/profile/edit" prefetch={false} />} size="lg">
+            <PenLine data-icon="inline-start" aria-hidden="true" />
+            Edit profile
+          </Button>
+        }
       />
+
+      <ProfileStrengthCard strength={strength} />
 
       {/* -----------------------------------------------------
           IDENTITY
       ----------------------------------------------------- */}
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <span
-            aria-hidden="true"
-            className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
-          >
-            <UserRound className="size-7" />
-          </span>
-
+        <ProfilePhotoEditor
+          photoUrl={tutorFileHref("photo", tutor.profilePhotoUrl)}
+          initials={initials}
+        >
           <div className="min-w-0">
-            <h2 className="font-heading text-xl font-semibold tracking-tight">
+            <h2 className="font-heading text-xl font-semibold tracking-tight break-words">
               {tutor.fullName}
             </h2>
 
@@ -80,7 +102,7 @@ export default async function TutorProfilePage() {
               {extra?.emailVerified ? (
                 <Badge
                   variant="outline"
-                  className="gap-1 border-transparent bg-success/10 text-[color-mix(in_oklch,var(--success),var(--foreground)_35%)]"
+                  className="gap-1 border-transparent bg-success/10 text-success-strong"
                 >
                   <BadgeCheck className="size-3" aria-hidden="true" />
                   Email verified
@@ -88,17 +110,13 @@ export default async function TutorProfilePage() {
               ) : null}
             </div>
           </div>
-        </div>
+        </ProfilePhotoEditor>
 
         <Separator className="my-5" />
 
         <InfoGrid>
           <InfoItem label="Email" value={tutor.email} icon={<Mail />} />
-          <InfoItem
-            label="Phone"
-            value={tutor.phone}
-            icon={<Phone />}
-          />
+          <InfoItem label="Phone" value={tutor.phone} icon={<Phone />} />
           <InfoItem label="Gender" value={formatEnum(tutor.gender)} />
           <InfoItem
             label="Member since"
@@ -108,23 +126,39 @@ export default async function TutorProfilePage() {
       </section>
 
       {/* -----------------------------------------------------
-          LOCATION
+          LOCATION + ABOUT
       ----------------------------------------------------- */}
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
         <h2 className="font-heading font-medium">Location</h2>
 
-        <InfoGrid className="mt-5" columns={3}>
-          <InfoItem label="City" value={tutor.city} icon={<MapPin />} />
-          <InfoItem label="Subcity" value={tutor.subcity} />
-          <InfoItem label="Exact place" value={tutor.exactPlace} />
-        </InfoGrid>
+        <div className="mt-5">
+          <AddressInfo tutor={tutor} />
+        </div>
+
+        <Separator className="my-5" />
 
         {tutor.aboutMe ? (
-          <>
-            <Separator className="my-5" />
-            <InfoItem label="About me" value={tutor.aboutMe} />
-          </>
-        ) : null}
+          <InfoItem label="About me" value={tutor.aboutMe} />
+        ) : (
+          <Link
+            href="/tutor/profile/edit#about" prefetch={false}
+            className="group flex items-center gap-3 rounded-lg border border-dashed p-4 transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            <span
+              aria-hidden="true"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+            >
+              <PenLine className="size-4" />
+            </span>
+            <span className="min-w-0 text-sm">
+              <span className="block font-medium">Introduce yourself</span>
+              <span className="block text-muted-foreground text-pretty">
+                A few sentences about your subjects and teaching style. It is
+                the first thing families read.
+              </span>
+            </span>
+          </Link>
+        )}
       </section>
 
       {/* -----------------------------------------------------
@@ -194,31 +228,42 @@ export default async function TutorProfilePage() {
       {/* -----------------------------------------------------
           DOCUMENTS
       ----------------------------------------------------- */}
-      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+      <section
+        id="documents"
+        className="scroll-mt-24 rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6"
+      >
         <h2 className="font-heading font-medium">Documents</h2>
 
         <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
-          These were submitted when you registered. Contact the Excellence
-          Tutor team if something needs to change.
+          Your CV is yours to add or replace. The other documents were
+          checked when you registered — contact the Excellence Tutor team if
+          one of them needs to change.
         </p>
 
         <ul className="mt-5 space-y-3">
-          <DocumentRow label="Transcript" submitted={tutor.transcriptUrl} />
+          <DocumentRow
+            label="Transcript"
+            kind="transcript"
+            storedKey={tutor.transcriptUrl}
+          />
           <DocumentRow
             label="Entrance result"
-            submitted={tutor.entranceResultUrl}
+            kind="entranceResult"
+            storedKey={tutor.entranceResultUrl}
           />
           <DocumentRow
             label="Government ID"
-            submitted={extra?.governmentIdUrl}
+            kind="governmentId"
+            storedKey={extra?.governmentIdUrl}
           />
           {!isStudent ? (
             <DocumentRow
               label="Graduation document"
-              submitted={tutor.graduationDocumentUrl}
+              kind="graduationDocument"
+              storedKey={tutor.graduationDocumentUrl}
             />
           ) : null}
-          <DocumentRow label="CV / Resume" submitted={tutor.cvUrl} optional />
+          <CvRow href={tutorFileHref("cv", tutor.cvUrl)} />
         </ul>
       </section>
     </div>
@@ -227,14 +272,14 @@ export default async function TutorProfilePage() {
 
 function DocumentRow({
   label,
-  submitted,
-  optional,
+  kind,
+  storedKey,
 }: {
   label: string;
-  submitted?: string | null;
-  optional?: boolean;
+  kind: TutorFileKind;
+  storedKey?: string | null;
 }) {
-  const present = Boolean(submitted);
+  const href = tutorFileHref(kind, storedKey);
 
   return (
     <li className="flex items-center gap-3 rounded-lg border p-3">
@@ -242,29 +287,40 @@ function DocumentRow({
         aria-hidden="true"
         className={cn(
           "flex size-9 shrink-0 items-center justify-center rounded-lg [&>svg]:size-4",
-          present
-            ? "bg-success/10 text-success"
-            : "bg-muted text-muted-foreground"
+          href ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
         )}
       >
         <FileText />
       </span>
 
-      <span className="min-w-0 flex-1 text-sm font-medium">{label}</span>
-
-      <span className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
-        {present ? (
-          <>
-            <Check className="size-4 text-success" aria-hidden="true" />
-            Submitted
-          </>
-        ) : (
-          <>
-            <X className="size-4" aria-hidden="true" />
-            {optional ? "Not provided" : "Missing"}
-          </>
-        )}
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          {href ? (
+            <>
+              <Check className="size-3.5 text-success" aria-hidden="true" />
+              Submitted
+            </>
+          ) : (
+            <>
+              <X className="size-3.5" aria-hidden="true" />
+              Missing
+            </>
+          )}
+        </span>
       </span>
+
+      {href ? (
+        <Button
+          render={<a href={href} target="_blank" rel="noopener noreferrer" />}
+          variant="ghost"
+          size="sm"
+          className="shrink-0"
+        >
+          <ExternalLink data-icon="inline-start" aria-hidden="true" />
+          View
+        </Button>
+      ) : null}
     </li>
   );
 }

@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
+import { refreshPublicJobPages } from "@/lib/public-job-pages";
 import { sendJobReopenedEmail } from "@/lib/email";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
 import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
-
-/* Re-opening waits on the emails and a Telegram edit. */
-export const maxDuration = 30;
 
 interface RouteContext {
   params: Promise<{
@@ -264,6 +262,8 @@ export async function POST(
 
     // The post is re-rendered from the row, so re-opening removes the
     // CLOSED marker and brings the apply button back on its own.
+
+    refreshPublicJobPages(result.updatedJob.jobCode);
 
     const telegram =
       await safeSyncJobTelegramPost(

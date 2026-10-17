@@ -1,14 +1,19 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { getStatusLabel, type Status } from "@/lib/format";
+import {
+  getJobOutcome,
+  getStatusLabel,
+  type JobStatus,
+  type Status,
+} from "@/lib/format";
 
 /**
  * The single source of truth for application and job status.
  *
  * Status is carried by a dot *and* a label, never by color alone, so it stays
- * readable for color-blind users and in high-contrast mode. The label uses a
- * darkened mix of the tone so it clears AA against the tinted surface — the
- * raw `--success` / `--warning` tokens are too light for small text.
+ * readable for color-blind users and in high-contrast mode. The label uses
+ * the tone's `*-strong` shade, which clears AA against the tinted surface in
+ * both themes; the raw tones are too light for small text on white.
  */
 
 type Tone = "success" | "warning" | "info" | "destructive" | "neutral";
@@ -23,16 +28,14 @@ const STATUS_TONES: Record<Status, Tone> = {
   POSTED: "success",
   FAILED: "destructive",
   DISABLED: "neutral",
+  SYNCED: "success",
 };
 
 const TONE_SURFACE: Record<Tone, string> = {
-  success:
-    "bg-success/10 text-[color-mix(in_oklch,var(--success),var(--foreground)_35%)]",
-  warning:
-    "bg-warning/15 text-[color-mix(in_oklch,var(--warning),var(--foreground)_40%)]",
-  info: "bg-info/10 text-[color-mix(in_oklch,var(--info),var(--foreground)_35%)]",
-  destructive:
-    "bg-destructive/10 text-[color-mix(in_oklch,var(--destructive),var(--foreground)_30%)]",
+  success: "bg-success/10 text-success-strong",
+  warning: "bg-warning/15 text-warning-strong",
+  info: "bg-info/10 text-info-strong",
+  destructive: "bg-destructive/10 text-destructive-strong",
   neutral: "bg-muted text-muted-foreground",
 };
 
@@ -46,10 +49,13 @@ const TONE_DOT: Record<Tone, string> = {
 
 export function StatusBadge({
   status,
+  label,
   size = "default",
   className,
 }: {
   status: Status | string;
+  /** Overrides the shared label where the same status reads differently. */
+  label?: string;
   size?: "default" | "lg";
   className?: string;
 }) {
@@ -69,7 +75,50 @@ export function StatusBadge({
         aria-hidden="true"
         className={cn("size-1.5 shrink-0 rounded-full", TONE_DOT[tone])}
       />
-      {getStatusLabel(status)}
+      {label ?? getStatusLabel(status)}
     </Badge>
   );
+}
+
+/**
+ * A job's status for admins: a closed job shows how it ended — Successful
+ * or Failed (see `getJobOutcome`) — instead of a bare "Closed". The tones
+ * borrow the application statuses that mean the same thing.
+ */
+export function JobStatusBadge({
+  status,
+  hasAssignedTutor,
+  size,
+  className,
+}: {
+  status: JobStatus;
+  hasAssignedTutor: boolean;
+  size?: "default" | "lg";
+  className?: string;
+}) {
+  const outcome = getJobOutcome(status, hasAssignedTutor);
+
+  if (outcome === "SUCCESSFUL") {
+    return (
+      <StatusBadge
+        status="ACCEPTED"
+        label="Successful"
+        size={size}
+        className={className}
+      />
+    );
+  }
+
+  if (outcome === "FAILED") {
+    return (
+      <StatusBadge
+        status="REJECTED"
+        label="Failed"
+        size={size}
+        className={className}
+      />
+    );
+  }
+
+  return <StatusBadge status={status} size={size} className={className} />;
 }

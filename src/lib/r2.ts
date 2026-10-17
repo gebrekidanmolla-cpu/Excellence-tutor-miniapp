@@ -86,25 +86,30 @@ export async function putObject(
   );
 }
 
-export async function objectExists(key: string) {
+/**
+ * The stored `Content-Type`, or null when the object is missing. Keys
+ * carry no extension, so this is how a caller tells a PDF CV from an
+ * image one.
+ */
+export async function getObjectContentType(key: string) {
   const { client, bucket } = getR2();
 
   try {
-    await client.send(
+    const result = await client.send(
       new HeadObjectCommand({
         Bucket: bucket,
         Key: key,
       }),
     );
 
-    return true;
+    return result.ContentType ?? null;
   } catch (error) {
     if (
       error instanceof NotFound ||
       (error as { $metadata?: { httpStatusCode?: number } })
         .$metadata?.httpStatusCode === 404
     ) {
-      return false;
+      return null;
     }
 
     throw error;

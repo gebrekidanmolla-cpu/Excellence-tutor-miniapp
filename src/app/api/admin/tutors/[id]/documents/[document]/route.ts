@@ -1,17 +1,34 @@
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
 import { getSignedDownloadUrl } from "@/lib/r2";
+import {
+  DocumentError,
+  deleteDocuments,
+  prepareDocument,
+  storeDocument,
+} from "@/lib/upload-document";
+import {
+  TUTOR_DOCUMENT_SELECT,
+  isRequiredDocument,
+  isTutorDocumentKind,
+  tutorDocument,
+} from "@/lib/admin-documents";
 
-const ALLOWED_DOCUMENTS = {
-  transcript: "transcriptUrl",
-  entranceResult: "entranceResultUrl",
-  graduationDocument: "graduationDocumentUrl",
-  cv: "cvUrl",
-  governmentId: "governmentIdUrl",
-} as const;
-
-type DocumentType = keyof typeof ALLOWED_DOCUMENTS;
+/*
+ * One of a tutor's files, for an admin (kinds in `src/lib/admin-documents.ts`).
+ *
+ *   GET    — 302 to a 10-minute presigned URL.
+ *   POST   — upload or replace the file (multipart, field `file`).
+ *   DELETE — remove it, unless the tutor is required to have one.
+ *
+ * Uploads go through the same checks as registration (`prepareDocument`
+ * judges the type by the file's bytes). As in `/api/tutor/files/[kind]`, a
+ * replaced or removed object is deleted from R2 only after the row stops
+ * pointing at it, so a failure in between leaves an orphaned object at
+ * worst, never a row naming a missing one.
+ */
 
 type RouteContext = {
   params: Promise<{
@@ -19,6 +36,10 @@ type RouteContext = {
     document: string;
   }>;
 };
+
+function fail(message: string, status: number) {
+  return NextResponse.json({ success: false, message }, { status });
+}
 
 export async function GET(
   request: Request,
@@ -32,13 +53,7 @@ export async function GET(
     const admin = await getCurrentAdmin();
 
     if (!admin) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Unauthorized.",
-        },
-        { status: 401 }
-      );
+      return fail("Unauthorized.", 401);
     }
 
     // =====================================================
@@ -47,26 +62,11 @@ export async function GET(
 
     const { id, document } = await params;
 
-    if (
-      !Object.prototype.hasOwnProperty.call(
-        ALLOWED_DOCUMENTS,
-        document
-      )
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid document type.",
-        },
-        { status: 400 }
-      );
+    if (!isTutorDocumentKind(document)) {
+      return fail("Invalid document type.", 400);
     }
 
-    const documentType =
-      document as DocumentType;
-
-    const fieldName =
-      ALLOWED_DOCUMENTS[documentType];
+    const fieldName = tutorDocument(document).column;
 
     // =====================================================
     // FIND TUTOR
@@ -83,13 +83,7 @@ export async function GET(
     });
 
     if (!tutor) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tutor not found.",
-        },
-        { status: 404 }
-      );
+      return fail("Tutor not found.", 404);
     }
 
     const storagePath =
@@ -99,13 +93,7 @@ export async function GET(
       typeof storagePath !== "string" ||
       !storagePath
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Document not found.",
-        },
-        { status: 404 }
-      );
+      return fail("Document not found.", 404);
     }
 
     // =====================================================
@@ -126,14 +114,7 @@ export async function GET(
         error
       );
 
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Failed to access the document.",
-        },
-        { status: 500 }
-      );
+      return fail("Failed to access the document.", 500);
     }
 
     // =====================================================
@@ -149,13 +130,147 @@ export async function GET(
       error
     );
 
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          "Something went wrong while opening the document.",
-      },
-      { status: 500 }
+    return fail(
+      "Something went wrong while opening the document.",
+      500
     );
+  }
+}
+
+export async function POST(
+  request: Request,
+  { params }: RouteContext
+) {
+  const admin = await getCurrentAdmin();
+
+  if (!admin) {
+    return fail("Unauthorized.", 401);
+  }
+
+  const { id, document } = await params;
+
+  if (!isTutorDocumentKind(document)) {
+    return fail("Invalid document type.", 400);
+  }
+
+  const { column, label, rules } = tutorDocument(document);
+
+  let newKey: string | null = null;
+
+  try {
+    let formData: FormData;
+
+    try {
+      formData = await request.formData();
+    } catch {
+      return fail("Invalid upload request.", 400);
+    }
+
+    const entry = formData.get("file");
+
+    if (!(entry instanceof File) || entry.size === 0) {
+      return fail("Please choose a file to upload.", 400);
+    }
+
+    const existing = await prisma.tutor.findUnique({
+      where: { id },
+      select: TUTOR_DOCUMENT_SELECT,
+    });
+
+    if (!existing) {
+      return fail("Tutor not found.", 404);
+    }
+
+    const previousKey = existing[column];
+
+    const prepared = await prepareDocument(entry, rules, label);
+
+    newKey = `tutors/${id}/${document}-${randomUUID()}`;
+    await storeDocument(newKey, prepared);
+
+    await prisma.tutor.update({
+      where: { id },
+      data: { [column]: newKey },
+    });
+
+    newKey = null;
+
+    if (previousKey) {
+      await deleteDocuments([previousKey]);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `${label} saved.`,
+    });
+  } catch (error) {
+    if (newKey) {
+      await deleteDocuments([newKey]);
+    }
+
+    if (error instanceof DocumentError) {
+      return fail(error.message, 400);
+    }
+
+    console.error("Admin document upload error:", error);
+
+    return fail("Couldn't save the file. Please try again.", 500);
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: RouteContext
+) {
+  const admin = await getCurrentAdmin();
+
+  if (!admin) {
+    return fail("Unauthorized.", 401);
+  }
+
+  const { id, document } = await params;
+
+  if (!isTutorDocumentKind(document)) {
+    return fail("Invalid document type.", 400);
+  }
+
+  const { column, label } = tutorDocument(document);
+
+  try {
+    const existing = await prisma.tutor.findUnique({
+      where: { id },
+      select: { tutorStatus: true, ...TUTOR_DOCUMENT_SELECT },
+    });
+
+    if (!existing) {
+      return fail("Tutor not found.", 404);
+    }
+
+    if (isRequiredDocument(document, existing.tutorStatus)) {
+      return fail(
+        `${label} is required for this tutor, so it can be replaced but not removed.`,
+        400
+      );
+    }
+
+    const previousKey = existing[column];
+
+    if (previousKey) {
+      await prisma.tutor.update({
+        where: { id },
+        data: { [column]: null },
+      });
+
+      await deleteDocuments([previousKey]);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `${label} removed.`,
+    });
+  } catch (error) {
+    console.error("Admin document delete error:", error);
+
+    return fail("Couldn't remove the file. Please try again.", 500);
   }
 }

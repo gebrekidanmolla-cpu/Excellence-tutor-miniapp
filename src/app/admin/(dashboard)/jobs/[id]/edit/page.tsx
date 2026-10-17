@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-context";
 import EditJobForm from "@/components/admin/EditJobForm";
 import { PageHeader } from "@/components/shared/PageHeader";
 
@@ -11,6 +12,8 @@ interface EditJobPageProps {
 }
 
 export default async function EditJobPage({ params }: EditJobPageProps) {
+  await requireAdmin();
+
   const { id } = await params;
 
   const job = await prisma.job.findUnique({
@@ -43,7 +46,9 @@ export default async function EditJobPage({ params }: EditJobPageProps) {
           parentName: job.parentName,
           parentPhone: job.parentPhone,
           salary: job.salary,
-          status: job.status,
+          daysPerWeek: job.daysPerWeek,
+          hoursPerDay: job.hoursPerDay,
+          additionalDetails: job.additionalDetails,
         }}
       />
     </div>

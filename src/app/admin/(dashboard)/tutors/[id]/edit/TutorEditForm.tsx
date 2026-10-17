@@ -7,6 +7,10 @@ import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  AddAddressButton,
+  SecondAddressCard,
+} from "@/components/shared/SecondAddress";
 import { FormError } from "@/components/shared/ErrorState";
 import {
   SectionHeading,
@@ -14,6 +18,39 @@ import {
   TextAreaField,
   TextField,
 } from "@/components/shared/FormFields";
+import {
+  ADDRESS_FIELD_LABELS,
+  EMPTY_SECOND_ADDRESS,
+  type Address,
+} from "@/lib/address";
+
+const ADDRESS_KEYS = Object.keys(ADDRESS_FIELD_LABELS) as (keyof Address)[];
+
+function AddressFields({
+  idPrefix,
+  value,
+  onChange,
+}: {
+  idPrefix: string;
+  value: Address;
+  onChange: (field: keyof Address, value: string) => void;
+}) {
+  return (
+    <div className="grid gap-5 sm:grid-cols-2">
+      {ADDRESS_KEYS.map((key) => (
+        <TextField
+          key={key}
+          id={`${idPrefix}${key}`}
+          label={ADDRESS_FIELD_LABELS[key]}
+          required
+          className={key === "exactPlace" ? "sm:col-span-2" : undefined}
+          value={value[key]}
+          onChange={(event) => onChange(key, event.target.value)}
+        />
+      ))}
+    </div>
+  );
+}
 
 type TutorData = {
   id: string;
@@ -21,11 +58,11 @@ type TutorData = {
   gender: string;
   email: string;
   phone: string;
-  city: string;
-  subcity: string;
-  exactPlace: string;
+  address: Address;
+  secondAddress: Address | null;
   aboutMe: string;
   tutorStatus: "STUDENT" | "GRADUATE";
+  hasGraduationDocument: boolean;
 
   university: string;
   department: string;
@@ -46,6 +83,11 @@ type TutorData = {
 const GENDER_OPTIONS = [
   { value: "MALE", label: "Male" },
   { value: "FEMALE", label: "Female" },
+];
+
+const TUTOR_STATUS_OPTIONS = [
+  { value: "STUDENT", label: "Student" },
+  { value: "GRADUATE", label: "Graduate" },
 ];
 
 const CURRENT_YEAR_OPTIONS = [
@@ -76,10 +118,8 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
     gender: tutor.gender,
     email: tutor.email,
     phone: tutor.phone,
-    city: tutor.city,
-    subcity: tutor.subcity,
-    exactPlace: tutor.exactPlace,
     aboutMe: tutor.aboutMe,
+    tutorStatus: tutor.tutorStatus,
 
     university: tutor.university,
     department: tutor.department,
@@ -94,13 +134,33 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
 
     entranceScore: String(tutor.entranceScore),
     entranceTotal: String(tutor.entranceTotal),
-    entrancePercentage: String(tutor.entrancePercentage),
   });
+
+  // Derived, never typed: the route computes and stores the same value.
+  const entranceScoreNumber = Number(form.entranceScore);
+  const entrancePercentage =
+    form.entranceScore.trim() !== "" &&
+    Number.isInteger(entranceScoreNumber) &&
+    entranceScoreNumber >= 0 &&
+    entranceScoreNumber <= Number(form.entranceTotal)
+      ? ((entranceScoreNumber / Number(form.entranceTotal)) * 100).toFixed(2)
+      : "";
+
+  const [address, setAddress] = useState<Address>(tutor.address);
+  const [hasSecondAddress, setHasSecondAddress] = useState(
+    tutor.secondAddress !== null
+  );
+  const [secondAddress, setSecondAddress] = useState<Address>(
+    tutor.secondAddress ?? EMPTY_SECOND_ADDRESS
+  );
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const isStudent = tutor.tutorStatus === "STUDENT";
+  /* Switching type shows the other set of education fields. The hidden set
+     stays saved, since every page reads only the current type's fields, so
+     switching back restores it. */
+  const isStudent = form.tutorStatus === "STUDENT";
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({
@@ -129,10 +189,14 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
           email: form.email,
           phone: form.phone,
 
-          city: form.city,
-          subcity: form.subcity,
-          exactPlace: form.exactPlace,
+          ...address,
+          hasSecondAddress,
+          address2Country: secondAddress.country,
+          address2City: secondAddress.city,
+          address2Subcity: secondAddress.subcity,
+          address2ExactPlace: secondAddress.exactPlace,
           aboutMe: form.aboutMe,
+          tutorStatus: form.tutorStatus,
 
           university: form.university,
           department: form.department,
@@ -147,7 +211,6 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
 
           entranceScore: form.entranceScore,
           entranceTotal: form.entranceTotal,
-          entrancePercentage: form.entrancePercentage,
         }),
       });
 
@@ -229,34 +292,35 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
           description="Where the tutor is based."
         />
 
-        <div className="mt-5 grid gap-5 sm:grid-cols-2">
-          <TextField
-            id="city"
-            label="City"
-            required
-            value={form.city}
-            onChange={(event) => updateField("city", event.target.value)}
-          />
-
-          <TextField
-            id="subcity"
-            label="Subcity"
-            required
-            value={form.subcity}
-            onChange={(event) => updateField("subcity", event.target.value)}
-          />
-
-          <TextField
-            id="exactPlace"
-            label="Exact place"
-            required
-            className="sm:col-span-2"
-            value={form.exactPlace}
-            onChange={(event) =>
-              updateField("exactPlace", event.target.value)
+        <div className="mt-5">
+          <AddressFields
+            idPrefix=""
+            value={address}
+            onChange={(field, value) =>
+              setAddress((current) => ({ ...current, [field]: value }))
             }
           />
         </div>
+
+        {hasSecondAddress ? (
+          <SecondAddressCard
+            className="mt-5"
+            onRemove={() => setHasSecondAddress(false)}
+          >
+            <AddressFields
+              idPrefix="address2-"
+              value={secondAddress}
+              onChange={(field, value) =>
+                setSecondAddress((current) => ({ ...current, [field]: value }))
+              }
+            />
+          </SecondAddressCard>
+        ) : (
+          <AddAddressButton
+            className="mt-5"
+            onClick={() => setHasSecondAddress(true)}
+          />
+        )}
 
         <div className="mt-5">
           <TextAreaField
@@ -281,6 +345,21 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
         />
 
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <SelectField
+            id="tutorStatus"
+            label="Tutor type"
+            required
+            className="sm:col-span-2"
+            options={TUTOR_STATUS_OPTIONS}
+            value={form.tutorStatus}
+            onValueChange={(value) => updateField("tutorStatus", value)}
+            hint={
+              form.tutorStatus === "GRADUATE" && !tutor.hasGraduationDocument
+                ? "Graduate tutors also need a graduation document — upload it under Photo & documents."
+                : undefined
+            }
+          />
+
           {isStudent ? (
             <>
               <TextField
@@ -380,7 +459,7 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
         <SectionHeading
           title="Entrance examination"
-          description="The percentage is stored alongside the score."
+          description="The percentage is worked out from the score and total."
         />
 
         <div className="mt-5 grid gap-5 sm:grid-cols-3">
@@ -407,13 +486,10 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
             id="entrancePercentage"
             label="Percentage"
             type="number"
-            step="0.01"
-            min="0"
-            max="100"
-            value={form.entrancePercentage}
-            onChange={(event) =>
-              updateField("entrancePercentage", event.target.value)
-            }
+            value={entrancePercentage}
+            readOnly
+            disabled
+            hint="Worked out from the score."
           />
         </div>
       </section>
@@ -422,7 +498,7 @@ export default function TutorEditForm({ tutor }: { tutor: TutorData }) {
 
       <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:justify-end">
         <Button
-          render={<Link href={`/admin/tutors/${tutor.id}`} />}
+          render={<Link href={`/admin/tutors/${tutor.id}`} prefetch={false} />}
           variant="outline"
           size="xl"
           disabled={saving}

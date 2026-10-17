@@ -1,166 +1,87 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  Search,
-  X,
-} from "lucide-react";
+import { FileText, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { JobStatusBadge, StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import { ExpandableDisclosure } from "@/components/shared/ExpandableRow";
 import {
-  formatDate,
-  formatDateTime,
-  formatEnum,
-  formatSalary,
-} from "@/lib/format";
+  ListToolbar,
+  ShowMore,
+  type FilterGroup,
+} from "@/components/admin/ListToolbar";
+import {
+  DATE_RANGES,
+  DATE_RANGE_LABELS,
+  buildSearchIndex,
+  byNewest,
+  countBy,
+  isWithinRange,
+  matchesSearch,
+  plural,
+} from "@/lib/admin-list";
+import type { ApplicationRow } from "@/lib/admin-rows";
+import { formatDateTime, formatEnum, formatSalary } from "@/lib/format";
+import { useListFilters } from "@/lib/use-list-filters";
 import ApplicationRowActions from "./ApplicationRowActions";
 
-type ApplicationStatus = "PENDING" | "REVIEWED" | "ACCEPTED" | "REJECTED";
-
-type TutorStatus = "STUDENT" | "GRADUATE";
-
-type Application = {
-  id: string;
-  status: ApplicationStatus;
-  createdAt: string;
-  tutor: {
-    id: string;
-    fullName: string;
-    phone: string;
-    gender: "ANY" | "MALE" | "FEMALE";
-    university: string | null;
-    department: string | null;
-    currentGPA: number | null;
-    CGPA: number | null;
-    tutorStatus: TutorStatus;
-    entranceScore: number;
-    entranceTotal: number;
-    entrancePercentage: number;
-    createdAt: string;
-  };
-  job: {
-    id: string;
-    jobCode: string;
-    grade: string;
-    subject: string;
-    salary: number;
-    status: "OPEN" | "CLOSED";
-    assignedTutorId: string | null;
-  };
-};
-
 type Props = {
-  applications: Application[];
+  applications: readonly ApplicationRow[];
+  linkBase: string;
+  /** When the rows were read; the date filter counts back from it. */
+  loadedAt: number;
 };
 
-type SortDirection = "asc" | "desc" | null;
+/** Each filter's values; the first is the default and stays out of the URL. */
+const FILTERS = {
+  status: ["all", "pending", "reviewed", "accepted", "rejected"],
+  date: DATE_RANGES,
+  job: ["any", "unassigned", "assigned"],
+  tutor: ["any", "student", "graduate"],
+  entrance: ["any", "90", "80", "70", "60"],
+  sort: ["entrance", "newest", "oldest", "gpa"],
+} as const;
 
-const PAGE_SIZE = 25;
-
-const STATUS_TABS = [
-  { value: "ALL", label: "All" },
-  { value: "PENDING", label: "Pending" },
-  { value: "REVIEWED", label: "Reviewed" },
-  { value: "ACCEPTED", label: "Accepted" },
-  { value: "REJECTED", label: "Rejected" },
-];
-
-const ENTRANCE_OPTIONS = [
-  { value: "ALL", label: "Any entrance %" },
-  { value: "90", label: "90%+" },
-  { value: "80", label: "80%+" },
-  { value: "70", label: "70%+" },
-  { value: "60", label: "60%+" },
-];
-
-const TIME_OPTIONS = [
-  { value: "ALL", label: "All time" },
-  { value: "24H", label: "Last 24h" },
-  { value: "7D", label: "Last 7d" },
-  { value: "30D", label: "Last 30d" },
-];
-
-const TUTOR_STATUS_OPTIONS = [
-  { value: "ALL", label: "All tutors" },
-  { value: "STUDENT", label: "Students" },
-  { value: "GRADUATE", label: "Graduates" },
-];
-
-const TIME_FILTER_HOURS: Record<string, number> = {
-  "24H": 24,
-  "7D": 24 * 7,
-  "30D": 24 * 30,
+const STATUS_LABELS: Record<(typeof FILTERS.status)[number], string> = {
+  all: "All",
+  pending: "Pending",
+  reviewed: "Reviewed",
+  accepted: "Accepted",
+  rejected: "Rejected",
 };
 
-function formatGPA(application: Application): string {
-  const {
-    tutor: { tutorStatus, currentGPA, CGPA },
-  } = application;
+const SORT_LABELS: Record<(typeof FILTERS.sort)[number], string> = {
+  entrance: "Best entrance",
+  newest: "Newest",
+  oldest: "Oldest",
+  gpa: "Best GPA",
+};
 
-  if (tutorStatus === "STUDENT") {
-    return currentGPA !== null ? currentGPA.toFixed(2) : "—";
-  }
+/* Ties fall back to newest first, so the order never looks random. */
+const SORTS: Record<
+  (typeof FILTERS.sort)[number],
+  (a: ApplicationRow, b: ApplicationRow) => number
+> = {
+  entrance: (a, b) =>
+    b.tutor.entrancePercentage - a.tutor.entrancePercentage || byNewest(a, b),
+  newest: byNewest,
+  oldest: (a, b) => byNewest(b, a),
+  gpa: (a, b) => (b.tutor.gpa ?? -1) - (a.tutor.gpa ?? -1) || byNewest(a, b),
+};
 
-  return CGPA !== null ? CGPA.toFixed(2) : "—";
-}
-
-function SortButton({
-  label,
-  direction,
-  onToggle,
-}: {
-  label: string;
-  direction: SortDirection;
-  onToggle: () => void;
-}) {
-  const Icon =
-    direction === "desc"
-      ? ArrowDown
-      : direction === "asc"
-        ? ArrowUp
-        : ArrowUpDown;
-
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-label={`Sort by ${label}`}
-      className="inline-flex items-center gap-1 rounded-md transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-    >
-      {label}
-      <Icon className="size-3.5" aria-hidden="true" />
-    </button>
-  );
+function formatGPA(application: ApplicationRow): string {
+  return application.tutor.gpa !== null
+    ? application.tutor.gpa.toFixed(2)
+    : "—";
 }
 
 /** The label/value pairs revealed by the row chevron. */
-function DetailPanel({ application }: { application: Application }) {
+function DetailPanel({ application }: { application: ApplicationRow }) {
   const { tutor, job } = application;
 
   return (
@@ -188,14 +109,16 @@ function DetailPanel({ application }: { application: Application }) {
       <div className="min-w-0">
         <dt className="text-xs text-muted-foreground">University</dt>
         <dd className="mt-0.5 font-medium break-words">
-          {tutor.university || "—"}
+          {tutor.institution || "—"}
         </dd>
       </div>
 
       <div className="min-w-0">
-        <dt className="text-xs text-muted-foreground">Department</dt>
+        <dt className="text-xs text-muted-foreground">
+          {tutor.tutorStatus === "STUDENT" ? "Department" : "Field"}
+        </dt>
         <dd className="mt-0.5 font-medium break-words">
-          {tutor.department || "—"}
+          {tutor.field || "—"}
         </dd>
       </div>
 
@@ -216,7 +139,10 @@ function DetailPanel({ application }: { application: Application }) {
       <div className="min-w-0">
         <dt className="text-xs text-muted-foreground">Job status</dt>
         <dd className="mt-0.5">
-          <StatusBadge status={job.status} />
+          <JobStatusBadge
+            status={job.status}
+            hasAssignedTutor={Boolean(job.assignedTutorId)}
+          />
         </dd>
       </div>
 
@@ -230,172 +156,186 @@ function DetailPanel({ application }: { application: Application }) {
   );
 }
 
-export default function ApplicationsTable({ applications }: Props) {
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [jobSearch, setJobSearch] = useState("");
-  const [entranceFilter, setEntranceFilter] = useState("ALL");
-  const [timeFilter, setTimeFilter] = useState("ALL");
-  const [tutorStatusFilter, setTutorStatusFilter] = useState("ALL");
-  const [page, setPage] = useState(1);
+/**
+ * Search, filter and act on every application. All rows arrive in one
+ * server render; searching and filtering happen here, and the filters live
+ * in the URL (`useListFilters`), so `/admin/applications?status=pending`
+ * is a bookmarkable view that costs no extra request to switch.
+ */
+export default function ApplicationsTable({
+  applications,
+  linkBase,
+  loadedAt,
+}: Props) {
+  const {
+    filters,
+    query,
+    deferredQuery,
+    setFilter,
+    setQuery,
+    clear,
+    activeCount,
+    limit,
+    showMore,
+  } = useListFilters(FILTERS, { persistent: ["sort"] });
 
-  /* The cutoff is captured when the filter is chosen. Calling `Date.now()`
-     during render is impure and makes results drift between renders. */
-  const [timeCutoff, setTimeCutoff] = useState<number | null>(null);
-
-  const [entranceSort, setEntranceSort] = useState<SortDirection>("desc");
-  const [timeSort, setTimeSort] = useState<SortDirection>(null);
-
-  function changeTimeFilter(value: string) {
-    setTimeFilter(value);
-    setPage(1);
-
-    const hours = TIME_FILTER_HOURS[value];
-
-    setTimeCutoff(hours ? Date.now() - hours * 60 * 60 * 1000 : null);
-  }
-
-  function toggleEntranceSort() {
-    setEntranceSort((current) => {
-      if (current === null) return "desc";
-      if (current === "desc") return "asc";
-      return null;
-    });
-  }
-
-  function toggleTimeSort() {
-    setTimeSort((current) => {
-      if (current === null) return "desc";
-      if (current === "desc") return "asc";
-      return null;
-    });
-  }
-
-  function clearFilters() {
-    setStatusFilter("ALL");
-    setJobSearch("");
-    setEntranceFilter("ALL");
-    setTutorStatusFilter("ALL");
-    changeTimeFilter("ALL");
-    setPage(1);
-  }
-
-  const hasFilters =
-    statusFilter !== "ALL" ||
-    Boolean(jobSearch.trim()) ||
-    entranceFilter !== "ALL" ||
-    timeFilter !== "ALL" ||
-    tutorStatusFilter !== "ALL";
-
-  /** Tab counts stay on the full set so they don't move as you filter. */
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      ALL: applications.length,
-      PENDING: 0,
-      REVIEWED: 0,
-      ACCEPTED: 0,
-      REJECTED: 0,
-    };
-
-    for (const application of applications) {
-      counts[application.status] += 1;
-    }
-
-    return counts;
-  }, [applications]);
-
-  const filteredApplications = useMemo(() => {
-    let result = [...applications];
-
-    if (statusFilter !== "ALL") {
-      result = result.filter(
-        (application) => application.status === statusFilter
-      );
-    }
-
-    const search = jobSearch.trim().toLowerCase();
-
-    if (search) {
-      result = result.filter((application) =>
-        `${application.job.jobCode} ${application.tutor.fullName}`
-          .toLowerCase()
-          .includes(search)
-      );
-    }
-
-    if (entranceFilter !== "ALL") {
-      const minimum = Number(entranceFilter);
-
-      result = result.filter(
-        (application) => application.tutor.entrancePercentage >= minimum
-      );
-    }
-
-    if (timeCutoff !== null) {
-      result = result.filter(
-        (application) =>
-          new Date(application.createdAt).getTime() >= timeCutoff
-      );
-    }
-
-    if (tutorStatusFilter !== "ALL") {
-      result = result.filter(
-        (application) => application.tutor.tutorStatus === tutorStatusFilter
-      );
-    }
-
-    /*
-     * Entrance has priority when selected; time is the secondary sort.
-     * Entrance ↓ + Time ↓ = highest entrance first, newest first within ties.
-     */
-    result.sort((a, b) => {
-      if (entranceSort) {
-        const entranceDifference =
-          a.tutor.entrancePercentage - b.tutor.entrancePercentage;
-
-        if (entranceDifference !== 0) {
-          return entranceSort === "desc"
-            ? -entranceDifference
-            : entranceDifference;
-        }
-      }
-
-      if (timeSort) {
-        const timeDifference =
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-
-        if (timeDifference !== 0) {
-          return timeSort === "desc" ? -timeDifference : timeDifference;
-        }
-      }
-
-      return 0;
-    });
-
-    return result;
-  }, [
-    applications,
-    statusFilter,
-    jobSearch,
-    entranceFilter,
-    timeCutoff,
-    tutorStatusFilter,
-    entranceSort,
-    timeSort,
-  ]);
-
-  const pageCount = Math.max(
-    1,
-    Math.ceil(filteredApplications.length / PAGE_SIZE)
+  const searchable = useMemo(
+    () =>
+      applications.map((application) => ({
+        application,
+        index: buildSearchIndex(
+          [
+            application.tutor.fullName,
+            application.job.jobCode,
+            application.job.subject,
+            application.job.grade,
+            application.tutor.institution,
+            application.tutor.field,
+            application.tutor.exactPlace,
+          ],
+          [application.tutor.phone]
+        ),
+      })),
+    [applications]
   );
 
-  const currentPage = Math.min(page, pageCount);
-
-  const visibleApplications = filteredApplications.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+  /* Every application is already on the page, so a tutor's total is a count
+     over the list rather than another query. */
+  const applicationsByTutor = useMemo(
+    () => countBy(applications, (application) => application.tutor.id),
+    [applications]
   );
 
-  function rowActionsFor(application: Application) {
+  /** Narrows the list to one tutor, by their phone number, which is unique. */
+  function showTutor(phone: string) {
+    clear();
+    setQuery(phone);
+  }
+
+  /** The tutor's total; tapping it lists all of them when there are more. */
+  function tutorTotal(application: ApplicationRow) {
+    const { tutor } = application;
+
+    const count = applicationsByTutor[tutor.id] ?? 1;
+
+    if (count < 2) {
+      return <span className="font-medium tabular-nums">1</span>;
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => showTutor(tutor.phone)}
+        title={`Show all ${count} applications by ${tutor.fullName}`}
+        className="rounded-md font-medium text-primary tabular-nums tap-target underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        {count}
+        <span className="sr-only">
+          {" "}
+          applications by {tutor.fullName}. Show them all.
+        </span>
+      </button>
+    );
+  }
+
+  /* Every filter except status: what each status segment would hold, so
+     its count stays truthful while the other filters are applied. */
+  const matching = searchable
+    .filter(({ application, index }) => {
+      const { tutor, job } = application;
+
+      return (
+        matchesSearch(index, deferredQuery) &&
+        isWithinRange(application.createdAt, filters.date, loadedAt) &&
+        (filters.job === "any" ||
+          (filters.job === "assigned") === Boolean(job.assignedTutorId)) &&
+        (filters.tutor === "any" ||
+          tutor.tutorStatus === filters.tutor.toUpperCase()) &&
+        (filters.entrance === "any" ||
+          tutor.entrancePercentage >= Number(filters.entrance))
+      );
+    })
+    .map(({ application }) => application);
+
+  const statusCounts = countBy(matching, (application) => application.status);
+
+  const visible = (
+    filters.status === "all"
+      ? matching
+      : matching.filter(
+          (application) => application.status === filters.status.toUpperCase()
+        )
+  ).sort(SORTS[filters.sort]);
+
+  const rows = visible.slice(0, limit);
+
+  const isFiltered = activeCount > 0;
+
+  const primary: FilterGroup = {
+    id: "status",
+    label: "Status",
+    value: filters.status,
+    options: FILTERS.status.map((value) => ({
+      value,
+      label: STATUS_LABELS[value],
+      count:
+        value === "all"
+          ? matching.length
+          : (statusCounts[value.toUpperCase()] ?? 0),
+    })),
+  };
+
+  const groups: FilterGroup[] = [
+    {
+      id: "date",
+      label: "Applied",
+      value: filters.date,
+      options: FILTERS.date.map((value) => ({
+        value,
+        label: DATE_RANGE_LABELS[value],
+      })),
+    },
+    {
+      id: "job",
+      label: "Job",
+      value: filters.job,
+      options: [
+        { value: "any", label: "Any" },
+        { value: "unassigned", label: "Unassigned" },
+        { value: "assigned", label: "Assigned" },
+      ],
+    },
+    {
+      id: "tutor",
+      label: "Tutor",
+      value: filters.tutor,
+      options: [
+        { value: "any", label: "Any" },
+        { value: "student", label: "Students" },
+        { value: "graduate", label: "Graduates" },
+      ],
+    },
+    {
+      id: "entrance",
+      label: "Entrance",
+      value: filters.entrance,
+      options: FILTERS.entrance.map((value) => ({
+        value,
+        label: value === "any" ? "Any" : `${value}%+`,
+      })),
+    },
+    {
+      id: "sort",
+      label: "Sort",
+      value: filters.sort,
+      options: FILTERS.sort.map((value) => ({
+        value,
+        label: SORT_LABELS[value],
+      })),
+    },
+  ];
+
+  function rowActionsFor(application: ApplicationRow, compact: boolean) {
     /* Both mirror the API guards: the assign route and the status route each
        refuse a closed job and a job that already has an assigned tutor. */
     const jobIsActionable =
@@ -406,16 +346,17 @@ export default function ApplicationsTable({ applications }: Props) {
       <ApplicationRowActions
         applicationId={application.id}
         status={application.status}
-        tutorName={application.tutor.fullName}
-        tutorPhone={application.tutor.phone}
+        tutor={application.tutor}
         jobCode={application.job.jobCode}
+        linkBase={linkBase}
         canAssign={jobIsActionable && application.status !== "ACCEPTED"}
         canChangeStatus={jobIsActionable}
+        compact={compact}
       />
     );
   }
 
-  const columns: DataTableColumn<Application>[] = [
+  const columns: DataTableColumn<ApplicationRow>[] = [
     {
       id: "tutor",
       header: "Tutor",
@@ -425,11 +366,13 @@ export default function ApplicationsTable({ applications }: Props) {
         <div className="min-w-0">
           <Link
             href={`/admin/applications/${application.id}`}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            prefetch={false}
+            className="font-medium text-primary tap-target underline-offset-4 hover:underline"
           >
             {application.tutor.fullName}
           </Link>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+            {application.tutor.phone} ·{" "}
             {formatEnum(application.tutor.tutorStatus)}
           </p>
         </div>
@@ -443,58 +386,46 @@ export default function ApplicationsTable({ applications }: Props) {
         <div className="min-w-0">
           <Link
             href={`/admin/jobs/${application.job.id}`}
-            className="font-mono text-sm font-medium underline-offset-4 hover:underline"
+            prefetch={false}
+            className="font-mono text-sm font-medium tap-target underline-offset-4 hover:underline"
           >
             {application.job.jobCode}
           </Link>
-          <p className="mt-0.5 max-w-44 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 max-w-40 truncate text-xs text-muted-foreground">
             {application.job.subject} · {application.job.grade}
           </p>
         </div>
       ),
     },
     {
-      id: "entrance",
-      header: (
-        <SortButton
-          label="Entrance"
-          direction={entranceSort}
-          onToggle={toggleEntranceSort}
-        />
-      ),
-      cellClassName: "tabular-nums font-medium",
-      cell: (application) => `${application.tutor.entrancePercentage.toFixed(1)}%`,
-    },
-    {
-      id: "gpa",
-      header: "GPA",
-      cellClassName: "tabular-nums",
-      cell: (application) => formatGPA(application),
-    },
-    {
-      id: "applied",
-      header: (
-        <SortButton
-          label="Applied"
-          direction={timeSort}
-          onToggle={toggleTimeSort}
-        />
-      ),
-      /* The compact date keeps the column narrow; the tooltip carries the
-         exact time the old `formatDateTime` column used to spend width on. */
+      id: "scores",
+      header: "Entrance",
+      /* GPA sits under the entrance result rather than beside it, which
+         keeps the table inside a 1280px screen. */
       cell: (application) => (
-        <Tooltip>
-          <TooltipTrigger
-            render={<span className="cursor-default text-muted-foreground" />}
-          >
-            {formatDate(application.createdAt)}
-          </TooltipTrigger>
-
-          <TooltipContent>
-            {formatDateTime(application.createdAt)}
-          </TooltipContent>
-        </Tooltip>
+        <div className="tabular-nums">
+          <p className="font-medium">
+            {application.tutor.entrancePercentage.toFixed(1)}%
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            GPA {formatGPA(application)}
+          </p>
+        </div>
       ),
+    },
+    {
+      id: "area",
+      header: "Area",
+      cell: (application) => (
+        <span className="block max-w-28 truncate">
+          {application.tutor.exactPlace || "—"}
+        </span>
+      ),
+    },
+    {
+      id: "total",
+      header: "Applications",
+      cell: tutorTotal,
     },
     {
       id: "status",
@@ -503,114 +434,43 @@ export default function ApplicationsTable({ applications }: Props) {
     },
     {
       id: "actions",
-      header: "",
+      header: <span className="sr-only">Actions</span>,
       hideOnMobile: true,
       headClassName: "w-px",
       cellClassName: "text-right",
-      cell: rowActionsFor,
+      cell: (application) => rowActionsFor(application, true),
     },
   ];
 
+  const total = applications.length;
+
   return (
     <div className="space-y-4">
-      {/* -----------------------------------------------------
-          STATUS TABS
-      ----------------------------------------------------- */}
-      <Tabs
-        value={statusFilter}
-        onValueChange={(value) => {
-          setStatusFilter((value as string) ?? "ALL");
-          setPage(1);
-        }}
-      >
-        <TabsList className="w-full overflow-x-auto sm:w-fit">
-          {STATUS_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
-              {tab.label}
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {statusCounts[tab.value]}
-              </span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <ListToolbar
+        searchLabel="Search applications"
+        searchPlaceholder="Name, phone, job code…"
+        query={query}
+        onQueryChange={setQuery}
+        primary={primary}
+        groups={groups}
+        onFilterChange={(id, value) =>
+          setFilter(id as keyof typeof FILTERS, value)
+        }
+        summary={
+          isFiltered
+            ? `${visible.length.toLocaleString("en-US")} of ${plural(total, "application")}`
+            : plural(visible.length, "application")
+        }
+        resultLabel={`Show ${plural(visible.length, "application")}`}
+        onClear={isFiltered ? clear : undefined}
+      />
 
-      {/* -----------------------------------------------------
-          FILTER BAR
-      ----------------------------------------------------- */}
-      <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="relative min-w-0 flex-1">
-            <Search
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
-
-            <Input
-              type="search"
-              value={jobSearch}
-              onChange={(event) => {
-                setJobSearch(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Search job code or tutor name"
-              aria-label="Search applications"
-              className="pl-9"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto lg:shrink-0">
-            <FilterSelect
-              label="Entrance percentage"
-              options={ENTRANCE_OPTIONS}
-              value={entranceFilter}
-              onChange={(value) => {
-                setEntranceFilter(value);
-                setPage(1);
-              }}
-            />
-
-            <FilterSelect
-              label="Applied within"
-              options={TIME_OPTIONS}
-              value={timeFilter}
-              onChange={changeTimeFilter}
-            />
-
-            <FilterSelect
-              label="Tutor type"
-              options={TUTOR_STATUS_OPTIONS}
-              value={tutorStatusFilter}
-              onChange={(value) => {
-                setTutorStatusFilter(value);
-                setPage(1);
-              }}
-            />
-          </div>
-        </div>
-
-        {hasFilters ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
-            <p className="text-sm text-muted-foreground">
-              {filteredApplications.length} of {applications.length} shown
-            </p>
-
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X data-icon="inline-start" aria-hidden="true" />
-              Clear filters
-            </Button>
-          </div>
-        ) : null}
-      </div>
-
-      {/* -----------------------------------------------------
-          TABLE
-      ----------------------------------------------------- */}
       <DataTable
-        items={visibleApplications}
+        items={rows}
         columns={columns}
         getRowKey={(application) => application.id}
         caption="Tutor applications"
+        breakpoint="xl"
         renderExpanded={(application) => (
           <DetailPanel application={application} />
         )}
@@ -618,24 +478,32 @@ export default function ApplicationsTable({ applications }: Props) {
           `Show more details for ${application.tutor.fullName}`
         }
         renderMobileCard={(application) => (
-          <div className="space-y-3">
+          <div className="flex h-full flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <Link
                   href={`/admin/applications/${application.id}`}
-                  className="font-medium text-primary underline-offset-4 hover:underline"
+                  prefetch={false}
+                  className="font-medium text-primary tap-target underline-offset-4 hover:underline"
                 >
                   {application.tutor.fullName}
                 </Link>
-                <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-                  {application.job.jobCode} · {application.job.subject}
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  <Link
+                    href={`/admin/jobs/${application.job.id}`}
+                    prefetch={false}
+                    className="font-mono font-medium text-foreground tap-target underline-offset-4 hover:underline"
+                  >
+                    {application.job.jobCode}
+                  </Link>{" "}
+                  · {application.job.subject} · {application.job.grade}
                 </p>
               </div>
 
               <StatusBadge status={application.status} />
             </div>
 
-            <dl className="grid grid-cols-3 gap-x-4 gap-y-2 text-sm">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <div>
                 <dt className="text-xs text-muted-foreground">Entrance</dt>
                 <dd className="font-medium tabular-nums">
@@ -650,11 +518,18 @@ export default function ApplicationsTable({ applications }: Props) {
                 </dd>
               </div>
 
-              <div>
-                <dt className="text-xs text-muted-foreground">Applied</dt>
-                <dd className="font-medium">
-                  {formatDate(application.createdAt)}
+              <div className="min-w-0">
+                <dt className="text-xs text-muted-foreground">Area</dt>
+                <dd className="truncate font-medium">
+                  {application.tutor.exactPlace || "—"}
                 </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs text-muted-foreground">
+                  Applications
+                </dt>
+                <dd>{tutorTotal(application)}</dd>
               </div>
             </dl>
 
@@ -662,23 +537,25 @@ export default function ApplicationsTable({ applications }: Props) {
               <DetailPanel application={application} />
             </ExpandableDisclosure>
 
-            <div className="border-t pt-3">{rowActionsFor(application)}</div>
+            <div className="mt-auto border-t pt-3">
+              {rowActionsFor(application, false)}
+            </div>
           </div>
         )}
         empty={
           <EmptyState
-            icon={hasFilters ? <Search /> : <FileText />}
+            icon={isFiltered ? <Search /> : <FileText />}
             title={
-              hasFilters ? "No matching applications" : "No applications yet"
+              isFiltered ? "No matching applications" : "No applications yet"
             }
             description={
-              hasFilters
-                ? "No applications match the current filters."
+              isFiltered
+                ? "No applications match the current search and filters."
                 : "Applications will appear here as tutors apply to open jobs."
             }
             action={
-              hasFilters ? (
-                <Button variant="outline" size="lg" onClick={clearFilters}>
+              isFiltered ? (
+                <Button variant="outline" size="lg" onClick={clear}>
                   Clear filters
                 </Button>
               ) : undefined
@@ -687,70 +564,12 @@ export default function ApplicationsTable({ applications }: Props) {
         }
       />
 
-      {/* -----------------------------------------------------
-          PAGINATION
-      ----------------------------------------------------- */}
-      {pageCount > 1 ? (
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
-            Page {currentPage} of {pageCount}
-          </p>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="lg"
-              disabled={currentPage === 1}
-              onClick={() => setPage(currentPage - 1)}
-            >
-              <ChevronLeft data-icon="inline-start" aria-hidden="true" />
-              Previous
-            </Button>
-
-            <Button
-              variant="outline"
-              size="lg"
-              disabled={currentPage === pageCount}
-              onClick={() => setPage(currentPage + 1)}
-            >
-              Next
-              <ChevronRight data-icon="inline-end" aria-hidden="true" />
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      <ShowMore
+        shown={rows.length}
+        total={visible.length}
+        noun="applications"
+        onShowMore={showMore}
+      />
     </div>
-  );
-}
-
-function FilterSelect({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: readonly { value: string; label: string }[];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <Select
-      items={options as { value: string; label: string }[]}
-      value={value}
-      onValueChange={(next) => onChange((next as string) ?? "ALL")}
-    >
-      <SelectTrigger className="w-full" aria-label={label}>
-        <SelectValue />
-      </SelectTrigger>
-
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }

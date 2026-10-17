@@ -25,6 +25,10 @@ interface JobActionsProps {
 /**
  * Two actions: close, and re-open.
  *
+ * Close is only offered while nobody is assigned (an assigned job is already
+ * closed), so closing always marks the job failed and rejects its
+ * applicants — see `PATCH .../status`.
+ *
  * Re-opening never goes through `PATCH .../status`. That only flips `status`
  * and leaves `assignedTutorId` set — the job would take new applications that
  * could never be assigned, because both the assign route and the application
@@ -52,23 +56,7 @@ export default function JobActions({
   async function close() {
     setError("");
 
-    const response = await fetch(`/api/admin/jobs/${jobId}/status`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: "CLOSED",
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.message || "Failed to update job status.");
-    }
-
-    toast.success("Job closed.");
+    toast.success(await closeJob(jobId));
 
     router.refresh();
   }
@@ -76,26 +64,14 @@ export default function JobActions({
   async function reopen() {
     setError("");
 
-    const response = await fetch(`/api/admin/jobs/${jobId}/reopen`, {
-      method: "POST",
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || "Failed to reopen job.");
-    }
-
-    toast.success(result.message);
+    toast.success(await reopenJob(jobId));
 
     router.refresh();
   }
 
   /**
-   * Deleting is for jobs that should not exist at all. The API
-   * refuses once a tutor has applied, so the button is only offered
-   * while the job has no applications — a control that always fails
-   * is worse than no control.
+   * Deletes the job and every application to it. Offered whatever the
+   * job's state; the dialog names how many applications go with it.
    */
   async function remove() {
     setError("");
@@ -117,33 +93,45 @@ export default function JobActions({
     router.refresh();
   }
 
-  const deleteAction =
-    applicationCount === 0 ? (
-      <ConfirmDialog
-        trigger={
-          <Button variant="outline" size="xl">
-            <Trash2 data-icon="inline-start" aria-hidden="true" />
-            Delete job
-          </Button>
-        }
-        title={`Delete job ${jobCode}?`}
-        description={
-          <>
-            This removes the job permanently and cannot be undone.
-            {hasChannelPost ? (
-              <> Its Telegram channel post is deleted too.</>
-            ) : null}
-            <p className="mt-3">
-              To end a live vacancy instead, close it — that stops new
-              applications while keeping the record and the channel post.
-            </p>
-          </>
-        }
-        confirmLabel="Delete job"
-        variant="destructive"
-        onConfirm={remove}
-      />
-    ) : null;
+  const deleteAction = (
+    <ConfirmDialog
+      trigger={
+        <Button variant="outline" size="xl">
+          <Trash2 data-icon="inline-start" aria-hidden="true" />
+          Delete job
+        </Button>
+      }
+      title={`Delete job ${jobCode}?`}
+      description={
+        <>
+          This removes the job permanently and cannot be undone.
+          {applicationCount > 0 ? (
+            <>
+              {" "}
+              <strong>
+                {applicationCount === 1
+                  ? "Its 1 application is"
+                  : `All ${applicationCount} of its applications are`}{" "}
+                deleted too
+              </strong>
+              , and those tutors will no longer see it in their
+              applications.
+            </>
+          ) : null}
+          {hasChannelPost ? (
+            <> Its Telegram channel post is deleted too.</>
+          ) : null}
+          <p className="mt-3">
+            To end a live vacancy instead, close it — that stops new
+            applications while keeping the record and the channel post.
+          </p>
+        </>
+      }
+      confirmLabel="Delete job"
+      variant="destructive"
+      onConfirm={remove}
+    />
+  );
 
   // -------------------------------------------------------
   // OPEN -> close
@@ -163,7 +151,9 @@ export default function JobActions({
               </Button>
             }
             title="Close this job?"
-            description="The job will stop accepting new applications. Existing applications are not changed."
+            description={
+              <CloseJobDescription applicationCount={applicationCount} />
+            }
             confirmLabel="Close job"
             variant="destructive"
             onConfirm={close}
@@ -179,11 +169,6 @@ export default function JobActions({
   // CLOSED (or assigned) -> re-open
   // -------------------------------------------------------
 
-  const applicationLabel =
-    applicationCount === 1
-      ? "application"
-      : `all ${applicationCount} applications`;
-
   return (
     <div className="space-y-4">
       <FormError message={error} />
@@ -198,33 +183,10 @@ export default function JobActions({
           }
           title="Re-open this job?"
           description={
-            <>
-              This will, in one step:
-              <ul className="mt-2 list-disc space-y-1 pl-4">
-                {assignedTutorName ? (
-                  <li>
-                    Unassign <strong>{assignedTutorName}</strong> from this job
-                  </li>
-                ) : null}
-
-                {applicationCount > 0 ? (
-                  <li>
-                    Put {applicationLabel} back to <strong>pending</strong>,
-                    including accepted and rejected ones
-                  </li>
-                ) : null}
-
-                <li>Re-open the job so more tutors can apply</li>
-              </ul>
-              {applicationCount > 0 ? (
-                <p className="mt-3">
-                  Nothing is deleted — everyone who already applied stays in the
-                  pool, so you can assign one of them straight away or wait for
-                  new applicants. Tutors who applied before will see their
-                  application as pending again.
-                </p>
-              ) : null}
-            </>
+            <ReopenJobDescription
+              applicationCount={applicationCount}
+              assignedTutorName={assignedTutorName}
+            />
           }
           confirmLabel="Re-open job"
           onConfirm={reopen}
@@ -233,5 +195,125 @@ export default function JobActions({
         {deleteAction}
       </div>
     </div>
+  );
+}
+
+// =========================================================
+// SHARED WITH THE JOBS LIST
+// =========================================================
+//
+// The jobs list offers the same close / re-open on each row, so the requests
+// and the re-open explanation live here once rather than in two copies.
+
+/**
+ * Resolves to the API's confirmation message. Throws with the API's message,
+ * so `ConfirmDialog` can show it in place.
+ */
+export async function closeJob(jobId: string): Promise<string> {
+  const response = await fetch(`/api/admin/jobs/${jobId}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      status: "CLOSED",
+    }),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Failed to update job status.");
+  }
+
+  return result.message;
+}
+
+/** Resolves to the API's confirmation message. */
+export async function reopenJob(jobId: string): Promise<string> {
+  const response = await fetch(`/api/admin/jobs/${jobId}/reopen`, {
+    method: "POST",
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    throw new Error(result.message || "Failed to reopen job.");
+  }
+
+  return result.message;
+}
+
+/** Closing is only offered with no tutor assigned, so it always fails the job. */
+export function CloseJobDescription({
+  applicationCount,
+}: {
+  applicationCount: number;
+}) {
+  return (
+    <>
+      No tutor is assigned, so the job will be marked as{" "}
+      <strong>failed</strong>. It stops accepting applications
+      {applicationCount > 0 ? (
+        <>
+          , and{" "}
+          <strong>
+            {applicationCount === 1
+              ? "its 1 applicant is"
+              : `all ${applicationCount} applicants are`}{" "}
+            rejected
+          </strong>
+          . They are not emailed.
+        </>
+      ) : (
+        "."
+      )}
+      <p className="mt-3">
+        Re-opening the job later puts every applicant back to pending.
+      </p>
+    </>
+  );
+}
+
+export function ReopenJobDescription({
+  applicationCount,
+  assignedTutorName,
+}: {
+  applicationCount: number;
+  assignedTutorName: string | null;
+}) {
+  const applicationLabel =
+    applicationCount === 1
+      ? "application"
+      : `all ${applicationCount} applications`;
+
+  return (
+    <>
+      This will, in one step:
+      <ul className="mt-2 list-disc space-y-1 pl-4">
+        {assignedTutorName ? (
+          <li>
+            Unassign <strong>{assignedTutorName}</strong> from this job
+          </li>
+        ) : null}
+
+        {applicationCount > 0 ? (
+          <li>
+            Put {applicationLabel} back to <strong>pending</strong>,
+            including accepted and rejected ones
+          </li>
+        ) : null}
+
+        <li>Re-open the job so more tutors can apply</li>
+      </ul>
+      {applicationCount > 0 ? (
+        <p className="mt-3">
+          Nothing is deleted — everyone who already applied stays in the
+          pool, so you can assign one of them straight away or wait for
+          new applicants. Tutors who applied before will see their
+          application as pending again.
+        </p>
+      ) : null}
+    </>
   );
 }

@@ -25,7 +25,9 @@ export function StatCard({
   const body = (
     <CardContent className="flex items-start justify-between gap-3">
       <div className="min-w-0 space-y-1">
-        <p className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        {/* Two lines before clipping: on a 320px phone "No applicants yet"
+            truncated to "NO APPLICANTS…", which lost the point of it. */}
+        <p className="line-clamp-2 text-xs font-medium tracking-wide break-words text-muted-foreground uppercase">
           {label}
         </p>
 
@@ -38,10 +40,12 @@ export function StatCard({
         ) : null}
       </div>
 
+      {/* Dropped on a phone, where tiles sit two to a row and the label
+          needs the width more than the decoration does. */}
       {icon ? (
         <span
           aria-hidden="true"
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary [&>svg]:size-4.5"
+          className="hidden size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary sm:flex [&>svg]:size-4.5"
         >
           {icon}
         </span>
@@ -60,7 +64,7 @@ export function StatCard({
         className
       )}
     >
-      <Link href={href} className="outline-none">
+      <Link href={href} prefetch={false} className="outline-none">
         {body}
       </Link>
     </Card>

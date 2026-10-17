@@ -2,10 +2,13 @@
 
 import "./globals.css";
 
+import { ThemeSync } from "@/components/layout/ThemeSync";
+
 /**
  * Only reached when the root layout itself throws. It replaces the document,
  * so it has to bring its own `<html>` / `<body>` and stylesheet, and it cannot
- * export metadata — hence the plain `<title>`.
+ * export metadata — hence the plain `<title>`. Its `<html>` arrives without
+ * the theme class, which `ThemeSync` puts back.
  */
 export default function GlobalError({
   error,
@@ -18,6 +21,7 @@ export default function GlobalError({
     <html lang="en">
       <body className="flex min-h-svh flex-col items-center justify-center gap-6 px-4 py-16 text-center">
         <title>Something went wrong · Excellence Tutor</title>
+        <ThemeSync />
 
         <div className="space-y-3">
           <h1 className="font-heading text-2xl font-semibold tracking-tight">

@@ -2,340 +2,343 @@ import Link from "next/link";
 import {
   ArrowRight,
   BriefcaseBusiness,
-  CheckCircle2,
-  Clock3,
+  CircleCheck,
   FileText,
+  Inbox,
   Plus,
-  Users,
+  UserPlus,
 } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-context";
+import { APPLICATION_ROW_SELECT, toApplicationRow } from "@/lib/admin-rows";
+import { getProfileShareLinkBase } from "@/lib/tutor-profile-server";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { plural } from "@/lib/admin-list";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import ApplicationRowActions from "./applications/ApplicationRowActions";
+
+/** How many pending applications the overview lets you act on directly. */
+const QUEUE_SIZE = 8;
 
 export default async function AdminDashboard() {
-  const [
-    totalTutors,
-    totalJobs,
-    openJobs,
-    closedJobs,
-    totalApplications,
-    pendingApplications,
-    reviewedApplications,
-    acceptedApplications,
-    rejectedApplications,
-    recentApplications,
-  ] = await Promise.all([
-    prisma.tutor.count(),
+  // The counts come with the admin lookup the layout already made; the
+  // review queue is this page's one query.
+  const { counts } = await requireAdmin();
 
-    prisma.job.count(),
-
-    prisma.job.count({
-      where: {
-        status: "OPEN",
-      },
-    }),
-
-    prisma.job.count({
-      where: {
-        status: "CLOSED",
-      },
-    }),
-
-    prisma.application.count(),
-
-    prisma.application.count({
+  const [pending, linkBase] = await Promise.all([
+    prisma.application.findMany({
       where: {
         status: "PENDING",
       },
-    }),
-
-    prisma.application.count({
-      where: {
-        status: "REVIEWED",
-      },
-    }),
-
-    prisma.application.count({
-      where: {
-        status: "ACCEPTED",
-      },
-    }),
-
-    prisma.application.count({
-      where: {
-        status: "REJECTED",
-      },
-    }),
-
-    prisma.application.findMany({
       orderBy: {
         createdAt: "desc",
       },
-      take: 6,
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        tutor: {
-          select: {
-            fullName: true,
-          },
-        },
-        job: {
-          select: {
-            jobCode: true,
-            subject: true,
-          },
-        },
-      },
+      take: QUEUE_SIZE,
+      select: APPLICATION_ROW_SELECT,
     }),
+    getProfileShareLinkBase(),
   ]);
 
+  const queue = pending.map(toApplicationRow);
+
   const acceptanceRate =
-    totalApplications > 0
-      ? Math.round((acceptedApplications / totalApplications) * 100)
+    counts.applications > 0
+      ? Math.round((counts.acceptedApplications / counts.applications) * 100)
       : 0;
+
+  const closedJobs = counts.successfulJobs + counts.failedJobs;
+
+  const successRate =
+    closedJobs > 0 ? Math.round((counts.successfulJobs / closedJobs) * 100) : 0;
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="Dashboard"
-        description="An overview of tutors, jobs and applications."
+        description="What needs your attention, one tap from each list."
         actions={
-          <>
-            <Button render={<Link href="/admin/jobs/new" />} size="xl">
-              <Plus data-icon="inline-start" aria-hidden="true" />
-              New job
-            </Button>
-
-            <Button
-              render={<Link href="/admin/tutors" />}
-              variant="outline"
-              size="xl"
-            >
-              View tutors
-            </Button>
-          </>
+          <Button
+            render={<Link href="/admin/jobs/new" prefetch={false} />}
+            size="xl"
+          >
+            <Plus data-icon="inline-start" aria-hidden="true" />
+            New job
+          </Button>
         }
       />
 
       {/* -----------------------------------------------------
-          HEADLINE NUMBERS
+          NEEDS ATTENTION — each tile opens the list already filtered
       ----------------------------------------------------- */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
-          label="Registered tutors"
-          value={totalTutors}
-          icon={<Users />}
-          href="/admin/tutors"
+          label="New applications"
+          value={counts.pendingApplications}
+          hint={`${counts.applicationsToday} in the last 24 hours`}
+          icon={<Inbox />}
+          href="/admin/applications?status=pending"
         />
 
         <StatCard
-          label="Total jobs"
-          value={totalJobs}
-          hint={`${openJobs} open · ${closedJobs} closed`}
+          label="Open jobs"
+          value={counts.openJobs}
+          hint={`${counts.openJobsWithNew} with new applicants`}
           icon={<BriefcaseBusiness />}
-          href="/admin/jobs"
+          href="/admin/jobs?status=open"
         />
 
         <StatCard
-          label="Applications"
-          value={totalApplications}
-          hint={`${pendingApplications} awaiting review`}
+          label="No applicants yet"
+          value={counts.openJobsWithoutApplicants}
+          hint="Open jobs nobody has applied to"
           icon={<FileText />}
-          href="/admin/applications"
+          href="/admin/jobs?status=open&applicants=none"
         />
 
         <StatCard
-          label="Accepted"
-          value={acceptedApplications}
-          hint={`${acceptanceRate}% acceptance rate`}
-          icon={<CheckCircle2 />}
+          label="New tutors"
+          value={counts.tutorsThisWeek}
+          hint={`This week · ${counts.tutors} registered`}
+          icon={<UserPlus />}
+          href="/admin/tutors?date=7d"
         />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ---------------------------------------------------
-            RECENT APPLICATIONS
+            REVIEW QUEUE
         --------------------------------------------------- */}
         <section className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
             <div>
-              <h2 className="font-heading font-medium">
-                Recent applications
-              </h2>
+              <h2 className="font-heading font-medium">Waiting for review</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                The latest submissions across all jobs.
+                {counts.pendingApplications > 0
+                  ? `The newest of ${plural(counts.pendingApplications, "pending application")}.`
+                  : "Nothing is waiting."}
               </p>
             </div>
 
-            {recentApplications.length > 0 ? (
+            {counts.pendingApplications > 0 ? (
               <Button
-                render={<Link href="/admin/applications" />}
+                render={
+                  <Link
+                    href="/admin/applications?status=pending"
+                    prefetch={false}
+                  />
+                }
                 variant="ghost"
-                size="sm"
+                size="lg"
               >
-                View all
+                Review all
                 <ArrowRight data-icon="inline-end" aria-hidden="true" />
               </Button>
             ) : null}
           </div>
 
-          {recentApplications.length === 0 ? (
+          {queue.length === 0 ? (
             <EmptyState
               className="rounded-none border-0"
-              icon={<FileText />}
-              title="No applications yet"
-              description="Applications will appear here as tutors apply to open jobs."
+              icon={<CircleCheck />}
+              title="You're all caught up"
+              description="New applications will appear here as tutors apply to open jobs."
             />
           ) : (
             <ul className="divide-y">
-              {recentApplications.map((application) => (
-                <li key={application.id}>
-                  <Link
-                    href={`/admin/applications/${application.id}`}
-                    className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+              {queue.map((application) => {
+                const jobIsActionable =
+                  application.job.status !== "CLOSED" &&
+                  !application.job.assignedTutorId;
+
+                return (
+                  <li
+                    key={application.id}
+                    className="flex flex-col gap-3 p-4 2xl:flex-row 2xl:items-center 2xl:justify-between"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-medium">
+                      <Link
+                        href={`/admin/applications/${application.id}`}
+                        prefetch={false}
+                        className="font-medium text-primary tap-target underline-offset-4 hover:underline"
+                      >
                         {application.tutor.fullName}
-                      </p>
-                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                        {application.job.jobCode} ·{" "}
-                        {application.job.subject} ·{" "}
+                      </Link>
+
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        <Link
+                          href={`/admin/jobs/${application.job.id}`}
+                          prefetch={false}
+                          className="font-mono font-medium text-foreground tap-target underline-offset-4 hover:underline"
+                        >
+                          {application.job.jobCode}
+                        </Link>
+                        {" · "}
+                        {application.job.subject}
+                        {" · "}
+                        <span className="tabular-nums">
+                          {application.tutor.entrancePercentage.toFixed(1)}%
+                        </span>
+                        {" · "}
                         {formatDate(application.createdAt)}
                       </p>
                     </div>
 
-                    <StatusBadge status={application.status} />
-                  </Link>
-                </li>
-              ))}
+                    <div className="2xl:shrink-0">
+                      <ApplicationRowActions
+                        applicationId={application.id}
+                        status={application.status}
+                        tutor={application.tutor}
+                        jobCode={application.job.jobCode}
+                        linkBase={linkBase}
+                        canAssign={jobIsActionable}
+                        canChangeStatus={jobIsActionable}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
 
         {/* ---------------------------------------------------
-            BREAKDOWNS
+            AT A GLANCE — every row opens that slice of the list
         --------------------------------------------------- */}
         <div className="space-y-6">
           <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
-            <h2 className="font-heading font-medium">Applications</h2>
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="font-heading font-medium">Applications</h2>
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {counts.applications} · {acceptanceRate}% accepted
+              </span>
+            </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-1">
               <Breakdown
                 label="Pending"
-                value={pendingApplications}
-                total={totalApplications}
+                value={counts.pendingApplications}
+                total={counts.applications}
                 tone="bg-warning"
+                href="/admin/applications?status=pending"
               />
               <Breakdown
                 label="Reviewed"
-                value={reviewedApplications}
-                total={totalApplications}
+                value={counts.reviewedApplications}
+                total={counts.applications}
                 tone="bg-info"
+                href="/admin/applications?status=reviewed"
               />
               <Breakdown
                 label="Accepted"
-                value={acceptedApplications}
-                total={totalApplications}
+                value={counts.acceptedApplications}
+                total={counts.applications}
                 tone="bg-success"
+                href="/admin/applications?status=accepted"
               />
               <Breakdown
                 label="Rejected"
-                value={rejectedApplications}
-                total={totalApplications}
+                value={counts.rejectedApplications}
+                total={counts.applications}
                 tone="bg-destructive"
+                href="/admin/applications?status=rejected"
               />
             </div>
           </section>
 
           <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
-            <h2 className="font-heading font-medium">Jobs</h2>
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="font-heading font-medium">Jobs</h2>
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {counts.jobs}
+              </span>
+            </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-1">
               <Breakdown
                 label="Open"
-                value={openJobs}
-                total={totalJobs}
+                value={counts.openJobs}
+                total={counts.jobs}
                 tone="bg-success"
+                href="/admin/jobs?status=open"
               />
               <Breakdown
                 label="Closed"
-                value={closedJobs}
-                total={totalJobs}
+                value={counts.jobs - counts.openJobs}
+                total={counts.jobs}
                 tone="bg-muted-foreground"
+                href="/admin/jobs?status=closed"
               />
             </div>
-
-            <Button
-              render={<Link href="/admin/jobs" />}
-              variant="outline"
-              size="lg"
-              className="mt-5 w-full"
-            >
-              <BriefcaseBusiness data-icon="inline-start" aria-hidden="true" />
-              Manage jobs
-            </Button>
           </section>
 
-          {pendingApplications > 0 ? (
-            <section className="rounded-xl border border-warning/30 bg-warning/5 p-5">
-              <div className="flex items-start gap-3">
-                <span
-                  aria-hidden="true"
-                  className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-[color-mix(in_oklch,var(--warning),var(--foreground)_40%)]"
-                >
-                  <Clock3 className="size-4.5" />
-                </span>
+          {/* How the closed jobs ended — see `getJobOutcome`. */}
+          <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="font-heading font-medium">Closed jobs</h2>
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {closedJobs}
+                {closedJobs > 0 ? ` · ${successRate}% successful` : null}
+              </span>
+            </div>
 
-                <div className="min-w-0">
-                  <h2 className="font-heading font-medium">
-                    {pendingApplications} awaiting review
-                  </h2>
-                  <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
-                    Applications that have not been triaged yet.
-                  </p>
+            <p className="mt-1 text-sm text-muted-foreground text-pretty">
+              Successful jobs closed with a tutor assigned. Failed ones closed
+              without one.
+            </p>
 
-                  <Button
-                    render={<Link href="/admin/applications" />}
-                    size="lg"
-                    className="mt-3"
-                  >
-                    Review now
-                  </Button>
-                </div>
-              </div>
-            </section>
-          ) : null}
+            <div className="mt-3 space-y-1">
+              <Breakdown
+                label="Successful"
+                value={counts.successfulJobs}
+                total={closedJobs}
+                tone="bg-success"
+                href="/admin/jobs?status=closed&outcome=successful"
+              />
+              <Breakdown
+                label="Failed"
+                value={counts.failedJobs}
+                total={closedJobs}
+                tone="bg-destructive"
+                href="/admin/jobs?status=closed&outcome=failed"
+              />
+            </div>
+          </section>
         </div>
       </div>
     </div>
   );
 }
 
-/** A labelled proportion bar. Width falls back to 0 when the total is 0. */
+/**
+ * A labelled proportion bar that opens its slice of the list. Width falls
+ * back to 0 when the total is 0.
+ */
 function Breakdown({
   label,
   value,
   total,
   tone,
+  href,
 }: {
   label: string;
   value: number;
   total: number;
   tone: string;
+  href: string;
 }) {
   const percent = total > 0 ? Math.round((value / total) * 100) : 0;
 
   return (
-    <div>
+    <Link
+      href={href}
+      prefetch={false}
+      className="-mx-2 block rounded-lg px-2 py-2 transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+    >
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{label}</span>
         <span className="font-medium tabular-nums">
@@ -352,6 +355,6 @@ function Breakdown({
           style={{ width: `${percent}%` }}
         />
       </div>
-    </div>
+    </Link>
   );
 }

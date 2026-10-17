@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
+import { refreshPublicJobPages } from "@/lib/public-job-pages";
 import { generateNextJobCode } from "@/lib/job-code";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
 import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
 
-/* The create path now waits on a Telegram round-trip. */
-export const maxDuration = 30;
+// `Job.salary` is a Postgres Int; a typo past this would 500 on insert.
+const MAX_SALARY = 1_000_000;
 
 const allowedGenders = [
   "MALE",
@@ -74,7 +75,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json();
+    // A malformed or empty body falls through to the field checks below as a 400.
+    const body = (await request.json().catch(() => null)) ?? {};
 
     const {
       gender,
@@ -212,13 +214,14 @@ export async function POST(request: Request) {
     if (
       !Number.isFinite(parsedSalary) ||
       parsedSalary <= 0 ||
-      !Number.isInteger(parsedSalary)
+      !Number.isInteger(parsedSalary) ||
+      parsedSalary > MAX_SALARY
     ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Salary must be a positive whole number.",
+            "Salary must be a whole number between 1 and 1,000,000.",
         },
         { status: 400 }
       );
@@ -370,6 +373,8 @@ export async function POST(request: Request) {
     // for the slow cases.
     //
     // =====================================================
+
+    refreshPublicJobPages(job.jobCode);
 
     const telegram = await safeSyncJobTelegramPost(job.id, {
       deadlineMs: 6_000,

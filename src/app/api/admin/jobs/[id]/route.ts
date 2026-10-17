@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
+import { refreshPublicJobPages } from "@/lib/public-job-pages";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
-import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
+import {
+  safeRemoveJobSheetRow,
+  safeSyncJobSheetRow,
+} from "@/lib/job-sheet-sync";
 import {
   deleteChannelMessage,
   isTelegramConfigured,
 } from "@/lib/telegram";
-
-/* Editing a job waits on a Telegram edit round-trip. */
-export const maxDuration = 30;
 
 interface RouteContext {
   params: Promise<{
@@ -17,15 +18,13 @@ interface RouteContext {
   }>;
 }
 
+// `Job.salary` is a Postgres Int; a typo past this would 500 on insert.
+const MAX_SALARY = 1_000_000;
+
 const allowedGenders = [
   "MALE",
   "FEMALE",
   "ANY",
-] as const;
-
-const allowedStatuses = [
-  "OPEN",
-  "CLOSED",
 ] as const;
 
 export async function GET(
@@ -106,7 +105,8 @@ export async function PATCH(
   try {
     const { id } = await params;
 
-    const body = await request.json();
+    // A malformed or empty body falls through to the field checks below as a 400.
+    const body = (await request.json().catch(() => null)) ?? {};
 
     const {
       gender,
@@ -116,8 +116,16 @@ export async function PATCH(
       parentName,
       parentPhone,
       salary,
-      status,
+      daysPerWeek,
+      hoursPerDay,
+      additionalDetails,
     } = body;
+
+    // No `status` here: closing and re-opening each have their own
+    // route, because each changes the job's applications too. Closing
+    // without a tutor rejects the pool (`.../status`); re-opening puts
+    // it back to pending and clears any assignment (`.../reopen`).
+    // A flip from this form would skip both.
 
     const existingJob =
       await prisma.job.findUnique({
@@ -149,6 +157,36 @@ export async function PATCH(
           success: false,
           message:
             "All required fields must be provided.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Trimmed before checking, like `POST /api/admin/jobs`: a
+    // whitespace-only value passes the truthiness check above and
+    // would otherwise reach the row and the channel post as "".
+
+    const normalizedGrade =
+      String(grade).trim();
+
+    if (!normalizedGrade) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Grade is required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedSubject =
+      String(subject).trim();
+
+    if (!normalizedSubject) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Subject is required.",
         },
         { status: 400 }
       );
@@ -208,38 +246,6 @@ export async function PATCH(
       );
     }
 
-    if (
-      !allowedStatuses.includes(
-        status
-      )
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Invalid job status.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // The edit form carries `status` too, so it is a second
-    // route into the half-reopened state. Same guard as
-    // `.../status`: clearing an assignment is `.../reopen`.
-    if (
-      status === "OPEN" &&
-      existingJob.assignedTutorId
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "This job still has an assigned tutor. Use Re-open job to clear the assignment and start a new application round.",
-        },
-        { status: 409 }
-      );
-    }
-
     const parsedSalary =
       Number(salary);
 
@@ -247,13 +253,72 @@ export async function PATCH(
       !Number.isInteger(
         parsedSalary
       ) ||
-      parsedSalary <= 0
+      parsedSalary <= 0 ||
+      parsedSalary > MAX_SALARY
     ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Salary must be a positive whole number.",
+            "Salary must be a whole number between 1 and 1,000,000.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Schedule and details — same rules as `POST /api/admin/jobs`.
+
+    const parsedDaysPerWeek =
+      Number(daysPerWeek);
+
+    if (
+      daysPerWeek === undefined ||
+      daysPerWeek === null ||
+      !Number.isInteger(parsedDaysPerWeek) ||
+      parsedDaysPerWeek < 1 ||
+      parsedDaysPerWeek > 7
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Days per week must be a whole number between 1 and 7.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const parsedHoursPerDay =
+      Number(hoursPerDay);
+
+    if (
+      hoursPerDay === undefined ||
+      hoursPerDay === null ||
+      !Number.isFinite(parsedHoursPerDay) ||
+      parsedHoursPerDay < 0.5 ||
+      parsedHoursPerDay > 12
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Hours per day must be between 0.5 and 12.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedAdditionalDetails =
+      typeof additionalDetails === "string"
+        ? additionalDetails.trim()
+        : "";
+
+    if (normalizedAdditionalDetails.length > 5000) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Additional details must be 5000 characters or fewer.",
         },
         { status: 400 }
       );
@@ -266,20 +331,23 @@ export async function PATCH(
         },
         data: {
           gender,
-          grade:
-            String(grade).trim(),
-          subject:
-            String(subject).trim(),
+          grade: normalizedGrade,
+          subject: normalizedSubject,
           place: normalizedPlace,
           parentName: normalizedParentName,
           parentPhone: normalizedParentPhone,
           salary: parsedSalary,
-          status,
+          daysPerWeek: parsedDaysPerWeek,
+          hoursPerDay: parsedHoursPerDay,
+          additionalDetails:
+            normalizedAdditionalDetails || null,
         },
       });
 
     // The channel post is a rendering of the row, so an edit here is
     // an edit there. Contained, never fatal — see `telegram-job-post`.
+
+    refreshPublicJobPages(updatedJob.jobCode);
 
     const telegram =
       await safeSyncJobTelegramPost(
@@ -320,15 +388,17 @@ export async function PATCH(
 // DELETE
 // =====================================================
 //
-// Deleting is for jobs that should never have existed — a typo, a
-// duplicate, a test. It is not the way to end a live vacancy: that
-// is `PATCH .../status` with CLOSED, which keeps the record and the
-// channel post.
+// Deletes the job outright, whether or not tutors have applied. Its
+// applications go with it: `Application.job` has no cascade, so they
+// are deleted explicitly in the same transaction — otherwise the
+// foreign key would refuse the job delete. Tutors lose those rows
+// from their application history; the confirm dialog says so.
 //
-// A job that tutors have already applied to cannot be deleted. Those
-// rows are someone's application history, `Application.job` has no
-// cascade, and silently erasing them to satisfy a button would be
-// the wrong trade. The refusal says so and points at closing.
+// Its Telegram post and Google Sheet row are removed too, best-effort,
+// after the transaction commits.
+//
+// Ending a live vacancy while keeping the record is still
+// `PATCH .../status` with CLOSED.
 //
 // =====================================================
 
@@ -381,28 +451,15 @@ export async function DELETE(
     const applicationCount =
       job._count.applications;
 
-    if (applicationCount > 0) {
-      return NextResponse.json(
-        {
-          success: false,
+    await prisma.$transaction([
+      prisma.application.deleteMany({
+        where: { jobId: job.id },
+      }),
 
-          message:
-            `This job has ${applicationCount} ` +
-            `${
-              applicationCount === 1
-                ? "application"
-                : "applications"
-            } from tutors, and deleting it would erase ` +
-            `their records too. Close the job instead — it ` +
-            `stops accepting applications and keeps the history.`,
-        },
-        { status: 409 }
-      );
-    }
-
-    await prisma.job.delete({
-      where: { id: job.id },
-    });
+      prisma.job.delete({
+        where: { id: job.id },
+      }),
+    ]);
 
     // =====================================================
     // REMOVE THE CHANNEL POST
@@ -436,14 +493,44 @@ export async function DELETE(
       }
     }
 
+    // Same treatment for the sheet mirror: best-effort, by code, and
+    // a leftover row is named in the response. Never throws.
+
+    refreshPublicJobPages(job.jobCode);
+
+    const sheet =
+      await safeRemoveJobSheetRow(job.jobCode);
+
+    const sheetRowRemoved =
+      sheet.status !== "FAILED";
+
+    const leftovers = [
+      channelPostRemoved
+        ? null
+        : "its Telegram post could not be removed — delete it in the channel yourself",
+      sheetRowRemoved
+        ? null
+        : "its Google Sheet row could not be removed — delete it in the sheet yourself",
+    ].filter((leftover) => leftover !== null);
+
     return NextResponse.json({
       success: true,
 
-      message: channelPostRemoved
-        ? `Job ${job.jobCode} deleted.`
-        : `Job ${job.jobCode} deleted, but its Telegram post could not be removed — delete it in the channel yourself.`,
+      message:
+        `Job ${job.jobCode} deleted` +
+        (applicationCount > 0
+          ? ` along with ${applicationCount} ${
+              applicationCount === 1
+                ? "application"
+                : "applications"
+            }`
+          : "") +
+        (leftovers.length > 0
+          ? `, but ${leftovers.join(", and ")}.`
+          : "."),
 
       channelPostRemoved,
+      sheetRowRemoved,
     });
   } catch (error) {
     console.error(

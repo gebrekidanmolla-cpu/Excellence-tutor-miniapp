@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Menu } from "lucide-react";
+import { LayoutDashboard, Menu } from "lucide-react";
 
 import {
   Sheet,
@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ThemeMenu, ThemeSegmented } from "@/components/layout/ThemeToggle";
 import { Wordmark } from "@/components/layout/Wordmark";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 /**
  * The public site header. The previous landing nav was `hidden md:flex` with
@@ -30,6 +32,7 @@ const LINKS = [
   { href: "/jobs", label: "Find Jobs" },
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/#why-us", label: "Why Us" },
+  { href: "/#faq", label: "FAQ" },
 ];
 
 export function PublicHeader({
@@ -42,16 +45,17 @@ export function PublicHeader({
   const closeDrawer = React.useCallback(() => setOpen(false), []);
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/90 backdrop-blur-sm supports-backdrop-filter:bg-background/75">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+    <header className="header-settle sticky top-0 z-50 border-b bg-background/90 backdrop-blur-md supports-backdrop-filter:bg-background/80">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
         <Wordmark />
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-7 md:flex">
           {LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              prefetch={link.href === "/jobs" ? false : undefined}
+              className="rounded-sm text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               {link.label}
             </Link>
@@ -59,14 +63,25 @@ export function PublicHeader({
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Below `md` the theme picker lives in the drawer, so a phone
+              header never has to fit a fourth control. */}
+          <ThemeMenu className="hidden md:inline-flex" />
+
           {tutor ? (
-            <Button render={<Link href="/tutor" />} size="lg">
-              Go to portal
+            /* Below 360px the label would push the wordmark onto two lines,
+               so the button keeps only its icon (the drawer has the label). */
+            <Button
+              render={<Link href="/tutor" prefetch={false} />}
+              size="lg"
+              className="max-[359px]:size-9 max-[359px]:px-0"
+            >
+              <LayoutDashboard aria-hidden="true" className="min-[360px]:hidden" />
+              <span className="max-[359px]:sr-only">Go to portal</span>
             </Button>
           ) : (
             <>
               <Button
-                render={<Link href="/login" />}
+                render={<IntentLink href="/login" />}
                 variant="ghost"
                 size="lg"
                 className="hidden sm:inline-flex"
@@ -75,9 +90,9 @@ export function PublicHeader({
               </Button>
 
               <Button
-                render={<Link href="/register" />}
+                render={<IntentLink href="/register" />}
                 size="lg"
-                className="hidden sm:inline-flex"
+                className="hidden rounded-md bg-foreground px-4 text-background hover:bg-primary sm:inline-flex"
               >
                 Register
               </Button>
@@ -113,6 +128,7 @@ export function PublicHeader({
                   <Link
                     key={link.href}
                     href={link.href}
+                    prefetch={link.href === "/jobs" ? false : undefined}
                     onClick={closeDrawer}
                     className="rounded-lg px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
@@ -122,9 +138,11 @@ export function PublicHeader({
               </nav>
 
               <div className="grid gap-2 border-t p-3">
+                <ThemeSegmented className="mb-1" />
+
                 {tutor ? (
                   <Button
-                    render={<Link href="/tutor" onClick={closeDrawer} />}
+                    render={<Link href="/tutor" prefetch={false} onClick={closeDrawer} />}
                     size="xl"
                   >
                     Go to portal
@@ -132,7 +150,7 @@ export function PublicHeader({
                 ) : (
                   <>
                     <Button
-                      render={<Link href="/login" onClick={closeDrawer} />}
+                      render={<IntentLink href="/login" onClick={closeDrawer} />}
                       variant="outline"
                       size="xl"
                     >
@@ -140,7 +158,7 @@ export function PublicHeader({
                     </Button>
 
                     <Button
-                      render={<Link href="/register" onClick={closeDrawer} />}
+                      render={<IntentLink href="/register" onClick={closeDrawer} />}
                       size="xl"
                     >
                       Register

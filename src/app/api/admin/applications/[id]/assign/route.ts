@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/admin-session";
+import { refreshPublicJobPages } from "@/lib/public-job-pages";
 import { sendApplicationAcceptedEmail } from "@/lib/email";
 import { safeSyncJobTelegramPost } from "@/lib/telegram-job-post";
 import { safeSyncJobSheetRow } from "@/lib/job-sheet-sync";
-
-/* Assigning waits on the email and a Telegram edit. */
-export const maxDuration = 30;
 
 interface RouteContext {
   params: Promise<{
@@ -89,6 +87,8 @@ export async function POST(
               grade: true,
               place: true,
               salary: true,
+              parentName: true,
+              parentPhone: true,
             },
           },
         },
@@ -266,8 +266,8 @@ export async function POST(
     // =====================================================
     //
     // Best-effort, after the transaction has already committed: the
-    // assignment is real whether or not Resend is reachable, so a failed
-    // send is logged and swallowed rather than turning a successful
+    // assignment is real whether or not the mail server is reachable, so a
+    // failed send is logged and swallowed rather than turning a successful
     // assignment into a 500. Still *awaited*, not fired-and-forgotten —
     // this runs in a serverless function that can freeze the moment the
     // response is sent, which would silently drop an un-awaited send.
@@ -289,6 +289,10 @@ export async function POST(
         },
         place: application.job.place,
         salary: application.job.salary,
+        // Only the assigned tutor ever receives these — the applicants
+        // rejected in the same transaction get no email at all.
+        parentName: application.job.parentName,
+        parentPhone: application.job.parentPhone,
       });
     } catch (emailError) {
       console.error(
@@ -300,6 +304,8 @@ export async function POST(
     // The transaction above closed the job, so the channel post needs
     // its CLOSED marker. Same containment as the email: recorded on
     // the row, logged, never fatal.
+
+    refreshPublicJobPages(result.updatedJob.jobCode);
 
     const telegram =
       await safeSyncJobTelegramPost(

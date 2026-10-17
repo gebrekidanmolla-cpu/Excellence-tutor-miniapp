@@ -4,6 +4,7 @@ import {
   BookOpen,
   BriefcaseBusiness,
   CalendarDays,
+  Clock,
   GraduationCap,
   Mail,
   MapPin,
@@ -85,6 +86,9 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
           salary: true,
           status: true,
           createdAt: true,
+          assignedTutorId: true,
+          parentName: true,
+          parentPhone: true,
         },
       },
     },
@@ -93,6 +97,20 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
   if (!application) {
     notFound();
   }
+
+  /*
+   * The parent's contact is for the tutor who holds the job, and nobody else.
+   * Both conditions are required: re-opening a job resets the application to
+   * PENDING and clears `assignedTutorId`, so a reversed assignment loses
+   * access here without any extra step. This is a server component, so the
+   * fields are never sent to the browser unless this card renders.
+   */
+  const isAssigned =
+    application.status === "ACCEPTED" &&
+    application.job.assignedTutorId === tutor.id;
+
+  const parentName = application.job.parentName.trim();
+  const parentPhone = application.job.parentPhone.trim();
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -110,6 +128,90 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
         }
         actions={<StatusBadge status={application.status} size="lg" />}
       />
+
+      {/* -----------------------------------------------------
+          PARENT CONTACT — assigned tutor only
+      ----------------------------------------------------- */}
+      {isAssigned ? (
+        <section
+          aria-labelledby="parent-contact-heading"
+          className="overflow-hidden rounded-xl bg-card ring-1 ring-primary/25"
+        >
+          <div className="border-b bg-primary/[0.04] px-5 py-4 sm:px-6">
+            <h2
+              id="parent-contact-heading"
+              className="font-heading font-semibold"
+            >
+              Contact the parent
+            </h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              You&apos;ve been assigned to this job.
+            </p>
+          </div>
+
+          <div className="space-y-5 p-5 sm:p-6">
+            {parentPhone ? (
+              <>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3.5">
+                    <span
+                      aria-hidden="true"
+                      className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+                    >
+                      <UserRound className="size-5" />
+                    </span>
+
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">
+                        {parentName || "Parent"}
+                      </p>
+                      <a
+                        href={`tel:${parentPhone.replace(/(?!^\+)[^\d]/g, "")}`}
+                        className="rounded-sm text-sm font-medium text-primary tabular-nums underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                      >
+                        {parentPhone}
+                      </a>
+                    </div>
+                  </div>
+
+                  <Button
+                    render={
+                      <a
+                        href={`tel:${parentPhone.replace(/(?!^\+)[^\d]/g, "")}`}
+                      />
+                    }
+                    size="xl"
+                    className="shrink-0"
+                  >
+                    <Phone data-icon="inline-start" aria-hidden="true" />
+                    Call parent
+                  </Button>
+                </div>
+
+                <div className="flex gap-3 rounded-lg border-l-4 border-highlight bg-highlight/10 p-4">
+                  <Clock
+                    className="mt-0.5 size-4 shrink-0 text-highlight-strong"
+                    aria-hidden="true"
+                  />
+                  <div className="text-sm text-foreground">
+                    <p className="font-semibold">Next step: call the parent</p>
+                    <p className="mt-1 leading-relaxed text-pretty">
+                      Please call the parent to introduce yourself and arrange
+                      the first session, then let us know what you discussed{" "}
+                      <strong>within 24 hours</strong>.
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm leading-relaxed text-muted-foreground text-pretty">
+                The Excellence Tutor team will be in touch with the
+                parent&apos;s contact details and next steps.
+              </p>
+            )}
+          </div>
+        </section>
+      ) : null}
 
       {/* -----------------------------------------------------
           STATUS
@@ -205,7 +307,7 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
           </div>
 
           <Button
-            render={<Link href="/tutor/profile" />}
+            render={<Link href="/tutor/profile" prefetch={false} />}
             variant="outline"
             size="lg"
             className="shrink-0"
@@ -238,14 +340,14 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button
-          render={<Link href="/tutor/applications" />}
+          render={<Link href="/tutor/applications" prefetch={false} />}
           variant="outline"
           size="xl"
         >
           My applications
         </Button>
 
-        <Button render={<Link href="/jobs" />} size="xl">
+        <Button render={<Link href="/jobs" prefetch={false} />} size="xl">
           <BriefcaseBusiness data-icon="inline-start" aria-hidden="true" />
           Browse available jobs
         </Button>

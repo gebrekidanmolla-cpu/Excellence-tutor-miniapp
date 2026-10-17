@@ -18,6 +18,13 @@ enum TelegramPostStatus {
   DISABLED
 }
 
+enum SheetSyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+  DISABLED
+}
+
 enum ApplicationStatus {
   PENDING
   REVIEWED
@@ -114,6 +121,19 @@ model Job {
   telegramLockedAt   DateTime?
 
   // ==========================================
+  // GOOGLE SHEET MIRROR
+  // ==========================================
+  //
+  // Same side-effect contract as the Telegram columns: written after
+  // the job change has committed, recording what happened. `PENDING`
+  // means the job has never reached the sheet — every job that
+  // predates this column starts there until a "Sync all" backfills it.
+
+  sheetSyncStatus SheetSyncStatus @default(PENDING)
+  sheetSyncError  String?         @db.Text
+  sheetSyncedAt   DateTime?
+
+  // ==========================================
   // TIMESTAMPS
   // ==========================================
 
@@ -147,17 +167,39 @@ model Tutor {
 
   passwordHash String
 
+  // Stamped into the session cookie; a cookie carrying an older value is
+  // refused. Bumped on password reset, which signs every other device out.
+  // See `src/lib/session.ts`.
+  sessionVersion Int @default(0)
+
   // ==========================================
   // PERSONAL INFORMATION
   // ==========================================
 
   gender Gender
 
+  // ==========================================
+  // ADDRESS
+  // ==========================================
+  //
+  // `exactPlace` is shown as "Specific area" (4 Kilo, Ayat…).
+
+  country String @default("Ethiopia")
+
   city String
 
   subcity String
 
   exactPlace String
+
+  // Optional second address — e.g. a student's dorm during the week
+  // and family home at weekends. All null when not given. See
+  // `src/lib/address.ts`.
+
+  address2Country    String?
+  address2City       String?
+  address2Subcity    String?
+  address2ExactPlace String?
 
   aboutMe String? @db.VarChar(500)
 
@@ -219,11 +261,29 @@ model Tutor {
 
   governmentIdUrl String
 
+  // R2 object key of the tutor's own portrait, set from `/tutor/profile`
+  // after registration. Null until they add one. Shown to admins and on
+  // the parent-facing profile, never as a document.
+  profilePhotoUrl String?
+
   // ==========================================
   // TELEGRAM
   // ==========================================
 
   telegramId String? @unique
+
+  // ==========================================
+  // PUBLIC PROFILE LINK
+  // ==========================================
+  //
+  // Random token behind `/tutor-profile/<token>`, the page an admin sends
+  // to parents. Null means no link exists. Regenerating it kills the old
+  // link, so the column is the revocation switch — never derive it from `id`.
+  // A link also dies on its own at `profileShareExpiresAt` (30 days after
+  // it was created or reset); a token with no expiry is treated as expired.
+
+  profileShareToken     String?   @unique
+  profileShareExpiresAt DateTime?
 
   // ==========================================
   // TIMESTAMPS
@@ -255,10 +315,36 @@ model EmailVerification {
 
   verifiedAt DateTime?
 
+  // Who asked for the code — for the per-IP send limit. Null when unknown.
+  requestIp String?
+
   createdAt DateTime @default(now())
 
   @@index([email])
   @@index([expiresAt])
+  @@index([requestIp, createdAt])
+}
+
+// Failed sign-in attempts, for the login rate limit (src/lib/login-rate-limit.ts),
+// and password-reset requests (src/app/api/auth/forgot-password/route.ts).
+// Only failures are stored; a successful login clears that email's rows.
+model LoginAttempt {
+  id String @id @default(cuid())
+
+  // "TUTOR" or "ADMIN" — the two logins are limited independently — or
+  // "RESET" for password-reset emails (every request, not just failures).
+  scope String
+
+  // As submitted (normalized), whether or not an account exists.
+  email String
+
+  // Null when unknown (local dev).
+  ip String?
+
+  createdAt DateTime @default(now())
+
+  @@index([scope, email, createdAt])
+  @@index([scope, ip, createdAt])
 }
 
 model Application {

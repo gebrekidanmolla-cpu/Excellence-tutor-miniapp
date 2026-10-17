@@ -1,100 +1,83 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CheckCircle2, Eye, EyeOff, Info } from "lucide-react";
+import {
+  BriefcaseBusiness,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  ListChecks,
+  Loader2,
+  LogIn,
+  Send,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FormError } from "@/components/shared/ErrorState";
-import { Wordmark } from "@/components/layout/Wordmark";
+import { AuthHeading, AuthLayout } from "@/components/layout/AuthLayout";
+import { nextPathFromLocation, safeNextPath } from "@/lib/safe-redirect";
+import { IntentLink } from "@/components/shared/IntentLink";
 
-/**
- * Auth screens use a focused layout rather than `PublicHeader`: the header's
- * own Log in / Register buttons would be redundant here, and a single exit
- * route (the wordmark) keeps the page on task.
- */
+const HIGHLIGHTS = [
+  { icon: BriefcaseBusiness, text: "Browse tutoring jobs near you" },
+  { icon: Send, text: "Apply to a job in a couple of taps" },
+  { icon: ListChecks, text: "Track every application in one place" },
+];
+
 export default function LoginPage() {
   return (
-    <main className="flex min-h-svh flex-col lg:grid lg:grid-cols-2">
-      {/* Brand panel — decorative, so it is dropped entirely on small screens
-          rather than shrunk into a banner. */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-primary p-12 text-primary-foreground lg:flex">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_60%_at_20%_0%,color-mix(in_oklch,var(--color-highlight)_22%,transparent),transparent_70%)]"
-        />
+    <AuthLayout
+      eyebrow="Tutor Portal"
+      title="Your next teaching opportunity starts here."
+      description="Sign in to explore tutoring opportunities, manage your applications, and keep your tutor profile up to date."
+      highlights={HIGHLIGHTS}
+    >
+      <AuthHeading
+        icon={LogIn}
+        title="Welcome back"
+        description="Sign in to access jobs and manage your tutoring applications."
+      />
 
-        <div className="relative">
-          <Link
-            href="/"
-            className="font-heading text-lg font-semibold tracking-tight"
-          >
-            Excellence Tutor
-          </Link>
-        </div>
+      <Suspense fallback={null}>
+        <RegisteredBanner />
+      </Suspense>
 
-        <div className="relative max-w-md">
-          <p className="text-sm font-medium tracking-wide text-primary-foreground/70 uppercase">
-            Tutor Portal
-          </p>
+      <LoginForm />
 
-          <h1 className="mt-4 font-heading text-4xl leading-tight font-semibold tracking-tight text-balance">
-            Your next teaching opportunity starts here.
-          </h1>
+      <p className="mt-8 text-center text-sm text-muted-foreground">
+        Don&apos;t have a tutor account?{" "}
+        <Suspense fallback={<RegisterLink href="/register" />}>
+          <RegisterLinkWithNext />
+        </Suspense>
+      </p>
+    </AuthLayout>
+  );
+}
 
-          <p className="mt-6 leading-relaxed text-primary-foreground/80 text-pretty">
-            Sign in to explore available tutoring opportunities, manage your
-            applications, and keep your tutor profile up to date.
-          </p>
-        </div>
+function RegisterLink({ href }: { href: string }) {
+  return (
+    <IntentLink
+      href={href}
+      className="font-medium text-primary underline-offset-4 hover:underline"
+    >
+      Create one
+    </IntentLink>
+  );
+}
 
-        <p className="relative text-sm text-primary-foreground/60">
-          Excellence Tutor Hub
-        </p>
-      </aside>
+/** Keeps a `?next=` job link alive when the tutor needs an account first. */
+function RegisterLinkWithNext() {
+  const next = useSearchParams().get("next");
+  const target = safeNextPath(next, "");
 
-      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6 lg:py-12">
-        <div className="w-full max-w-sm">
-          <div className="lg:hidden">
-            <Wordmark />
-          </div>
-
-          <div className="mt-8 lg:mt-0">
-            <p className="text-sm font-medium text-muted-foreground">
-              Welcome back
-            </p>
-
-            <h2 className="mt-1.5 font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-              Sign in to your account
-            </h2>
-
-            <p className="mt-2 text-sm text-muted-foreground">
-              Access jobs and manage your tutoring applications.
-            </p>
-          </div>
-
-          <Suspense fallback={null}>
-            <RegisteredBanner />
-          </Suspense>
-
-          <LoginForm />
-
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            Don&apos;t have a tutor account?{" "}
-            <Link
-              href="/register"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Create one
-            </Link>
-          </p>
-        </div>
-      </div>
-    </main>
+  return (
+    <RegisterLink
+      href={target ? `/register?next=${encodeURIComponent(target)}` : "/register"}
+    />
   );
 }
 
@@ -126,7 +109,6 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showRecoveryNote, setShowRecoveryNote] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -156,7 +138,8 @@ function LoginForm() {
         return;
       }
 
-      router.push("/tutor");
+      // Back to the job they came from (`/apply/<code>?next=`), else home.
+      router.push(nextPathFromLocation());
       router.refresh();
     } catch {
       setError("Unable to connect to the server. Please try again.");
@@ -191,18 +174,16 @@ function LoginForm() {
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="password">Password</Label>
 
-            {/* Previously this pushed a sentence through `setError`, so an
-                unavailable feature was reported as a login failure. */}
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              className="h-auto p-0 text-muted-foreground"
-              aria-expanded={showRecoveryNote}
-              onClick={() => setShowRecoveryNote((value) => !value)}
+            <IntentLink
+              href={
+                email.trim()
+                  ? `/forgot-password?email=${encodeURIComponent(email.trim())}`
+                  : "/forgot-password"
+              }
+              className="rounded-sm text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               Forgot password?
-            </Button>
+            </IntentLink>
           </div>
 
           <div className="relative">
@@ -232,19 +213,16 @@ function LoginForm() {
               {showPassword ? <EyeOff /> : <Eye />}
             </Button>
           </div>
-
-          {showRecoveryNote ? (
-            <Alert>
-              <Info aria-hidden="true" />
-              <AlertDescription>
-                Password recovery is not available yet. It is planned for a
-                later authentication milestone.
-              </AlertDescription>
-            </Alert>
-          ) : null}
         </div>
 
         <Button type="submit" size="xl" disabled={loading} className="w-full">
+          {loading ? (
+            <Loader2
+              className="animate-spin"
+              data-icon="inline-start"
+              aria-hidden="true"
+            />
+          ) : null}
           {loading ? "Signing in…" : "Sign in"}
         </Button>
       </form>

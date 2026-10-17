@@ -71,7 +71,7 @@ export default async function MyApplicationsPage() {
               } submitted`
         }
         actions={
-          <Button render={<Link href="/jobs" />} size="xl">
+          <Button render={<Link href="/jobs" prefetch={false} />} size="xl">
             <BriefcaseBusiness data-icon="inline-start" aria-hidden="true" />
             Browse jobs
           </Button>
@@ -84,7 +84,7 @@ export default async function MyApplicationsPage() {
           title="No applications yet"
           description="You have not applied for any tutoring jobs yet. Browse available jobs and apply with one click."
           action={
-            <Button render={<Link href="/jobs" />} size="xl">
+            <Button render={<Link href="/jobs" prefetch={false} />} size="xl">
               Browse available jobs
             </Button>
           }
@@ -147,7 +147,7 @@ export default async function MyApplicationsPage() {
 
                 <Button
                   render={
-                    <Link href={`/tutor/applications/${application.id}`} />
+                    <Link href={`/tutor/applications/${application.id}`} prefetch={false} />
                   }
                   variant="outline"
                   size="xl"
@@ -175,12 +175,16 @@ function Meta({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span aria-hidden="true" className="[&>svg]:size-3.5">
+    // Top-aligned, so a place long enough to wrap keeps its icon and label
+    // on the first line instead of floating them beside the middle.
+    <div className="flex min-w-0 items-start gap-1.5">
+      <span aria-hidden="true" className="mt-[3px] flex shrink-0 [&>svg]:size-3.5">
         {icon}
       </span>
-      <dt className="text-muted-foreground">{label}:</dt>
-      <dd className="font-medium text-foreground">{value}</dd>
+      <dt className="shrink-0 text-muted-foreground">{label}:</dt>
+      <dd className="min-w-0 font-medium text-foreground break-words">
+        {value}
+      </dd>
     </div>
   );
 }

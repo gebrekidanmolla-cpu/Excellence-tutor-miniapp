@@ -3,6 +3,7 @@ import { Compass, Home } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/layout/Wordmark";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 export default function NotFound() {
   return (
@@ -25,12 +26,12 @@ export default function NotFound() {
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Button render={<Link href="/" />} size="xl">
+        <Button render={<IntentLink href="/" />} size="xl">
           <Home data-icon="inline-start" aria-hidden="true" />
           Go home
         </Button>
 
-        <Button render={<Link href="/jobs" />} variant="outline" size="xl">
+        <Button render={<Link href="/jobs" prefetch={false} />} variant="outline" size="xl">
           <Compass data-icon="inline-start" aria-hidden="true" />
           Browse jobs
         </Button>

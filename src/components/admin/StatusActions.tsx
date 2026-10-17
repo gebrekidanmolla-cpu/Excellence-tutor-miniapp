@@ -87,11 +87,13 @@ export default function StatusActions({
     router.refresh();
   }
 
+  /* On a phone, Assign gets the full first row and the other two share the
+     second, rather than wrapping wherever the widths happen to break. */
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
       <ConfirmDialog
         trigger={
-          <Button size="xl">
+          <Button size="xl" className="col-span-2">
             <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
             Assign tutor
           </Button>

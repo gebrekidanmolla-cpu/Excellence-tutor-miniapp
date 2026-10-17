@@ -19,24 +19,62 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { SidebarNav, type NavItem } from "@/components/layout/SidebarNav";
+import { ThemeSegmented } from "@/components/layout/ThemeToggle";
 import { Wordmark } from "@/components/layout/Wordmark";
+
+/** The counts the nav shows, from `getAdminContext`. */
+export type AdminNavCounts = {
+  pendingApplications: number;
+  openJobs: number;
+};
 
 /**
  * The admin shell. Replaces a single nav row that overflowed the viewport on
- * anything narrower than a laptop.
+ * anything narrower than a laptop. Below `lg` the sidebar gives way to a
+ * bottom tab bar, as in the tutor portal; the drawer keeps the account card.
  *
  * Logout stays a real form POST: `/api/admin/auth/logout` answers with a
  * redirect, not JSON, so it cannot be swapped for a fetch the way the tutor
  * logout can. It is deliberately kept out of a portaled dropdown, since
  * closing the menu can unmount the form before the submit dispatches.
+ *
+ * The badges come from the layout, which Next does not re-render on client
+ * navigation: they refresh on a full load and after every admin action
+ * (each one calls `router.refresh()`), not on every click between pages.
  */
-const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/admin", label: "Dashboard", icon: <LayoutDashboard />, exact: true },
-  { href: "/admin/applications", label: "Applications", icon: <FileText /> },
-  { href: "/admin/jobs", label: "Jobs", icon: <BriefcaseBusiness /> },
-  { href: "/admin/tutors", label: "Tutors", icon: <Users /> },
-];
+function navItems(counts: AdminNavCounts): readonly NavItem[] {
+  return [
+    {
+      href: "/admin",
+      label: "Dashboard",
+      shortLabel: "Home",
+      icon: <LayoutDashboard />,
+      exact: true,
+    },
+    {
+      href: "/admin/applications",
+      label: "Applications",
+      icon: <FileText />,
+      badge: {
+        count: counts.pendingApplications,
+        label: "new applications",
+      },
+    },
+    {
+      href: "/admin/jobs",
+      label: "Jobs",
+      icon: <BriefcaseBusiness />,
+      badge: {
+        count: counts.openJobs,
+        label: "open jobs",
+        tone: "muted",
+      },
+    },
+    { href: "/admin/tutors", label: "Tutors", icon: <Users /> },
+  ];
+}
 
 function AdminCard({
   admin,
@@ -62,14 +100,18 @@ function AdminCard({
 
 export function AdminShell({
   admin,
+  counts,
   children,
 }: {
   admin: { fullName: string; email: string };
+  counts: AdminNavCounts;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(false);
 
   const closeDrawer = React.useCallback(() => setOpen(false), []);
+
+  const items = navItems(counts);
 
   return (
     <div className="flex min-h-svh w-full bg-muted/30">
@@ -82,10 +124,11 @@ export function AdminShell({
         <Separator />
 
         <div className="flex-1 overflow-y-auto p-3">
-          <SidebarNav items={NAV_ITEMS} />
+          <SidebarNav items={items} />
         </div>
 
-        <div className="p-3">
+        <div className="space-y-3 p-3">
+          <ThemeSegmented />
           <AdminCard admin={admin} />
         </div>
       </aside>
@@ -113,13 +156,14 @@ export function AdminShell({
 
               <div className="flex-1 overflow-y-auto p-3">
                 <SidebarNav
-                  items={NAV_ITEMS}
+                  items={items}
                   variant="drawer"
                   onNavigate={closeDrawer}
                 />
               </div>
 
-              <div className="border-t p-3">
+              <div className="space-y-3 border-t p-3">
+                <ThemeSegmented />
                 <AdminCard admin={admin} />
               </div>
             </SheetContent>
@@ -129,10 +173,13 @@ export function AdminShell({
         </header>
 
         <main className="flex-1">
-          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {/* `pb-28` clears the bottom tab bar on a phone. */}
+          <div className="mx-auto w-full max-w-7xl px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:py-8">
             {children}
           </div>
         </main>
+
+        <MobileTabBar items={items} />
       </div>
     </div>
   );

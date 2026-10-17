@@ -6,24 +6,33 @@ import {
   Check,
   FileText,
   Mail,
-  MapPin,
   Pencil,
   Phone,
   Send,
+  Upload,
   UserRound,
   X,
 } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
+import { AddressInfo } from "@/components/shared/AddressInfo";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
+import DeleteTutorButton from "@/components/admin/DeleteTutorButton";
+import TutorShareLink from "@/components/admin/TutorShareLink";
+import { adminDocumentHref } from "@/lib/admin-documents";
+import {
+  getProfileShareLinkBase,
+  isProfileShareExpired,
+} from "@/lib/tutor-profile-server";
 import {
   formatDate,
   formatEnum,
@@ -64,11 +73,21 @@ async function loadTutor(id: string) {
           job: true,
         },
       },
+      assignedJobs: {
+        select: {
+          jobCode: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
     },
   });
 }
 
 export default async function TutorDetailsPage({ params }: PageProps) {
+  await requireAdmin();
+
   const { id } = await params;
 
   const tutor = await loadTutor(id);
@@ -79,6 +98,12 @@ export default async function TutorDetailsPage({ params }: PageProps) {
 
   const isStudent = tutor.tutorStatus === "STUDENT";
 
+  const photoHref = tutor.profilePhotoUrl
+    ? adminDocumentHref(tutor.id, "profilePhoto", tutor.profilePhotoUrl)
+    : null;
+
+  const linkBase = await getProfileShareLinkBase();
+
   const applicationColumns: DataTableColumn<ApplicationRow>[] = [
     {
       id: "job",
@@ -86,26 +111,31 @@ export default async function TutorDetailsPage({ params }: PageProps) {
       mobileTitle: true,
       cell: (application) => (
         <Link
-          href={`/admin/jobs/${application.job.id}`}
+          href={`/admin/jobs/${application.job.id}`} prefetch={false}
           className="font-mono font-medium text-primary underline-offset-4 hover:underline"
         >
           {application.job.jobCode}
         </Link>
       ),
     },
+    /* Free-text columns wrap: kept on one line, a long subject or place
+       pushed the table past every screen it is shown on. */
     {
       id: "subject",
       header: "Subject",
+      cellClassName: "min-w-32 whitespace-normal",
       cell: (application) => application.job.subject,
     },
     {
       id: "grade",
       header: "Grade",
+      cellClassName: "min-w-20 whitespace-normal",
       cell: (application) => application.job.grade,
     },
     {
       id: "place",
       header: "Place",
+      cellClassName: "min-w-32 whitespace-normal",
       cell: (application) => application.job.place || "—",
     },
     {
@@ -132,7 +162,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
       cellClassName: "text-right",
       cell: (application) => (
         <Button
-          render={<Link href={`/admin/applications/${application.id}`} />}
+          render={<Link href={`/admin/applications/${application.id}`} prefetch={false} />}
           variant="outline"
           size="sm"
         >
@@ -158,7 +188,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
             {tutor.emailVerified ? (
               <Badge
                 variant="outline"
-                className="gap-1 border-transparent bg-success/10 text-[color-mix(in_oklch,var(--success),var(--foreground)_35%)]"
+                className="gap-1 border-transparent bg-success/10 text-success-strong"
               >
                 <BadgeCheck className="size-3" aria-hidden="true" />
                 Email verified
@@ -168,13 +198,20 @@ export default async function TutorDetailsPage({ params }: PageProps) {
             )}
 
             <Button
-              render={<Link href={`/admin/tutors/${tutor.id}/edit`} />}
+              render={<Link href={`/admin/tutors/${tutor.id}/edit`} prefetch={false} />}
               variant="outline"
               size="xl"
             >
               <Pencil data-icon="inline-start" aria-hidden="true" />
               Edit tutor
             </Button>
+
+            <DeleteTutorButton
+              tutorId={tutor.id}
+              tutorName={tutor.fullName}
+              applicationCount={tutor.applications.length}
+              assignedJobCodes={tutor.assignedJobs.map((job) => job.jobCode)}
+            />
           </>
         }
       />
@@ -204,10 +241,57 @@ export default async function TutorDetailsPage({ params }: PageProps) {
       </div>
 
       {/* -----------------------------------------------------
+          PUBLIC PROFILE LINK
+      ----------------------------------------------------- */}
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <h2 className="font-heading font-medium">Public profile link</h2>
+
+        <p className="mt-0.5 mb-5 text-sm text-muted-foreground text-pretty">
+          A page you can send to parents: education, entrance result, and the
+          transcript, entrance result, graduation document, government ID and
+          CV. It leaves out the tutor&apos;s phone, email and exact address.
+          Anyone with the link can open it until it expires, 30 days after it
+          is created or reset.
+        </p>
+
+        <TutorShareLink
+          tutorId={tutor.id}
+          initialToken={tutor.profileShareToken}
+          initialExpiresAt={
+            tutor.profileShareExpiresAt?.toISOString() ?? null
+          }
+          initialExpired={isProfileShareExpired(
+            tutor.profileShareExpiresAt
+          )}
+          linkBase={linkBase}
+        />
+      </section>
+
+      {/* -----------------------------------------------------
           ACCOUNT
       ----------------------------------------------------- */}
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
-        <h2 className="font-heading font-medium">Account information</h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-heading font-medium">Account information</h2>
+
+          {photoHref ? (
+            <a
+              href={photoHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded-full focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- a 302 to a presigned R2 URL */}
+              <img
+                src={photoHref}
+                alt={`Profile photo of ${tutor.fullName}`}
+                className="size-14 rounded-full object-cover ring-1 ring-foreground/10"
+              />
+            </a>
+          ) : (
+            <span className="text-xs text-muted-foreground">No profile photo</span>
+          )}
+        </div>
 
         <InfoGrid className="mt-5" columns={3}>
           <InfoItem
@@ -245,11 +329,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
 
         <Separator className="my-5" />
 
-        <InfoGrid columns={3}>
-          <InfoItem label="City" value={tutor.city} icon={<MapPin />} />
-          <InfoItem label="Subcity" value={tutor.subcity} />
-          <InfoItem label="Exact place" value={tutor.exactPlace} />
-        </InfoGrid>
+        <AddressInfo tutor={tutor} />
 
         {tutor.aboutMe ? (
           <>
@@ -333,6 +413,7 @@ export default async function TutorDetailsPage({ params }: PageProps) {
             columns={applicationColumns}
             getRowKey={(application) => application.id}
             caption="Application history"
+            breakpoint="xl"
             empty={
               <EmptyState
                 icon={<FileText />}
@@ -348,11 +429,29 @@ export default async function TutorDetailsPage({ params }: PageProps) {
           DOCUMENTS
       ----------------------------------------------------- */}
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
-        <h2 className="font-heading font-medium">Documents</h2>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-heading font-medium">Documents</h2>
 
-        <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
-          Each link opens through a short-lived signed URL.
-        </p>
+            <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
+              Each link opens through a short-lived signed URL.
+            </p>
+          </div>
+
+          <Button
+            render={
+              <Link
+                href={`/admin/tutors/${tutor.id}/edit#documents`}
+                prefetch={false}
+              />
+            }
+            variant="outline"
+            size="lg"
+          >
+            <Upload data-icon="inline-start" aria-hidden="true" />
+            Manage documents
+          </Button>
+        </div>
 
         <ul className="mt-5 space-y-3">
           <DocumentRow

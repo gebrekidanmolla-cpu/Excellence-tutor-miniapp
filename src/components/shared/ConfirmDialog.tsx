@@ -80,11 +80,15 @@ export function ConfirmDialog({
       <DialogTrigger render={trigger as React.ReactElement} />
 
       <DialogContent showCloseButton={!pending}>
-        <DialogHeader>
+        {/* Clear of the close button: a long title ("Delete <full name>?")
+            otherwise runs under it. */}
+        <DialogHeader className="pr-6">
           <DialogTitle>{title}</DialogTitle>
 
           {description ? (
-            <DialogDescription>{description}</DialogDescription>
+            // A <div>, not the default <p>: callers pass block content
+            // (paragraphs, lists), which is invalid inside a <p>.
+            <DialogDescription render={<div />}>{description}</DialogDescription>
           ) : null}
         </DialogHeader>
 

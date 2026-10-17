@@ -15,6 +15,29 @@ export type ApplicationStatus =
 export type JobStatus = "OPEN" | "CLOSED";
 
 /**
+ * How a closed job ended: `SUCCESSFUL` when it closed with a tutor
+ * assigned, `FAILED` when it closed without one. Derived, never stored —
+ * the assign transaction is the only way a job closes with a tutor, and
+ * closing without one rejects its applicants (`PATCH .../status`). An open
+ * job has no outcome yet. Admin-only: tutors and the channel see "Closed".
+ *
+ * Deleting a tutor unassigns them and leaves the job closed, so a job they
+ * had filled reads as failed from then on.
+ */
+export type JobOutcome = "SUCCESSFUL" | "FAILED";
+
+export function getJobOutcome(
+  status: JobStatus,
+  hasAssignedTutor: boolean
+): JobOutcome | null {
+  if (status !== "CLOSED") {
+    return null;
+  }
+
+  return hasAssignedTutor ? "SUCCESSFUL" : "FAILED";
+}
+
+/**
  * Whether a job's Telegram channel post is live. `PENDING` is shared
  * with `ApplicationStatus` and reads correctly for both: the post has
  * not gone out yet.
@@ -25,10 +48,22 @@ export type TelegramPostStatus =
   | "FAILED"
   | "DISABLED";
 
+/**
+ * Whether a job's row in the Google Sheet mirror is current. Shares
+ * `PENDING`, `FAILED` and `DISABLED` with `TelegramPostStatus`, but
+ * reads them differently — see `getSheetSyncLabel`.
+ */
+export type SheetSyncStatus =
+  | "PENDING"
+  | "SYNCED"
+  | "FAILED"
+  | "DISABLED";
+
 export type Status =
   | ApplicationStatus
   | JobStatus
-  | TelegramPostStatus;
+  | TelegramPostStatus
+  | SheetSyncStatus;
 
 const EM_DASH = "—";
 
@@ -121,10 +156,23 @@ const STATUS_LABELS: Record<Status, string> = {
   POSTED: "Posted",
   FAILED: "Post failed",
   DISABLED: "Not configured",
+  SYNCED: "Synced",
 };
 
 export function getStatusLabel(status: string): string {
   return STATUS_LABELS[status as Status] ?? formatEnum(status);
+}
+
+/** "Post failed" and "Pending" describe a Telegram post, not a sheet row. */
+const SHEET_SYNC_LABELS: Record<SheetSyncStatus, string> = {
+  PENDING: "Not synced",
+  SYNCED: "Synced",
+  FAILED: "Sync failed",
+  DISABLED: "Not configured",
+};
+
+export function getSheetSyncLabel(status: SheetSyncStatus): string {
+  return SHEET_SYNC_LABELS[status];
 }
 
 /** The tutor-facing label, which reads as a state rather than a keyword. */

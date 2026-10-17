@@ -19,21 +19,26 @@ import {
 } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-context";
+import { TUTOR_SUMMARY_SELECT, toTutorSummary } from "@/lib/admin-rows";
+import { getProfileShareLinkBase } from "@/lib/tutor-profile-server";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
-import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
 import { CopyButton } from "@/components/shared/CopyButton";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { JobStatusBadge, StatusBadge } from "@/components/shared/StatusBadge";
+import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
 import JobActions from "@/components/admin/JobActions";
-import JobPostPreview from "@/components/admin/JobPostPreview";
 import TelegramPostActions from "@/components/admin/TelegramPostActions";
+import SheetSyncButton from "@/components/admin/SheetSyncButton";
 import JobApplicants from "./JobApplicants";
 import {
   formatDate,
   formatDateTime,
   formatEnum,
   formatSalary,
+  getSheetSyncLabel,
 } from "@/lib/format";
+import { isSheetSyncConfigured } from "@/lib/google-sheets";
 import {
   buildChannelMessageUrl,
   isTelegramConfigured,
@@ -49,6 +54,8 @@ interface JobDetailsPageProps {
 export default async function JobDetailsPage({
   params,
 }: JobDetailsPageProps) {
+  await requireAdmin();
+
   const { id } = await params;
 
   const job = await prisma.job.findUnique({
@@ -81,20 +88,7 @@ export default async function JobDetailsPage({
           status: true,
           createdAt: true,
           tutor: {
-            select: {
-              id: true,
-              fullName: true,
-              phone: true,
-              gender: true,
-              tutorStatus: true,
-              university: true,
-              department: true,
-              currentGPA: true,
-              CGPA: true,
-              entranceScore: true,
-              entranceTotal: true,
-              entrancePercentage: true,
-            },
+            select: TUTOR_SUMMARY_SELECT,
           },
         },
       },
@@ -108,6 +102,7 @@ export default async function JobDetailsPage({
   const applicants = job.applications.map((application) => ({
     ...application,
     createdAt: application.createdAt.toISOString(),
+    tutor: toTutorSummary(application.tutor),
   }));
 
   const applicantCount = applicants.length;
@@ -116,20 +111,16 @@ export default async function JobDetailsPage({
     (applicant) => applicant.status === "PENDING"
   ).length;
 
-  const applyPath = `/apply/${job.jobCode}`;
-
-  /* Falls back to the path when the base URL is unset, rather than to the
-     `https://YOUR-DOMAIN.com` placeholder that `job-post.ts` still uses. */
-  const applyUrl = process.env.NEXT_PUBLIC_APP_URL
-    ? `${process.env.NEXT_PUBLIC_APP_URL}${applyPath}`
-    : applyPath;
-
   /* Server-only reads — both stay out of the client bundle. */
   const telegramConfigured = isTelegramConfigured();
+  const sheetConfigured = isSheetSyncConfigured();
 
-  const channelMessageUrl = job.telegramMessageId
-    ? await buildChannelMessageUrl(job.telegramMessageId)
-    : null;
+  const [channelMessageUrl, linkBase] = await Promise.all([
+    job.telegramMessageId
+      ? buildChannelMessageUrl(job.telegramMessageId)
+      : null,
+    getProfileShareLinkBase(),
+  ]);
 
   /* A localhost base URL is a dead link for a channel reader, so the
      post ships without its button. Say so rather than let it be a
@@ -145,10 +136,14 @@ export default async function JobDetailsPage({
         description={`Created ${formatDate(job.createdAt)}`}
         actions={
           <>
-            <StatusBadge status={job.status} size="lg" />
+            <JobStatusBadge
+              status={job.status}
+              hasAssignedTutor={Boolean(job.assignedTutorId)}
+              size="lg"
+            />
 
             <Button
-              render={<Link href={`/admin/jobs/${job.id}/edit`} />}
+              render={<Link href={`/admin/jobs/${job.id}/edit`} prefetch={false} />}
               variant="outline"
               size="xl"
             >
@@ -174,7 +169,19 @@ export default async function JobDetailsPage({
           />
           <InfoItem
             label="Parent phone"
-            value={job.parentPhone}
+            value={
+              job.parentPhone ? (
+                <CopyButton
+                  value={job.parentPhone}
+                  variant="ghost"
+                  size="sm"
+                  successMessage="Parent phone copied"
+                  className="-ml-2 font-medium"
+                >
+                  {job.parentPhone}
+                </CopyButton>
+              ) : undefined
+            }
             icon={<Phone />}
           />
         </InfoGrid>
@@ -217,8 +224,8 @@ export default async function JobDetailsPage({
             label="Applications"
             value={
               <Link
-                href="#applicants"
-                className="text-primary underline-offset-4 hover:underline"
+                href="#applicants" prefetch={false}
+                className="text-primary tap-target underline-offset-4 hover:underline"
               >
                 {applicantCount}
               </Link>
@@ -235,8 +242,8 @@ export default async function JobDetailsPage({
             value={
               job.assignedTutor ? (
                 <Link
-                  href={`/admin/tutors/${job.assignedTutor.id}`}
-                  className="text-primary underline-offset-4 hover:underline"
+                  href={`/admin/tutors/${job.assignedTutor.id}`} prefetch={false}
+                  className="text-primary tap-target underline-offset-4 hover:underline"
                 >
                   {job.assignedTutor.fullName}
                 </Link>
@@ -283,11 +290,16 @@ export default async function JobDetailsPage({
 
           {applicantCount > 0 ? (
             <Button
-              render={<Link href="/admin/applications" />}
+              render={
+                <Link
+                  href={`/admin/applications?q=${encodeURIComponent(job.jobCode)}`}
+                  prefetch={false}
+                />
+              }
               variant="ghost"
               size="sm"
             >
-              All applications
+              View in list
               <ArrowRight data-icon="inline-end" aria-hidden="true" />
             </Button>
           ) : null}
@@ -307,8 +319,9 @@ export default async function JobDetailsPage({
           </p>
         ) : job.status === "CLOSED" ? (
           <p className="mt-4 rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground text-pretty">
-            This job is closed, so its applications cannot be changed. Re-open
-            it below to pick a tutor from this pool.
+            This job closed without a tutor, so it is marked as failed and
+            its applicants were rejected. Re-open it below to put them back
+            to pending and pick a tutor from this pool.
           </p>
         ) : null}
 
@@ -318,6 +331,7 @@ export default async function JobDetailsPage({
             jobCode={job.jobCode}
             jobStatus={job.status}
             hasAssignedTutor={Boolean(job.assignedTutorId)}
+            linkBase={linkBase}
           />
         </div>
       </section>
@@ -384,7 +398,7 @@ export default async function JobDetailsPage({
         </InfoGrid>
 
         {telegramConfigured && !showsApplyButton ? (
-          <p className="mt-5 rounded-lg bg-warning/15 px-4 py-3 text-sm text-[color-mix(in_oklch,var(--warning),var(--foreground)_40%)]">
+          <p className="mt-5 rounded-lg bg-warning/15 px-4 py-3 text-sm text-warning-strong">
             Posts are going out without their <b>Apply Now</b> button:{" "}
             <code>NEXT_PUBLIC_APP_URL</code> is not a publicly reachable
             address, so the link would be dead for everyone reading the
@@ -393,7 +407,7 @@ export default async function JobDetailsPage({
         ) : null}
 
         {job.telegramPostStatus === "FAILED" && job.telegramPostError ? (
-          <p className="mt-5 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-[color-mix(in_oklch,var(--destructive),var(--foreground)_30%)]">
+          <p className="mt-5 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
             {job.telegramPostError}
           </p>
         ) : null}
@@ -408,43 +422,55 @@ export default async function JobDetailsPage({
       </section>
 
       {/* -----------------------------------------------------
-          TELEGRAM POST — manual copy, for posting anywhere else
-      ----------------------------------------------------- */}
-      <JobPostPreview
-        job={{
-          jobCode: job.jobCode,
-          gender: job.gender,
-          grade: job.grade,
-          subject: job.subject,
-          place: job.place,
-          salary: job.salary,
-        }}
-      />
-
-      {/* -----------------------------------------------------
-          APPLY LINK
+          GOOGLE SHEET MIRROR
       ----------------------------------------------------- */}
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
-        <h2 className="font-heading font-medium">Tutor application link</h2>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-heading font-medium">Google Sheet</h2>
 
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          The channel post links here on its own. This is the copy to
-          share anywhere else.
-        </p>
+            <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
+              {sheetConfigured
+                ? "The code, parent contact and assigned tutor are copied to the backup sheet whenever the job is created, edited, assigned or re-opened."
+                : "Sheet mirroring is switched off. Jobs still save normally."}
+            </p>
+          </div>
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-          <code className="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2.5 text-sm">
-            {applyUrl}
-          </code>
+          <StatusBadge
+            status={job.sheetSyncStatus}
+            label={getSheetSyncLabel(job.sheetSyncStatus)}
+            size="lg"
+          />
+        </div>
 
-          <CopyButton
-            value={applyUrl}
-            size="xl"
-            successMessage="Application link copied"
-            className="shrink-0"
-          >
-            Copy link
-          </CopyButton>
+        <InfoGrid className="mt-5" columns={3}>
+          <InfoItem
+            label="Last synced"
+            value={
+              job.sheetSyncedAt
+                ? formatDateTime(job.sheetSyncedAt)
+                : undefined
+            }
+            icon={<RefreshCw />}
+          />
+        </InfoGrid>
+
+        {job.sheetSyncStatus === "FAILED" && job.sheetSyncError ? (
+          <p className="mt-5 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
+            {job.sheetSyncError}
+          </p>
+        ) : null}
+
+        <div className="mt-5">
+          {sheetConfigured ? (
+            <SheetSyncButton jobId={job.id} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-pretty">
+              Set <code>GOOGLE_SHEETS_SPREADSHEET_ID</code> and the{" "}
+              <code>GOOGLE_WIF_*</code> variables to mirror jobs to the
+              sheet automatically.
+            </p>
+          )}
         </div>
       </section>
 
@@ -455,7 +481,8 @@ export default async function JobDetailsPage({
         <h2 className="font-heading font-medium">Job status</h2>
 
         <p className="mt-0.5 text-sm text-muted-foreground text-pretty">
-          Closing a job prevents it from accepting new applications.
+          Closing a job without assigning a tutor marks it as failed: it
+          stops accepting applications and every applicant is rejected.
           Re-opening clears the assigned tutor, puts every application back to
           pending and opens the job again — so you can still pick from the
           tutors who already applied, and new ones can apply too.

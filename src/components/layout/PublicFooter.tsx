@@ -1,55 +1,104 @@
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
 import { Wordmark } from "@/components/layout/Wordmark";
+import { IntentLink } from "@/components/shared/IntentLink";
 
 /**
- * Deliberately thin: the app has no social accounts, legal pages or partner
- * logos, so the footer links only to routes that actually exist.
+ * Links only to routes that actually exist; the app has no legal pages or
+ * social accounts. The Telegram link appears only when
+ * `NEXT_PUBLIC_TELEGRAM_CHANNEL_URL` is set.
  */
-export function PublicFooter() {
-  return (
-    <footer className="border-t bg-muted/30">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[minmax(0,1fr)_auto] md:gap-16 lg:px-8">
-        <div className="max-w-sm space-y-3">
-          <Wordmark />
+const COLUMNS = [
+  {
+    title: "For tutors",
+    links: [
+      { href: "/register", label: "Create a profile" },
+      { href: "/jobs", label: "Find jobs" },
+      { href: "/login", label: "Sign in" },
+      { href: "/forgot-password", label: "Reset password" },
+    ],
+  },
+  {
+    title: "Learn more",
+    links: [
+      { href: "/#how-it-works", label: "How it works" },
+      { href: "/#why-us", label: "Why tutors use it" },
+      { href: "/#faq", label: "Questions" },
+    ],
+  },
+];
 
-          <p className="text-sm text-muted-foreground text-pretty">
-            Excellence Tutor connects qualified tutors with families looking for
-            quality home tutoring.
-          </p>
+export function PublicFooter() {
+  const channelUrl = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL?.trim();
+
+  return (
+    <footer className="bg-paper">
+      <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
+        <div className="grid gap-12 py-16 sm:py-20 lg:grid-cols-12">
+          <div className="max-w-sm lg:col-span-5">
+            <Wordmark />
+            <p className="mt-5 text-sm leading-6 text-muted-foreground text-pretty">
+              Excellence Tutor connects qualified university students and
+              graduates with families across Ethiopia looking for quality home
+              tutoring.
+            </p>
+            {channelUrl ? (
+              <a
+                href={channelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group mt-6 inline-flex items-center gap-1.5 text-sm font-medium"
+              >
+                Follow new jobs on Telegram
+                <ArrowUpRight
+                  aria-hidden="true"
+                  className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                />
+              </a>
+            ) : null}
+          </div>
+
+          <nav
+            aria-label="Footer"
+            className="grid grid-cols-2 gap-10 lg:col-span-6 lg:col-start-7"
+          >
+            {COLUMNS.map((column) => (
+              <div key={column.title}>
+                <p className="text-xs font-semibold">{column.title}</p>
+                <ul className="mt-4 space-y-3 text-sm">
+                  {column.links.map((link) => {
+                    const className =
+                      "text-muted-foreground transition-colors hover:text-foreground";
+
+                    return (
+                      <li key={link.href}>
+                        {/* `/register` is heavy to prefetch; see IntentLink. */}
+                        {link.href === "/register" ? (
+                          <IntentLink href={link.href} className={className}>
+                            {link.label}
+                          </IntentLink>
+                        ) : (
+                          <Link
+                            href={link.href}
+                            prefetch={link.href === "/jobs" ? false : undefined}
+                            className={className}
+                          >
+                            {link.label}
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </nav>
         </div>
 
-        <nav className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm sm:gap-x-16">
-          <span className="col-span-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            For tutors
-          </span>
-
-          <Link
-            href="/jobs"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Find jobs
-          </Link>
-
-          <Link
-            href="/register"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Register
-          </Link>
-
-          <Link
-            href="/login"
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Log in
-          </Link>
-        </nav>
-      </div>
-
-      <div className="border-t">
-        <div className="mx-auto max-w-7xl px-4 py-5 text-xs text-muted-foreground sm:px-6 lg:px-8">
-          © {new Date().getFullYear()} Excellence Tutor. All rights reserved.
+        <div className="flex flex-col gap-2 border-t border-foreground/15 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} Excellence Tutor. All rights reserved.</p>
+          <p>Home tutoring across Ethiopia.</p>
         </div>
       </div>
     </footer>

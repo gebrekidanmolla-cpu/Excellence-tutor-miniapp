@@ -2,15 +2,15 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Info, Loader2, Save } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FormError } from "@/components/shared/ErrorState";
 import {
   SectionHeading,
   SelectField,
+  TextAreaField,
   TextField,
 } from "@/components/shared/FormFields";
 
@@ -25,7 +25,9 @@ interface EditJobFormProps {
     parentName: string;
     parentPhone: string;
     salary: number;
-    status: "OPEN" | "CLOSED";
+    daysPerWeek: number;
+    hoursPerDay: number;
+    additionalDetails: string | null;
   };
 }
 
@@ -33,11 +35,6 @@ const GENDER_OPTIONS = [
   { value: "FEMALE", label: "Female tutor" },
   { value: "MALE", label: "Male tutor" },
   { value: "ANY", label: "Any tutor" },
-];
-
-const STATUS_OPTIONS = [
-  { value: "OPEN", label: "Open" },
-  { value: "CLOSED", label: "Closed" },
 ];
 
 export default function EditJobForm({ job }: EditJobFormProps) {
@@ -50,7 +47,11 @@ export default function EditJobForm({ job }: EditJobFormProps) {
   const [parentName, setParentName] = useState(job.parentName);
   const [parentPhone, setParentPhone] = useState(job.parentPhone);
   const [salary, setSalary] = useState(String(job.salary));
-  const [status, setStatus] = useState<string>(job.status);
+  const [daysPerWeek, setDaysPerWeek] = useState(String(job.daysPerWeek));
+  const [hoursPerDay, setHoursPerDay] = useState(String(job.hoursPerDay));
+  const [additionalDetails, setAdditionalDetails] = useState(
+    job.additionalDetails ?? ""
+  );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -62,8 +63,6 @@ export default function EditJobForm({ job }: EditJobFormProps) {
     setIsSubmitting(true);
 
     try {
-      /* `PATCH /api/admin/jobs/[id]` accepts only these eight keys —
-         schedule and details cannot be edited without an API change. */
       const response = await fetch(`/api/admin/jobs/${job.id}`, {
         method: "PATCH",
         headers: {
@@ -77,7 +76,9 @@ export default function EditJobForm({ job }: EditJobFormProps) {
           parentName,
           parentPhone,
           salary,
-          status,
+          daysPerWeek,
+          hoursPerDay,
+          additionalDetails,
         }),
       });
 
@@ -116,15 +117,6 @@ export default function EditJobForm({ job }: EditJobFormProps) {
             onValueChange={setGender}
           />
 
-          <SelectField
-            id="status"
-            label="Status"
-            required
-            options={STATUS_OPTIONS}
-            value={status}
-            onValueChange={setStatus}
-          />
-
           <TextField
             id="grade"
             label="Grade"
@@ -150,16 +142,6 @@ export default function EditJobForm({ job }: EditJobFormProps) {
           />
 
           <TextField
-            id="salary"
-            label="Monthly salary (ETB)"
-            required
-            type="number"
-            min="0"
-            value={salary}
-            onChange={(event) => setSalary(event.target.value)}
-          />
-
-          <TextField
             id="parentName"
             label="Parent name"
             required
@@ -178,13 +160,65 @@ export default function EditJobForm({ job }: EditJobFormProps) {
           />
         </div>
 
-        <Alert className="mt-5">
-          <Info aria-hidden="true" />
-          <AlertDescription>
-            Days per week, hours per day and additional details are set when
-            the job is created and cannot be edited here.
-          </AlertDescription>
-        </Alert>
+      </section>
+
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <SectionHeading
+          title="Schedule and pay"
+          description="How often the tutor teaches, and what it pays."
+        />
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-3">
+          <TextField
+            id="daysPerWeek"
+            label="Days per week"
+            required
+            type="number"
+            min="1"
+            max="7"
+            value={daysPerWeek}
+            onChange={(event) => setDaysPerWeek(event.target.value)}
+          />
+
+          <TextField
+            id="hoursPerDay"
+            label="Hours per day"
+            required
+            type="number"
+            min="0"
+            step="0.5"
+            value={hoursPerDay}
+            onChange={(event) => setHoursPerDay(event.target.value)}
+          />
+
+          <TextField
+            id="salary"
+            label="Monthly salary (ETB)"
+            required
+            type="number"
+            min="0"
+            value={salary}
+            onChange={(event) => setSalary(event.target.value)}
+          />
+        </div>
+      </section>
+
+      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 sm:p-6">
+        <SectionHeading
+          title="Anything else"
+          description="Optional — shown on the job post and the channel listing."
+        />
+
+        <div className="mt-5">
+          <TextAreaField
+            id="additionalDetails"
+            label="Additional details"
+            rows={6}
+            maxLength={5000}
+            value={additionalDetails}
+            onChange={(event) => setAdditionalDetails(event.target.value)}
+          />
+        </div>
       </section>
 
       <FormError message={error} />

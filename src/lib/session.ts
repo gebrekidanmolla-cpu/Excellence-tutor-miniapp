@@ -1,13 +1,26 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { TUTOR_SESSION_COOKIE } from "@/lib/tutor-session-cookie";
 
-const SESSION_COOKIE_NAME = "tutor_session";
+const SESSION_COOKIE_NAME = TUTOR_SESSION_COOKIE;
 const SESSION_DURATION = 60 * 60 * 24 * 30; // 30 days
 
 interface SessionPayload {
   tutorId: string;
   expiresAt: number;
+  /**
+   * `Tutor.sessionVersion` when the cookie was issued. A password reset
+   * bumps the column, so every cookie issued before it stops matching —
+   * that is how a reset signs the tutor out on their other devices.
+   * Absent on cookies issued before the column existed, read as 0.
+   */
+  version?: number;
+}
+
+function payloadVersion(payload: SessionPayload): number {
+  return typeof payload.version === "number" ? payload.version : 0;
 }
 
 function getSessionSecret(): string {
@@ -118,10 +131,14 @@ function decodeSession(
 
 /**
  * Create a tutor authentication session.
+ *
+ * `sessionVersion` must be the tutor's current `Tutor.sessionVersion`;
+ * a cookie stamped with an older value is refused.
  */
-export async function createTutorSession(
-  tutorId: string
-): Promise<void> {
+export async function createTutorSession(tutor: {
+  id: string;
+  sessionVersion: number;
+}): Promise<void> {
   const cookieStore =
     await cookies();
 
@@ -131,8 +148,9 @@ export async function createTutorSession(
 
   const sessionValue =
     encodeSession({
-      tutorId,
+      tutorId: tutor.id,
       expiresAt,
+      version: tutor.sessionVersion,
     });
 
   cookieStore.set(
@@ -151,11 +169,11 @@ export async function createTutorSession(
 }
 
 /**
- * Get the currently authenticated tutor ID.
+ * The signed, unexpired cookie payload — not yet checked against the
+ * database, so never trust it on its own: the tutor may have been deleted,
+ * or signed out everywhere by a password reset.
  */
-export async function getTutorId(): Promise<
-  string | null
-> {
+async function readSession(): Promise<SessionPayload | null> {
   const cookieStore =
     await cookies();
 
@@ -168,38 +186,66 @@ export async function getTutorId(): Promise<
     return null;
   }
 
+  return decodeSession(
+    sessionCookie.value
+  );
+}
+
+/**
+ * Get the currently authenticated tutor ID.
+ *
+ * Checks the database, like `getCurrentTutor()`: a deleted account or a
+ * cookie from before the last password reset yields null.
+ */
+export async function getTutorId(): Promise<
+  string | null
+> {
   const session =
-    decodeSession(
-      sessionCookie.value
-    );
+    await readSession();
 
   if (!session) {
     return null;
   }
 
-  return session.tutorId;
+  const tutor =
+    await prisma.tutor.findUnique({
+      where: { id: session.tutorId },
+      select: { id: true, sessionVersion: true },
+    });
+
+  if (
+    !tutor ||
+    tutor.sessionVersion !== payloadVersion(session)
+  ) {
+    return null;
+  }
+
+  return tutor.id;
 }
 
 /**
  * Get the currently authenticated tutor.
  *
  * Use this from protected server pages
- * and server-side API routes.
+ * and server-side API routes. Memoized per request (React `cache`): the
+ * portal layout and the page both call it, and that should cost one query.
  */
-export async function getCurrentTutor() {
-  const tutorId =
-    await getTutorId();
+export const getCurrentTutor = cache(async () => {
+  const session =
+    await readSession();
 
-  if (!tutorId) {
+  if (!session) {
     return null;
   }
 
   const tutor =
     await prisma.tutor.findUnique({
       where: {
-        id: tutorId,
+        id: session.tutorId,
       },
       select: {
+        sessionVersion: true,
+
         id: true,
         fullName: true,
         email: true,
@@ -207,9 +253,14 @@ export async function getCurrentTutor() {
 
         gender: true,
 
+        country: true,
         city: true,
         subcity: true,
         exactPlace: true,
+        address2Country: true,
+        address2City: true,
+        address2Subcity: true,
+        address2ExactPlace: true,
 
         aboutMe: true,
 
@@ -235,6 +286,7 @@ export async function getCurrentTutor() {
         entranceResultUrl: true,
         graduationDocumentUrl: true,
         cvUrl: true,
+        profilePhotoUrl: true,
 
         telegramId: true,
 
@@ -244,15 +296,22 @@ export async function getCurrentTutor() {
     });
 
   /*
-   * If the account was deleted while
-   * the session still exists, return null.
+   * If the account was deleted while the session still exists, or the
+   * password was reset since this cookie was issued, return null.
    */
-  if (!tutor) {
+  if (
+    !tutor ||
+    tutor.sessionVersion !== payloadVersion(session)
+  ) {
     return null;
   }
 
-  return tutor;
-}
+  // Internal to the session check; pages have no use for it.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { sessionVersion, ...currentTutor } = tutor;
+
+  return currentTutor;
+});
 
 /**
  * Destroy the current tutor session.
@@ -264,20 +323,4 @@ export async function destroyTutorSession(): Promise<void> {
   cookieStore.delete(
     SESSION_COOKIE_NAME
   );
-}
-
-/**
- * Require an authenticated tutor.
- *
- * Useful for protected server pages.
- */
-export async function requireTutor() {
-  const tutor =
-    await getCurrentTutor();
-
-  if (!tutor) {
-    return null;
-  }
-
-  return tutor;
 }

@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { CopyButton } from "@/components/shared/CopyButton";
 import { DataTable, type DataTableColumn } from "@/components/shared/DataTable";
 import { ExpandableDisclosure } from "@/components/shared/ExpandableRow";
+import type { TutorSummary } from "@/lib/admin-rows";
 import { formatDate, formatDateTime, formatEnum } from "@/lib/format";
 import ApplicationRowActions from "../../applications/ApplicationRowActions";
 
@@ -13,20 +14,7 @@ export type JobApplicant = {
   id: string;
   status: "PENDING" | "REVIEWED" | "ACCEPTED" | "REJECTED";
   createdAt: string;
-  tutor: {
-    id: string;
-    fullName: string;
-    phone: string;
-    gender: "ANY" | "MALE" | "FEMALE";
-    tutorStatus: "STUDENT" | "GRADUATE";
-    university: string | null;
-    department: string | null;
-    currentGPA: number | null;
-    CGPA: number | null;
-    entranceScore: number;
-    entranceTotal: number;
-    entrancePercentage: number;
-  };
+  tutor: TutorSummary;
 };
 
 type Props = {
@@ -34,16 +22,12 @@ type Props = {
   jobCode: string;
   jobStatus: "OPEN" | "CLOSED";
   hasAssignedTutor: boolean;
+  /** From `getProfileShareLinkBase()`, for each row's parent-link button. */
+  linkBase: string;
 };
 
 function formatGPA(applicant: JobApplicant): string {
-  const { tutorStatus, currentGPA, CGPA } = applicant.tutor;
-
-  if (tutorStatus === "STUDENT") {
-    return currentGPA !== null ? currentGPA.toFixed(2) : "—";
-  }
-
-  return CGPA !== null ? CGPA.toFixed(2) : "—";
+  return applicant.tutor.gpa !== null ? applicant.tutor.gpa.toFixed(2) : "—";
 }
 
 /** The label/value pairs revealed by the row chevron. */
@@ -75,14 +59,16 @@ function DetailPanel({ applicant }: { applicant: JobApplicant }) {
       <div className="min-w-0">
         <dt className="text-xs text-muted-foreground">University</dt>
         <dd className="mt-0.5 font-medium break-words">
-          {tutor.university || "—"}
+          {tutor.institution || "—"}
         </dd>
       </div>
 
       <div className="min-w-0">
-        <dt className="text-xs text-muted-foreground">Department</dt>
+        <dt className="text-xs text-muted-foreground">
+          {tutor.tutorStatus === "STUDENT" ? "Department" : "Field"}
+        </dt>
         <dd className="mt-0.5 font-medium break-words">
-          {tutor.department || "—"}
+          {tutor.field || "—"}
         </dd>
       </div>
 
@@ -97,8 +83,8 @@ function DetailPanel({ applicant }: { applicant: JobApplicant }) {
         <dt className="text-xs text-muted-foreground">Tutor profile</dt>
         <dd className="mt-0.5">
           <Link
-            href={`/admin/tutors/${tutor.id}`}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            href={`/admin/tutors/${tutor.id}`} prefetch={false}
+            className="font-medium text-primary tap-target underline-offset-4 hover:underline"
           >
             Open profile
           </Link>
@@ -133,21 +119,23 @@ export default function JobApplicants({
   jobCode,
   jobStatus,
   hasAssignedTutor,
+  linkBase,
 }: Props) {
   /* Mirrors the guards in the assign route: it refuses a closed job, a job
      that already has a tutor, and an already-accepted application. */
   const canAssignToJob = jobStatus !== "CLOSED" && !hasAssignedTutor;
 
-  function rowActionsFor(applicant: JobApplicant) {
+  function rowActionsFor(applicant: JobApplicant, compact: boolean) {
     return (
       <ApplicationRowActions
         applicationId={applicant.id}
         status={applicant.status}
-        tutorName={applicant.tutor.fullName}
-        tutorPhone={applicant.tutor.phone}
+        tutor={applicant.tutor}
         jobCode={jobCode}
+        linkBase={linkBase}
         canAssign={canAssignToJob && applicant.status !== "ACCEPTED"}
         canChangeStatus={canAssignToJob}
+        compact={compact}
       />
     );
   }
@@ -161,8 +149,8 @@ export default function JobApplicants({
       cell: (applicant) => (
         <div className="min-w-0">
           <Link
-            href={`/admin/applications/${applicant.id}`}
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            href={`/admin/applications/${applicant.id}`} prefetch={false}
+            className="font-medium text-primary tap-target underline-offset-4 hover:underline"
           >
             {applicant.tutor.fullName}
           </Link>
@@ -197,11 +185,11 @@ export default function JobApplicants({
     },
     {
       id: "actions",
-      header: "",
+      header: <span className="sr-only">Actions</span>,
       hideOnMobile: true,
       headClassName: "w-px",
       cellClassName: "text-right",
-      cell: rowActionsFor,
+      cell: (applicant) => rowActionsFor(applicant, true),
     },
   ];
 
@@ -211,6 +199,7 @@ export default function JobApplicants({
       columns={columns}
       getRowKey={(applicant) => applicant.id}
       caption={`Applicants for ${jobCode}`}
+      breakpoint="xl"
       renderExpanded={(applicant) => <DetailPanel applicant={applicant} />}
       getExpandLabel={(applicant) =>
         `Show more details for ${applicant.tutor.fullName}`
@@ -220,8 +209,8 @@ export default function JobApplicants({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <Link
-                href={`/admin/applications/${applicant.id}`}
-                className="font-medium text-primary underline-offset-4 hover:underline"
+                href={`/admin/applications/${applicant.id}`} prefetch={false}
+                className="font-medium text-primary tap-target underline-offset-4 hover:underline"
               >
                 {applicant.tutor.fullName}
               </Link>
@@ -258,7 +247,9 @@ export default function JobApplicants({
             <DetailPanel applicant={applicant} />
           </ExpandableDisclosure>
 
-          <div className="border-t pt-3">{rowActionsFor(applicant)}</div>
+          <div className="border-t pt-3">
+            {rowActionsFor(applicant, false)}
+          </div>
         </div>
       )}
       empty={
