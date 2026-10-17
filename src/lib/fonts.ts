@@ -1,4 +1,4 @@
-import { Fraunces } from "next/font/google";
+import { Fraunces, Noto_Serif_Ethiopic } from "next/font/google";
 
 /**
  * Display face for headlines. Fraunces is variable: `opsz` lets large
@@ -7,12 +7,13 @@ import { Fraunces } from "next/font/google";
  *
  * Declared here rather than in the root layout, which preloaded it on every
  * page: next/font preloads a font only on the routes whose modules import
- * it. Just three pages use it — the landing page, the tutor dashboard and
- * the parent-facing tutor profile — and its two files (~265 KB) were most of
- * what a job page downloaded, on the phones and connections tutors arrive
- * from Telegram with. Each of those pages puts `fraunces.variable` on the
- * element wrapping its `font-display` / `font-serif` text; anywhere else
- * those utilities fall back to the system serif.
+ * it. Just four pages use it — the landing page, the tutor dashboard, the
+ * parent-facing tutor profile and `/legal` — and its two files (~265 KB)
+ * were most of what a job page downloaded, on the phones and connections
+ * tutors arrive from Telegram with. Each of those pages puts
+ * `fraunces.variable` on the element wrapping its `font-display` /
+ * `font-serif` text; anywhere else those utilities fall back to the system
+ * serif.
  *
  * It stays preloaded on those pages: measured without the preload, the
  * landing page's first paint got slower, because the browser found the font
@@ -24,5 +25,19 @@ export const fraunces = Fraunces({
   subsets: ["latin"],
   style: ["normal", "italic"],
   axes: ["opsz", "SOFT"],
+  display: "swap",
+});
+
+/**
+ * Ge'ez script, for the landing page's section numerals and the Amharic
+ * certificate titles on `/legal`. Geist has no Ethiopic glyphs, and the
+ * system fallback differs on every phone. It is not preloaded:
+ * `unicode-range` means the browser fetches the file only once an Ethiopic
+ * glyph is actually on screen. Applied with `ethiopic.className`.
+ */
+export const ethiopic = Noto_Serif_Ethiopic({
+  subsets: ["ethiopic"],
+  weight: "400",
+  preload: false,
   display: "swap",
 });

@@ -11,8 +11,9 @@ import { SITE_URL } from "@/lib/site";
  * every public page links to it, and Google lists a blocked URL it keeps
  * finding links to anyway — as a bare "No information is available for
  * this page" result under the brand name. Left crawlable, it answers with
- * its redirect to `/login`, and Google drops it. `/forgot-password` is
- * crawlable for the same reason and carries `noindex` instead.
+ * its redirect to `/login`, and Google drops it. `/legal` (signed-in-only,
+ * linked from the footer) is left crawlable for the same reason, and
+ * `/forgot-password` too, which carries `noindex` instead.
  */
 export default function robots(): MetadataRoute.Robots {
   return {

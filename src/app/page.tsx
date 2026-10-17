@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Noto_Serif_Ethiopic } from "next/font/google";
 import { ArrowRight, ArrowUpRight, Send } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
@@ -8,7 +7,7 @@ import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { IntentLink } from "@/components/shared/IntentLink";
 import { JsonLd } from "@/components/shared/JsonLd";
-import { fraunces } from "@/lib/fonts";
+import { ethiopic, fraunces } from "@/lib/fonts";
 import {
   SITE_ALTERNATE_NAME,
   SITE_DESCRIPTION,
@@ -27,16 +26,6 @@ import styles from "./page.module.css";
 // Rebuilt when a job changes (`refreshPublicJobPages`); the hour is only a
 // backstop for edits made outside the app, e.g. in Prisma Studio.
 export const revalidate = 3600;
-
-/* Only the Ge'ez numerals that mark each section use this face. It is not
-   preloaded: `unicode-range` means the browser fetches the Ethiopic file
-   only once one of those glyphs is actually on screen. */
-const ethiopic = Noto_Serif_Ethiopic({
-  subsets: ["ethiopic"],
-  weight: "400",
-  preload: false,
-  display: "swap",
-});
 
 async function getLiveJobs() {
   const [jobs, openCount, latestPost] = await Promise.all([
