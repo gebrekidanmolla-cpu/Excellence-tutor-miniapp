@@ -24,6 +24,7 @@ import { IntentLink } from "@/components/shared/IntentLink";
 import { JsonLd } from "@/components/shared/JsonLd";
 import ApplicationForm from "@/components/forms/ApplicationForm";
 import { formatDate, formatSalary } from "@/lib/format";
+import { ApplyNote } from "./ApplyNote";
 import { jobPostingJsonLd, type ApplyJob } from "./apply-job";
 
 /** `ANY` reads as "Male/Female Tutor" rather than the raw enum. */
@@ -270,7 +271,10 @@ export function JobApplyView({
                   </div>
                 </div>
               ) : (
-                <ApplicationForm jobCode={job.jobCode} />
+                <div className="space-y-5">
+                  <ApplyNote salary={job.salary} />
+                  <ApplicationForm jobCode={job.jobCode} />
+                </div>
               )}
             </div>
           </div>
