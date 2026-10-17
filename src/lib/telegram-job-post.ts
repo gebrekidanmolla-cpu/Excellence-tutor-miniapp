@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   editChannelMessageText,
+  isInConfiguredChannel,
   isTelegramConfigured,
   sendChannelMessage,
   TelegramApiError,
@@ -68,6 +69,7 @@ const JOB_SELECT = {
   hoursPerDay: true,
   additionalDetails: true,
   status: true,
+  telegramChatId: true,
   telegramMessageId: true,
   telegramPostHash: true,
   telegramPostStatus: true,
@@ -166,12 +168,14 @@ export async function syncJobTelegramPost(
   // a `where` that restates the precondition, so only one of two
   // concurrent requests can match. The `telegramMessageId` term is a
   // compare-and-swap — two requests that both see "unpublished" race
-  // here, and exactly one of them wins the right to send.
+  // here, and exactly one of them wins the right to send. It compares
+  // against the row as read, not `existingMessageId`: a repost has
+  // already set that to null, and would never match its own row.
 
   const claim = await prisma.job.updateMany({
     where: {
       id: job.id,
-      telegramMessageId: existingMessageId,
+      telegramMessageId: job.telegramMessageId,
 
       OR: [
         { telegramLockedAt: null },
@@ -238,6 +242,34 @@ export async function syncJobTelegramPost(
     // ---------------------------------------------------
     // Edit
     // ---------------------------------------------------
+    //
+    // Only in the channel this job was posted to. Pointed at any other
+    // channel, the stored message id is some unrelated post — an old
+    // `#E016` instead of this job — and Telegram would let the edit
+    // overwrite it.
+
+    const inChannel = await isInConfiguredChannel(job.telegramChatId);
+
+    if (inChannel !== true) {
+      const message =
+        inChannel === false
+          ? `Not edited: job ${job.jobCode} was posted to a different Telegram channel, so message ${existingMessageId} in this one is another post. Use "Re-post as new" to publish it here.`
+          : "Not edited: Telegram couldn't confirm that this job's post is in the configured channel. Try again.";
+
+      await prisma.job.update({
+        where: { id: job.id },
+        data: {
+          telegramPostStatus: "FAILED",
+          telegramPostError: message,
+          telegramLockedAt: null,
+        },
+      });
+
+      return {
+        status: "FAILED",
+        message,
+      };
+    }
 
     try {
       await editChannelMessageText(

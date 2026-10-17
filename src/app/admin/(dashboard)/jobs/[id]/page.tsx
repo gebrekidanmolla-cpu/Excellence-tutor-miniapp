@@ -117,7 +117,10 @@ export default async function JobDetailsPage({
 
   const [channelMessageUrl, linkBase] = await Promise.all([
     job.telegramMessageId
-      ? buildChannelMessageUrl(job.telegramMessageId)
+      ? buildChannelMessageUrl(
+          job.telegramMessageId,
+          job.telegramChatId
+        )
       : null,
     getProfileShareLinkBase(),
   ]);

@@ -9,6 +9,7 @@ import {
 } from "@/lib/job-sheet-sync";
 import {
   deleteChannelMessage,
+  isInConfiguredChannel,
   isTelegramConfigured,
 } from "@/lib/telegram";
 
@@ -428,6 +429,7 @@ export async function DELETE(
         select: {
           id: true,
           jobCode: true,
+          telegramChatId: true,
           telegramMessageId: true,
 
           _count: {
@@ -471,6 +473,9 @@ export async function DELETE(
     // so when this fails the response says so plainly rather than
     // reporting a clean delete — the admin has to remove it by hand.
     //
+    // Only in the channel the job was posted to: anywhere else the
+    // same message id is an unrelated post, which this would delete.
+    //
     // =====================================================
 
     let channelPostRemoved = true;
@@ -480,6 +485,14 @@ export async function DELETE(
       isTelegramConfigured()
     ) {
       try {
+        if (
+          (await isInConfiguredChannel(job.telegramChatId)) !== true
+        ) {
+          throw new Error(
+            "The post is not confirmed to be in the configured channel."
+          );
+        }
+
         await deleteChannelMessage({
           messageId: job.telegramMessageId,
         });
