@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  BriefcaseBusiness,
   CalendarDays,
   CheckCircle2,
   GraduationCap,
@@ -18,12 +19,21 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import {
+  StatusBadge,
+  TutorApplicationBadge,
+} from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
 import { IntentLink } from "@/components/shared/IntentLink";
 import { JsonLd } from "@/components/shared/JsonLd";
 import ApplicationForm from "@/components/forms/ApplicationForm";
-import { formatDate, formatSalary } from "@/lib/format";
+import {
+  formatDate,
+  formatSalary,
+  getTutorApplicationDescription,
+  getTutorApplicationState,
+  isNotChosenState,
+} from "@/lib/format";
 import { ApplyNote } from "./ApplyNote";
 import { jobPostingJsonLd, type ApplyJob } from "./apply-job";
 
@@ -62,6 +72,16 @@ export function JobApplyView({
 
   /* Signing in or registering from here comes back to this job. */
   const returnTo = encodeURIComponent(`/apply/${job.jobCode}`);
+
+  /* Taken, Job closed or Not selected when the application was turned down;
+     null otherwise. */
+  const applicationState = existingApplication
+    ? getTutorApplicationState(existingApplication.status, job)
+    : null;
+  const notChosenState =
+    applicationState && isNotChosenState(applicationState)
+      ? applicationState
+      : null;
 
   return (
     <>
@@ -213,6 +233,41 @@ export function JobApplyView({
                     </Button>
                   </div>
                 </div>
+              ) : existingApplication && notChosenState ? (
+                /* Turned down: say what became of the job, kindly, and point
+                   at the open ones rather than back at this one. */
+                <div className="flex items-start gap-4">
+                  <span
+                    aria-hidden="true"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                  >
+                    <BriefcaseBusiness className="size-5" />
+                  </span>
+
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-heading font-medium">
+                        You applied for this job
+                      </h2>
+                      <TutorApplicationBadge
+                        status={existingApplication.status}
+                        job={job}
+                      />
+                    </div>
+
+                    <p className="text-sm text-muted-foreground text-pretty">
+                      {getTutorApplicationDescription(notChosenState)}
+                    </p>
+
+                    <Button
+                      render={<Link href="/jobs" prefetch={false} />}
+                      size="lg"
+                    >
+                      Browse open jobs
+                      <ArrowRight data-icon="inline-end" aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
               ) : existingApplication ? (
                 <div className="flex items-start gap-4">
                   <span
@@ -229,7 +284,10 @@ export function JobApplyView({
 
                     <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                       Your application is currently
-                      <StatusBadge status={existingApplication.status} />
+                      <TutorApplicationBadge
+                        status={existingApplication.status}
+                        job={job}
+                      />
                     </p>
 
                     <Button

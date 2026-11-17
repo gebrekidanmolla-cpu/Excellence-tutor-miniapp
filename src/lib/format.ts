@@ -175,32 +175,80 @@ export function getSheetSyncLabel(status: SheetSyncStatus): string {
   return SHEET_SYNC_LABELS[status];
 }
 
-/** The tutor-facing label, which reads as a state rather than a keyword. */
-const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
-  PENDING: "Pending Review",
-  REVIEWED: "Reviewed",
-  ACCEPTED: "Accepted",
-  REJECTED: "Rejected",
-};
+/**
+ * What a tutor is shown for their own application.
+ *
+ * Tutors never see "Rejected". The word read as a verdict on them, and
+ * tutors who saw it stopped applying. A `REJECTED` application is shown by
+ * what happened to the job instead. Like `getJobOutcome`, this is derived and
+ * never stored, so the enum keeps its name:
+ *
+ * - `TAKEN`: the job went to another tutor (the assign transaction).
+ * - `JOB_CLOSED`: the job closed with nobody assigned. That is a failed job,
+ *   or one whose tutor was deleted.
+ * - `NOT_SELECTED`: an admin turned this one application down while the job
+ *   stayed open. `PATCH /api/admin/applications/[id]` allows that only on an
+ *   open, unassigned job, so an open job means this case.
+ *
+ * Admin views keep "Rejected", which is the accurate word for the team.
+ */
+export type TutorApplicationState =
+  | Exclude<ApplicationStatus, "REJECTED">
+  | "TAKEN"
+  | "JOB_CLOSED"
+  | "NOT_SELECTED";
 
-export function getApplicationStatusLabel(status: string): string {
+export function getTutorApplicationState(
+  status: ApplicationStatus,
+  job: { status: JobStatus; assignedTutorId: string | null }
+): TutorApplicationState {
+  if (status !== "REJECTED") {
+    return status;
+  }
+
+  if (job.status === "OPEN") {
+    return "NOT_SELECTED";
+  }
+
+  return job.assignedTutorId ? "TAKEN" : "JOB_CLOSED";
+}
+
+/** Whether the state is one of the three a `REJECTED` application shows. */
+export function isNotChosenState(
+  state: TutorApplicationState
+): state is "TAKEN" | "JOB_CLOSED" | "NOT_SELECTED" {
   return (
-    APPLICATION_STATUS_LABELS[status as ApplicationStatus] ??
-    formatEnum(status)
+    state === "TAKEN" || state === "JOB_CLOSED" || state === "NOT_SELECTED"
   );
 }
 
-const APPLICATION_STATUS_DESCRIPTIONS: Record<ApplicationStatus, string> = {
+/** The tutor-facing label, which reads as a state rather than a keyword. */
+const TUTOR_APPLICATION_LABELS: Record<TutorApplicationState, string> = {
+  PENDING: "Pending Review",
+  REVIEWED: "Reviewed",
+  ACCEPTED: "Accepted",
+  TAKEN: "Taken",
+  JOB_CLOSED: "Job closed",
+  NOT_SELECTED: "Not selected",
+};
+
+export function getTutorApplicationLabel(state: TutorApplicationState): string {
+  return TUTOR_APPLICATION_LABELS[state];
+}
+
+/** The "not this time" lines stay short, and each ends by pointing at the next job. */
+const TUTOR_APPLICATION_DESCRIPTIONS: Record<TutorApplicationState, string> = {
   PENDING:
     "Your application has been submitted and is waiting for review by the Excellence Tutor team.",
   REVIEWED: "Your application has been reviewed by the Excellence Tutor team.",
   ACCEPTED: "Congratulations! Your application has been accepted.",
-  REJECTED: "Your application was not selected for this tutoring job.",
+  TAKEN: "Another tutor got this one. Keep applying!",
+  JOB_CLOSED: "This job is closed. Keep applying!",
+  NOT_SELECTED: "Not this time. Keep applying!",
 };
 
-export function getApplicationStatusDescription(status: string): string {
-  return (
-    APPLICATION_STATUS_DESCRIPTIONS[status as ApplicationStatus] ??
-    "Your application status has been updated."
-  );
+export function getTutorApplicationDescription(
+  state: TutorApplicationState
+): string {
+  return TUTOR_APPLICATION_DESCRIPTIONS[state];
 }

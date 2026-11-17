@@ -19,14 +19,19 @@ import { getCurrentTutor } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import {
+  StatusBadge,
+  TutorApplicationBadge,
+} from "@/components/shared/StatusBadge";
 import { InfoGrid, InfoItem } from "@/components/shared/InfoGrid";
 import {
   formatDate,
   formatEnum,
   formatSalary,
-  getApplicationStatusDescription,
-  getApplicationStatusLabel,
+  getTutorApplicationDescription,
+  getTutorApplicationLabel,
+  getTutorApplicationState,
+  type TutorApplicationState,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -43,11 +48,14 @@ function formatTutorRequirement(gender: "MALE" | "FEMALE" | "ANY"): string {
   return "Male/Female Tutor";
 }
 
-const STATUS_DOT: Record<string, string> = {
+/** Matches `TutorApplicationBadge`: no red for a job that went elsewhere. */
+const STATUS_DOT: Record<TutorApplicationState, string> = {
   ACCEPTED: "bg-success",
-  REJECTED: "bg-destructive",
   REVIEWED: "bg-info",
   PENDING: "bg-warning",
+  TAKEN: "bg-muted-foreground/60",
+  JOB_CLOSED: "bg-muted-foreground/60",
+  NOT_SELECTED: "bg-muted-foreground/60",
 };
 
 export default async function ApplicationDetailsPage({ params }: PageProps) {
@@ -112,6 +120,8 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
   const parentName = application.job.parentName.trim();
   const parentPhone = application.job.parentPhone.trim();
 
+  const state = getTutorApplicationState(application.status, application.job);
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
@@ -126,7 +136,13 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
             </span>
           </>
         }
-        actions={<StatusBadge status={application.status} size="lg" />}
+        actions={
+          <TutorApplicationBadge
+            status={application.status}
+            job={application.job}
+            size="lg"
+          />
+        }
       />
 
       {/* -----------------------------------------------------
@@ -224,17 +240,15 @@ export default async function ApplicationDetailsPage({ params }: PageProps) {
             aria-hidden="true"
             className={cn(
               "mt-1.5 size-2.5 shrink-0 rounded-full",
-              STATUS_DOT[application.status] ?? "bg-muted-foreground"
+              STATUS_DOT[state]
             )}
           />
 
           <div>
-            <p className="font-medium">
-              {getApplicationStatusLabel(application.status)}
-            </p>
+            <p className="font-medium">{getTutorApplicationLabel(state)}</p>
 
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground text-pretty">
-              {getApplicationStatusDescription(application.status)}
+              {getTutorApplicationDescription(state)}
             </p>
           </div>
         </div>

@@ -3,6 +3,10 @@ import { cn } from "@/lib/utils";
 import {
   getJobOutcome,
   getStatusLabel,
+  getTutorApplicationLabel,
+  getTutorApplicationState,
+  isNotChosenState,
+  type ApplicationStatus,
   type JobStatus,
   type Status,
 } from "@/lib/format";
@@ -114,6 +118,40 @@ export function JobStatusBadge({
       <StatusBadge
         status="REJECTED"
         label="Failed"
+        size={size}
+        className={className}
+      />
+    );
+  }
+
+  return <StatusBadge status={status} size={size} className={className} />;
+}
+
+/**
+ * A tutor's own application, in every tutor-facing view. A `REJECTED` one
+ * reads as Taken, Job closed or Not selected (see
+ * `getTutorApplicationState`) in the neutral tone that `CLOSED` uses,
+ * because a red badge read as a failure. Admin views use `StatusBadge`,
+ * which still says "Rejected".
+ */
+export function TutorApplicationBadge({
+  status,
+  job,
+  size,
+  className,
+}: {
+  status: ApplicationStatus;
+  job: { status: JobStatus; assignedTutorId: string | null };
+  size?: "default" | "lg";
+  className?: string;
+}) {
+  const state = getTutorApplicationState(status, job);
+
+  if (isNotChosenState(state)) {
+    return (
+      <StatusBadge
+        status="CLOSED"
+        label={getTutorApplicationLabel(state)}
         size={size}
         className={className}
       />

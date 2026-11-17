@@ -21,7 +21,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getCurrentTutor } from "@/lib/session";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { TutorApplicationBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
 import { fraunces } from "@/lib/fonts";
@@ -32,16 +32,21 @@ import {
   formatDate,
   formatEnum,
   formatSalary,
-  getStatusLabel,
   type ApplicationStatus,
 } from "@/lib/format";
 
-/** Pipeline order and colors, shared by the segmented bar and its legend. */
-const PIPELINE: { status: ApplicationStatus; bar: string }[] = [
-  { status: "PENDING", bar: "bg-warning" },
-  { status: "REVIEWED", bar: "bg-info" },
-  { status: "ACCEPTED", bar: "bg-success" },
-  { status: "REJECTED", bar: "bg-muted-foreground/40" },
+/**
+ * Pipeline order, colors and legend labels, shared by the segmented bar and
+ * its legend. `REJECTED` covers jobs that went to another tutor, closed
+ * unfilled, or turned this tutor down, so its bucket says "Closed", which is
+ * true of all three. Tutors never see "Rejected" (see
+ * `getTutorApplicationState`).
+ */
+const PIPELINE: { status: ApplicationStatus; label: string; bar: string }[] = [
+  { status: "PENDING", label: "Pending", bar: "bg-warning" },
+  { status: "REVIEWED", label: "Reviewed", bar: "bg-info" },
+  { status: "ACCEPTED", label: "Accepted", bar: "bg-success" },
+  { status: "REJECTED", label: "Closed", bar: "bg-muted-foreground/40" },
 ];
 
 export default async function TutorDashboard() {
@@ -75,6 +80,8 @@ export default async function TutorDashboard() {
               grade: true,
               subject: true,
               salary: true,
+              status: true,
+              assignedTutorId: true,
             },
           },
         },
@@ -249,15 +256,13 @@ export default async function TutorDashboard() {
           </div>
 
           <dl className="mt-5 grid flex-1 grid-cols-2 content-end gap-x-4 gap-y-3">
-            {PIPELINE.map(({ status, bar }) => (
+            {PIPELINE.map(({ status, label, bar }) => (
               <div key={status} className="flex items-center gap-2 text-sm">
                 <span
                   aria-hidden="true"
                   className={cn("size-2 shrink-0 rounded-full", bar)}
                 />
-                <dt className="truncate text-muted-foreground">
-                  {getStatusLabel(status)}
-                </dt>
+                <dt className="truncate text-muted-foreground">{label}</dt>
                 <dd className="ml-auto font-semibold tabular-nums">
                   {countOf(status)}
                 </dd>
@@ -378,7 +383,11 @@ export default async function TutorDashboard() {
                       </p>
                     </div>
 
-                    <StatusBadge status={application.status} className="shrink-0" />
+                    <TutorApplicationBadge
+                      status={application.status}
+                      job={application.job}
+                      className="shrink-0"
+                    />
 
                     <ArrowRight
                       aria-hidden="true"

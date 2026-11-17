@@ -15,7 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentTutor } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { TutorApplicationBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { formatDate, formatSalary } from "@/lib/format";
 
@@ -54,6 +54,7 @@ export default async function MyApplicationsPage() {
           place: true,
           salary: true,
           status: true,
+          assignedTutorId: true,
         },
       },
     },
@@ -103,9 +104,15 @@ export default async function MyApplicationsPage() {
                       {application.job.jobCode}
                     </span>
 
-                    <StatusBadge status={application.status} />
+                    <TutorApplicationBadge
+                      status={application.status}
+                      job={application.job}
+                    />
 
-                    {application.job.status === "CLOSED" ? (
+                    {/* A `REJECTED` application's badge already says what
+                        became of the job (Taken, Job closed). */}
+                    {application.job.status === "CLOSED" &&
+                    application.status !== "REJECTED" ? (
                       <span className="text-xs text-muted-foreground">
                         Job closed
                       </span>
