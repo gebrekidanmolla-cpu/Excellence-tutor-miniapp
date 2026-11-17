@@ -147,7 +147,7 @@ export default function StatusActions({
           </Button>
         }
         title="Reject this application?"
-        description="The tutor will see this application as rejected. Other applications for this job are unaffected, and re-opening the job puts this one back to pending."
+        description="The tutor will see this application as “Not selected”, with a note encouraging them to keep applying. Other applications for this job are unaffected, and re-opening the job puts this one back to pending."
         confirmLabel="Reject application"
         variant="destructive"
         onConfirm={() => updateStatus("REJECTED")}

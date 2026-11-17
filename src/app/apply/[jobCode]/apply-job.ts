@@ -21,6 +21,9 @@ export const APPLY_JOB_SELECT = {
   place: true,
   salary: true,
   status: true,
+  // Only to tell a tutor whose application was turned down whether the job
+  // went to someone else (`getTutorApplicationState`). Never rendered.
+  assignedTutorId: true,
   additionalDetails: true,
   createdAt: true,
 } satisfies Prisma.JobSelect;
